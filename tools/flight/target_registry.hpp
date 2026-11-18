@@ -542,6 +542,18 @@ public:
    if(r.latest.has_position&&now>=r.last&&now-r.last<=current_ttl&&(!best||r.last>best->last))best=&r;}return best;
  }
  bool groupConfirmed(const TargetKey&k)const{for(const auto&i:component(k))if(records.at(i).confirmed)return true;return false;}
+ // A static person's qualified map position survives the live observation lease.
+ // Resolve aliases on each update so an unrelated surface cannot finish the review.
+ const TargetRecord* pendingDepthReview()const{
+  for(const auto& [key,record]:records){
+   if(key.robot!=self||!record.confirmed||record.has_anchor)continue;
+   const auto members=component(key);
+   if(std::none_of(members.begin(),members.end(),[&](const TargetKey& member){
+     return records.at(member).has_anchor;
+   }))return &record;
+  }
+  return nullptr;
+ }
  double firstDiscovery(const TargetKey&k)const{
   double first=INFINITY;for(const auto&i:component(k))first=std::min(first,records.at(i).first);return first;
  }

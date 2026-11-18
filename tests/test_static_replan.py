@@ -125,9 +125,11 @@ def test_generated_event_path_preserves_original_execution_gates(tmp_path):
     assert callback.index('feedback_stamp_ > 0.5')<callback.index('if(taskStaticEventTick())return;')
     assert callback.index('if(taskReturnTick())return;')<callback.index('if(taskStaticEventTick())return;')
     planning=callback.split('case PLAN_TRAJ:')[1].split('case PUB_TRAJ:')[0]
+    assert planning.index('task_depth_review_pending_') < planning.index('int res = callExplorationPlanner();')
     assert planning.index('if(task_stop_and_plan_ && live_execution_ && executed_id_>=0 && !executed_done_ && !task_c2_requested) return;')<planning.index('int res = callExplorationPlanner();')
     assert 'start(now,task_static_monitor_.reservedSources(),task_review_scheduling_priority_?' in fsm
     publishing=callback.split('case PUB_TRAJ:')[1].split('case EXEC_TRAJ:')[0]
+    assert publishing.index('!live_sent_&&task_depth_exploration_proposal_') < publishing.index('bspline_pub_.publish(')
     assert publishing.count('curve.getTimeSum()') == 1
     assert publishing.count('taskStaticMapRevision()') == 1
     assert 'current(executed_id_,executed_progress_,publish_now,feedback_stamp_,publish_map)' in publishing
@@ -174,6 +176,7 @@ struct Data {Eigen::Vector3d odom_pos_,odom_vel_;double odom_yaw_=0;
 struct Goals {Eigen::Vector3d next_pos_;double next_yaw_=0;};
 struct Planner {int local_data_=123;};
 struct Manager {racer_task::StaticGuidanceEvents task_static_events_;
+ bool task_depth_review_pending_=false;
  std::optional<racer_task::StaticGuidanceEvents::Work> task_static_evaluation_;
  std::shared_ptr<Goals> ed_=std::make_shared<Goals>();
  racer_task::BearingBias task_bearing_policy_;bool task_bearing_preview_=false;
@@ -211,6 +214,9 @@ void seed(FastExplorationFSM& f,TargetRegistry&r){TargetObservation o;o.key={"ua
  f.expl_manager_->task_static_events_.sync(r,1.4);f.task_static_gate_.min_interval_s=.5;
  f.task_static_budget_={100.,10.,1.,10000.,100.,10.,"host-fixture",0.};}
 int main(){FastExplorationFSM f;TargetRegistry r;seed(f,r);
+ f.expl_manager_->task_depth_review_pending_=true;
+ assert(!f.taskStaticEventTick()&&f.expl_manager_->previews==0);
+ f.expl_manager_->task_depth_review_pending_=false;
  f.expl_manager_->ed_->next_pos_=Eigen::Vector3d(1,2,3);f.expl_manager_->ed_->next_yaw_=.4;
  assert(f.taskStaticEventTick());assert(f.state_==f.PLAN_TRAJ&&!f.executed_done_);
  assert(f.expl_manager_->previews==1&&f.task_static_work_);
@@ -226,6 +232,10 @@ int main(){FastExplorationFSM f;TargetRegistry r;seed(f,r);
  FastExplorationFSM deferred;TargetRegistry dr;seed(deferred,dr);assert(deferred.taskStaticEventTick());
  deferred.task_review_pending_=true;assert(deferred.taskStaticEventTick());
  assert(!deferred.task_static_work_&&deferred.expl_manager_->task_static_events_.stats().pending==1);
+ FastExplorationFSM depth;TargetRegistry other;seed(depth,other);assert(depth.taskStaticEventTick());
+ depth.expl_manager_->task_depth_review_pending_=true;
+ assert(depth.taskStaticEventTick()&&!depth.task_static_work_);
+ assert(depth.expl_manager_->task_static_events_.stats().pending==1);
  FastExplorationFSM collision;TargetRegistry cr;seed(collision,cr);assert(collision.taskStaticEventTick());
  collision.fd_->avoid_collision_=true;collision.expl_manager_->ed_->next_pos_.x=9;
  assert(collision.taskStaticEventTick());

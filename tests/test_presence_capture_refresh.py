@@ -1,21 +1,21 @@
 """Inputs delivered during inference are consumed without waiting for a new callback."""
 from copy import copy
 from types import SimpleNamespace as N,ModuleType
-import sys,threading
+import json,sys,threading
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/"src"),str(ROOT/"src/annual_planner/src")]
 import numpy as np
 import pytest
 from annual_runtime.pose_history import PoseHistory
-from person_search.presence import PresenceTracker
+from person_search.presence import PresenceTracker,association_view
 from person_search.registry_evidence import RegistryEvidence
 from person_search.segmentation import PersonMask
 from person_search import surface
 from person_search import presence_adapter as adapter
 from test_surface_components import sample,K,T
 
-@pytest.mark.parametrize('delivery',['same_capture','slow_trace','absent','future_capture','no_pose','evicted_capture'])
+@pytest.mark.parametrize('delivery',['same_capture','confirmation','slow_trace','absent','future_capture','no_pose','evicted_capture'])
 def test_process_uses_only_already_delivered_registered_capture_without_waiting(monkeypatch,delivery):
     fake=ModuleType('rclpy.time');fake.Time=lambda **kw:kw
     monkeypatch.setitem(sys.modules,'rclpy.time',fake)
@@ -41,6 +41,12 @@ def test_process_uses_only_already_delivered_registered_capture_without_waiting(
         queues={k:{} for k in ['rgb','depth','ri','di']},pose_history=history,input_lock=threading.RLock(),
         max_age=.75,require_pose=True,last_ns=-1,last_semantic_ns=-1,min_rgb_period_ns=0,evidence_dir=None,
         processed=0,rejected=0,rgb_consumed_total=0,last_rgb_consumed_ns=-1)
+    if delivery=='confirmation':
+        for capture in (.2,.4,.6,.8):
+            node.tracker.observe_rgb([d],round(capture*1e9),320,240,capture+.01,view=association_view(K,T,320,240))
+        monkeypatch.setitem(sys.modules,'std_msgs.msg',N(String=N))
+        node.presence_events=N(publish=lambda m:events.append(json.loads(m.data)['event']))
+        node.registry_pub=N(publish=lambda m:published.append(json.loads(m.data)))
     node.queues['rgb'][ns]=rgb
     if delivery=='evicted_capture':
         for key,value in [('depth',dm),('ri',info),('di',info)]:node.queues[key][ns]=value
@@ -87,9 +93,15 @@ def test_process_uses_only_already_delivered_registered_capture_without_waiting(
     adapter.process_presence(node,old_queues,old_history)
     assert node.rgb_consumed_total==1 and node.tracker.last_rgb_ns==ns
     assert node.tracker.frames[ns][0]['raw_index']==1
-    assert node.tracker.tracks[0].captures==1 and node.tracker.tracks[0].visual_state=='person_candidate'
+    if delivery=='confirmation':
+        assert events.index('visual_confirmed') < events.index('surface_start')
+        first=published.pop(0)['observations'][0]
+        assert first['visual_state']=='visually_confirmed' and first['identity_input_state']=='pending'
+        assert not first['has_position'] and published[0]['observations'][0]['counter']==first['counter']
+    else:
+        assert node.tracker.tracks[0].captures==1 and node.tracker.tracks[0].visual_state=='person_candidate'
     assert len(published)==1 and not published[0]['observations'][0]['has_position']
-    if delivery in ('same_capture','slow_trace'):
+    if delivery in ('same_capture','confirmation','slow_trace'):
         if delivery=='slow_trace':assert trace_calls==['detect']
         assert node.processed==1 and node.last_ns==ns
         assert registered==[(rgb,dm)] and views[0] is not None
@@ -102,6 +114,28 @@ def test_process_uses_only_already_delivered_registered_capture_without_waiting(
     assert bool(old_queues['depth'])==(delivery=='evicted_capture')
     assert (old_history.at(1.) is None)==(delivery!='evicted_capture')
     assert calls == [ns]
+
+
+def test_depth_review_uses_extra_paired_frame_only_until_first_fix():
+    tracker=PresenceTracker()
+    d,depth=sample()
+    wire=RegistryEvidence(session='sampling')
+    for capture in (1.,1.2,1.4,1.6,1.8):
+        ns=round(capture*1e9)
+        tracker.observe_rgb([d],ns,320,240,capture+.01)
+    node=N(tracker=tracker,registry_mode=True,min_rgb_period_ns=200_000_000,
+           rgbd_registration_mode='strict',last_ns=ns,max_age=.75,require_pose=False)
+    stamp=ns+125_000_000
+    queues={key:{stamp:True} for key in ('rgb','ri','depth','di')}
+    def selected():
+        return adapter.select_presence_capture(node,queues,None,stamp+10_000_000)[0]
+    assert selected()==stamp
+    queues['depth'].clear();assert selected() is None
+    queues['depth'][stamp]=True
+    depth[:]=2.;rows,_=surface.localize_surfaces([d],depth,K,T)
+    for capture in (1.,1.4,1.8):
+        wire.capture(tracker,round(capture*1e9),rows,capture+.01)
+    assert tracker.at(1).position and selected() is None
 
 
 def test_perception_worker_recovers_after_a_work_item_exception():

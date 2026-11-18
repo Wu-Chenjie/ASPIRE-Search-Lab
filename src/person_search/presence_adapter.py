@@ -112,9 +112,14 @@ def snapshot_inputs(node):
 
 def select_presence_capture(node, queues, history, now_ns):
     last_rgb = node.tracker.last_rgb_ns
-    due = [ns for ns in queues['rgb'] if ns > last_rgb and
-           (last_rgb < 0 or ns - last_rgb >= node.min_rgb_period_ns)]
-    candidates = (set(due) | (node.tracker.frames.keys() & queues['rgb'].keys())) & queues['ri'].keys()
+    fresh = {ns for ns in queues['rgb'] if ns > last_rgb}
+    due = {ns for ns in fresh if last_rgb < 0 or ns - last_rgb >= node.min_rgb_period_ns}
+    collecting_depth = node.registry_mode and any(
+        t.visual_state == 'visually_confirmed' and t.last_reliable_location is None
+        and t.last_capture_ns == last_rgb for t in node.tracker.tracks)
+    # During review also use registered pairs between normal RGB inference ticks.
+    candidates = ((fresh if collecting_depth else due) |
+                  (node.tracker.frames.keys() & queues['rgb'].keys())) & queues['ri'].keys()
     depth_stamps = queues['depth'].keys() & queues['di'].keys()
     if node.rgbd_registration_mode=='strict':
         paired=[ns for ns in candidates & depth_stamps if ns>node.last_ns]
@@ -190,6 +195,12 @@ def process_presence(node,queues,history):
                     except TransformException:
                         pass  # TF delivery may complete before the localization step.
                 tracker.observe_rgb(detections,ns,rgb.width,rgb.height,node.get_clock().now().nanoseconds*1e-9,view=view,paired=paired)
+                if any(event['event']=='visual_confirmed' for event in tracker.events):
+                    publish_presence_events(node)
+                    if node.registry_mode:
+                        processing = node.get_clock().now().nanoseconds*1e-9
+                        node.registry_evidence.capture(tracker,ns,None,processing)
+                        publish_registry_observations(node,ns,processing)
                 if tracker.last_rgb_ns>previous_rgb:
                     node.rgb_consumed_total+=1;node.last_rgb_consumed_ns=tracker.last_rgb_ns
                     node.timing(ns,'rgb_presence_consumed')
@@ -278,6 +289,21 @@ def presence_markers(report,stamp):
     return arr
 
 
+def publish_presence_events(node):
+    from std_msgs.msg import String
+    while node.tracker.events:
+        event=node.tracker.events.pop(0);node.presence_events.publish(String(data=json.dumps(event)))
+        if node.evidence_dir:node.record_evidence(dict(kind='presence_event',**event))
+
+
+def publish_registry_observations(node, ns, processing):
+    from std_msgs.msg import String
+    batch=node.registry_evidence.batch(node.tracker,ns,processing)
+    if batch is not None:
+        node.registry_pub.publish(String(data=json.dumps(batch,separators=(',',':'))))
+        if node.evidence_dir:node.record_evidence(dict(kind='registry_observations',batch=batch))
+
+
 def publish_presence(node):
     from std_msgs.msg import String
     from sensor_msgs.msg import Image
@@ -286,10 +312,7 @@ def publish_presence(node):
     if not node.registry_mode:node.markers.publish(presence_markers(report,now.to_msg()))
     ns=node.tracker.last_rgb_ns
     if node.registry_mode and ns>=0:
-        batch=node.registry_evidence.batch(node.tracker,ns,processing)
-        if batch is not None:
-            node.registry_pub.publish(String(data=json.dumps(batch,separators=(',',':'))))
-            if node.evidence_dir:node.record_evidence(dict(kind='registry_observations',batch=batch))
+        publish_registry_observations(node,ns,processing)
     if node.registry_mode and node.pending_visibility is not None:
         # Same ordered publisher, after positive observations from this capture.
         visibility=node.pending_visibility;node.pending_visibility=None
@@ -308,6 +331,4 @@ def publish_presence(node):
                 x,y,w,h=map(int,r['box']);color=(40,220,70) if r['visual_state']=='visually_confirmed' else (240,190,30);cv2.rectangle(pixels,(x,y),(x+w,y+h),color,1)
                 cv2.putText(pixels,f"V{r['id']} {r['visual_state']} loc:{r['localization_state']}",(max(0,x-2),max(12,y-3)),cv2.FONT_HERSHEY_SIMPLEX,.28,color,1)
             m=Image();m.header=rgb.header;m.height=rgb.height;m.width=rgb.width;m.encoding='rgb8';m.step=rgb.width*3;m.data=pixels.tobytes();node.annotated_output.publish(m)
-    while node.tracker.events:
-        event=node.tracker.events.pop(0);node.presence_events.publish(String(data=json.dumps(event)))
-        if node.evidence_dir:node.record_evidence(dict(kind='presence_event',**event))
+    publish_presence_events(node)

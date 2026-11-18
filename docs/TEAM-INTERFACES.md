@@ -10,6 +10,8 @@
 | B → A | /search/bearing_evidence，std_msgs/Float64MultiArray | 方位引导使用已有 v1 定长 17 项数值布局，包含采集时间、原点、方向、角范围及支持帧数。Python 编码位于 aspire_interfaces/bearing.py。 |
 | A → B | /drone_0/view_execution，std_msgs/String 中的 JSON | 执行节点报告活动任务、实际到达及观测证据；B 以捕获时间判断是否为到达后的新证据。历史复查模式另用 /search/review_goal、/search/review_status 和 /search/review_cancel。 |
 
+Depot 07 的 `registry` + `--bearing-bias` 联调中，局部人体通过现有 RGB 多帧确认后，B 立即发布 `visual_confirmed` 事件和人员观测。缺少可靠坐标时，A 暂停派发新的探索轨迹，让已授权航段完成；B 在观测位继续接收配准 RGB-D，并优先处理可用的配对帧。A 收到该静态人员或其已关联来源的可靠可见表面坐标后恢复探索。一次深度采样或另一个人的坐标都不能结束复查。后续帧过期时，已经测得的坐标保留为带采集时间的历史记录。若在该视角一直取不到有效深度，目标保持待定位，直至任务结束或安全流程接管。
+
 - **A** 负责现有原生规划集成、执行器和启动程序。准备好的 D 场景在本次运行目录内使用。对比方案时保留起点、预算和检测配置。
 - **B** 在 registry 模式发布识别和定位证据。Python 语义处理可以独立导入；运行 ROS 节点需 ROS 环境和检测依赖。单独修改识别时使用 tests/test_person_search.py 和 tests/test_registry_evidence.py。
 - **C** 修改相机模型、配准、光学坐标或安装位置后，用 tests/test_rgbd_scene.py、tests/test_rgbd_registration.py 检查。允许跨时刻配准的配置需满足注册模块的条件。

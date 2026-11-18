@@ -26,6 +26,14 @@ int main(){
  TargetRegistry rays;auto r=obs(1,1);r.has_position=false;r.localization="unknown";
  rays.ingest(r,1);rays.associate({r.key},1);assert(rays.groupConfirmed(r.key));
  assert(rays.currentPosition(r.key,1)==nullptr&&rays.records.at(r.key).identity=="unresolved");
+ assert(rays.pendingDepthReview()->latest.key==r.key);
+ auto unrelated=obs(2,1);rays.ingest(unrelated,1);rays.associate({r.key,unrelated.key},1);
+ assert(rays.pendingDepthReview()->latest.key==r.key);
+ r.sequence++;r.capture=2.;r.has_identity_surface=true;r.identity_surface={4.,0.,1.};
+ assert(rays.ingest(r,2.).accepted&&rays.pendingDepthReview());
+ r.sequence++;r.capture=3.;r.has_position=true;r.localization="reliable";r.position=r.identity_surface;
+ assert(rays.ingest(r,3.).accepted&&!rays.pendingDepthReview());
+ rays.retire(6.);assert(!rays.currentPosition(r.key,6.)&&!rays.pendingDepthReview());
  TargetRegistry peers;peers.ingest(a,1);
  TargetAlignment proof;proof.id="synthetic-alignment";proof.robot="uav1";proof.source_version=proof.target_version="shared-v1";proof.valid_until=100;
  peers.peer_alignments["uav1"]=proof;
@@ -40,6 +48,7 @@ int main(){
  TargetRegistry frames;frames.ingest(a,1);auto changed=a;changed.sequence=2;changed.capture=2;
  changed.frame_version="unrelated";changed.has_position=false;changed.localization="unknown";
  frames.ingest(changed,2);assert(!frames.records.at(a.key).has_anchor);
+ assert(frames.pendingDepthReview()->latest.key==a.key);
  for(int i=1;i<=10;++i){auto z=obs(i,1,{double(i),0,1});if(i!=1)one.ingest(z,1);}
  auto page=one.sync("uav1","request-1",0,20);assert(page.size()==8);
  assert(one.sync("uav1","request-1",0,21).empty());

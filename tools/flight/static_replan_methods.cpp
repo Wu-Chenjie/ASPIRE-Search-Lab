@@ -3,6 +3,9 @@ bool FastExplorationFSM::taskStaticEventTick(){
  auto& manager=*expl_manager_;const double now=racer_ros::Time::now().toSec();
  if(task_static_work_){
   if(task_static_gate_.published)return false; // executor owns an already submitted proposal
+  if(manager.task_depth_review_pending_){
+   taskStaticRelease(true,"collecting_registered_depth");return true;
+  }
   if(!task_static_budget_.allows(now,0.)){
    taskStaticRelease(false,task_static_budget_.reason(now,0.));
    return true;
@@ -15,7 +18,7 @@ bool FastExplorationFSM::taskStaticEventTick(){
   }
   return false;
  }
- if(!task_static_budget_.allows(now,0.))return false;
+ if(manager.task_depth_review_pending_||!task_static_budget_.allows(now,0.))return false;
  // Frontier refresh can enter PLAN_TRAJ before the accepted curve finishes.
  // Its stop-and-plan wait is still an executing vehicle, so admit one static
  // evaluation there. Publication/C2 authorization and competing missions keep

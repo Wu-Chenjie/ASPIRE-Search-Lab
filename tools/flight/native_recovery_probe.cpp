@@ -171,13 +171,17 @@ int main(int argc,char** argv) {
       require(memory.groups.begin()->second.epoch==epoch,"ID churn reset discovery epoch");
       goal=root+Eigen::Vector3d(0,1.2,0);gy=3.141592653589793;
       require(!manager->taskBearingRerank(root,zero,zero,goal,gy),"failed group did not fall back to original");
-      // Confirmation keeps the identity/map record but retires active guidance.
+      // Vision ends the bearing search and requests registered depth at the observation stop.
       o.sequence++;o.capture=racer_ros::Time::now().toSec();o.visual="visually_confirmed";send();
       require(manager->task_target_registry_->registry.groupConfirmed(o.key),"confirmation record missing");
       require(manager->task_target_registry_->registry.records.size()==2,"confirmation erased passive identity");
       const auto id=manager->task_target_registry_->cueId(o.key);
       require(!memory.cues.at(id).enabled,"confirmed entity still actively guided");
-      std::cout<<"PASS_NATIVE_REGISTRY confirmed_guidance_retired=1 disabled_with_same_evidence=1 actual_ROS_ingest=1 persistent_cost_selection=1 known_free_curve=1 no_progress_blocks=1 ID_churn_retains_epoch=1 ordinary_fallback=1 no_flight=1\n";rclcpp::shutdown();return 0;
+      require(manager->task_depth_review_pending_,"RGB confirmation without depth released exploration");
+      o.sequence++;o.capture=racer_ros::Time::now().toSec();o.has_position=true;
+      o.localization="reliable";o.position={4.,0.,1.};send();
+      require(!manager->task_depth_review_pending_,"registered position did not release exploration");
+      std::cout<<"PASS_NATIVE_REGISTRY depth_review_released=1 confirmed_guidance_retired=1 disabled_with_same_evidence=1 actual_ROS_ingest=1 persistent_cost_selection=1 known_free_curve=1 no_progress_blocks=1 ID_churn_retains_epoch=1 ordinary_fallback=1 no_flight=1\n";rclcpp::shutdown();return 0;
     }
     if(mode=="bearing") {
       // Synthetic observed room, real native map integration, A* and trajectory.
