@@ -13,9 +13,16 @@ from scipy.spatial.transform import Rotation
 from .perception import PeopleDetector,candidates_from_cloud,cloud
 from .tracking import Tracker
 from .active_confirmation import review_execution_ready, review_pose
-from .policy import ObservedVolume,choose_view
+from aspire_interfaces import topics
 from .segmentation import localize_masks
-from annual_runtime.rgbd_alignment import camera_uses_full_resolution,require_registered_pair,stamp_ns
+from aspire_camera.rgbd_alignment import camera_uses_full_resolution,require_registered_pair,stamp_ns
+
+
+def choose_view(*args, **kwargs):
+    """Dispatch only the legacy review mode to the planner-owned policy."""
+    from aspire_planning.review_views import choose_view as select_view
+    return select_view(*args, **kwargs)
+
 
 
 def matrix(transform):
@@ -88,7 +95,7 @@ def main():
     from sensor_msgs.msg import Image,CameraInfo
     from nav_msgs.msg import Odometry
     from geometry_msgs.msg import PoseStamped
-    from annual_runtime.pose_history import PoseHistory
+    from aspire_camera.poses import PoseHistory
     from std_msgs.msg import String,Float64MultiArray
     from visualization_msgs.msg import MarkerArray
     from tf2_ros import Buffer,TransformListener,TransformException
@@ -116,14 +123,17 @@ def main():
             if self.decoupled and review:
                 self.get_logger().warning('Legacy XYZ review is disabled for '+self.confirmation_mode)
             self.active_confirmation=self.confirmation_mode not in ('legacy','decoupled','registry')
-            self.volume=ObservedVolume();self.last_volume=-1e9;self.last_review=-1e9;self.previous=[];self.execution={};self.review_status_queue=[]
-            self.review_pub=self.create_publisher(PoseStamped,'/search/review_goal',2)
-            self.review_cancel_pub=self.create_publisher(String,'/search/review_cancel',10)
+            if self.active_review:
+                from aspire_planning.review_views import ObservedVolume
+                self.volume = ObservedVolume()
+            self.last_volume=-1e9;self.last_review=-1e9;self.previous=[];self.execution={};self.review_status_queue=[]
+            self.review_pub=self.create_publisher(PoseStamped,topics.REVIEW_GOAL,2)
+            self.review_cancel_pub=self.create_publisher(String,topics.REVIEW_CANCEL,10)
             if self.active_review or self.active_confirmation or self.decoupled:
                 from rclpy.qos import QoSProfile,DurabilityPolicy
-                self.create_subscription(String,'/drone_0/view_execution',lambda m:setattr(self,'execution',json.loads(m.data)),QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
+                self.create_subscription(String,topics.view_execution(0),lambda m:setattr(self,'execution',json.loads(m.data)),QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
             if self.require_request_status:
-                self.create_subscription(String,'/search/review_status',self.receive_review_status,10)
+                self.create_subscription(String,topics.REVIEW_STATUS,self.receive_review_status,10)
             self.backend=self.declare_parameter('detector_backend','hog').value
             if self.decoupled and self.backend=='hog':
                 raise ValueError('decoupled requires explicit RGB segmentation backend')
@@ -142,7 +152,7 @@ def main():
             else:raise ValueError('Unknown detector_backend')
             from .bearing import BearingMemory
             self.bearings=BearingMemory()
-            self.bearing_pub=self.create_publisher(Float64MultiArray,'/search/bearing_evidence',30)
+            self.bearing_pub=self.create_publisher(Float64MultiArray,topics.BEARING_EVIDENCE,30)
             self.bearing_output=self.create_publisher(String,'/search/bearings',30)
             self.semantic_cache={};self.last_semantic_ns=-1;self.inference_rgb_ns=None
             self.max_age=self.declare_parameter('max_frame_age_s',.75).value
@@ -224,7 +234,7 @@ def main():
                         except (TypeError, ValueError) as error:
                             self.get_logger().warning(f'Static visibility disabled: {error}')
                     self.pending_visibility=None
-                    self.registry_pub=self.create_publisher(String,'/'+robot+'/search/target_observations',20)
+                    self.registry_pub=self.create_publisher(String,topics.target_observations(robot),20)
             elif self.active_confirmation:
                 from .active_confirmation import ActiveConfirmationTracker
                 quality = None
@@ -246,8 +256,10 @@ def main():
             self.output=self.create_publisher(String,'/search/tracks',10);self.markers=self.create_publisher(MarkerArray,'/search/targets',10)
             self.semantic_output=self.create_publisher(String,'/search/semantic_candidates',10)
             self.annotated_output=self.create_publisher(Image,'/search/detection_image',2)
-            for key,kind,topic in [('rgb',Image,'rgb/image'),('depth',Image,'depth/image'),('ri',CameraInfo,'rgb/camera_info'),('di',CameraInfo,'depth/camera_info')]:
-                self.create_subscription(kind,'/drone_0/'+topic,lambda m,k=key:self.receive(k,m),qos_profile_sensor_data)
+            for key, kind, stream, channel in [('rgb', Image, 'rgb', 'image'), ('depth', Image, 'depth', 'image'),
+                                               ('ri', CameraInfo, 'rgb', 'camera_info'), ('di', CameraInfo, 'depth', 'camera_info')]:
+                topic = topics.camera_topic(0, stream, channel)
+                self.create_subscription(kind, topic, lambda m,k=key:self.receive(k,m), qos_profile_sensor_data)
             from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
             self.inference_group=MutuallyExclusiveCallbackGroup()
             self.input_event=threading.Event();self.worker_stop=threading.Event()
@@ -387,7 +399,7 @@ def main():
             try:
                 if rgb is None or info is None:raise ValueError('missing_rgb_intrinsics_at_capture')
                 if self.rgbd_registration_mode=='reproject':
-                    from annual_runtime.rgbd_registration import camera_info_model
+                    from aspire_camera.rgbd_registration import camera_info_model
                     model,_=camera_info_model(info,rgb,self.rgbd_image_mode);intrinsics=model.k
                 else:
                     if info.header.frame_id!=rgb.header.frame_id or (info.width,info.height)!=(rgb.width,rgb.height):raise ValueError('rgb_calibration_frame_or_size')

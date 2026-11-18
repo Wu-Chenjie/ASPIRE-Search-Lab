@@ -23,8 +23,9 @@ from rclpy.qos import QoSProfile,DurabilityPolicy,qos_profile_sensor_data
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image,CameraInfo
 from std_msgs.msg import String, Float64MultiArray
-from annual_runtime.depth_projection import project_depth_message,SENSOR_TRANSLATION
-from annual_runtime.pose_history import PoseHistory
+from aspire_interfaces.topics import camera_topic, view_execution
+from aspire_camera.depth_projection import project_depth_message,SENSOR_TRANSLATION
+from aspire_camera.poses import PoseHistory
 from annual_runtime.flight_session import FlightSessionFault
 from core.exploration.decentralized import MapReplica,PeerLedger,remainder
 from core.exploration.mrdtg import observation_grid
@@ -106,11 +107,11 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
         self.bootstrap=self.create_publisher(String,f'/drone_{drone}/map_bootstrap',q)
         self.bootstrap.publish(String(data='{}'))
         self.create_subscription(Odometry,f'/drone_{drone}/estimated_odometry',self.odom,qos_profile_sensor_data)
-        self.create_subscription(CameraInfo,f'/drone_{drone}/depth/camera_info',self.camera,qos_profile_sensor_data)
+        self.create_subscription(CameraInfo,camera_topic(drone, 'depth', 'camera_info'),self.camera,qos_profile_sensor_data)
         if config.get('native_frame_source') not in ('mapper_observation','mapper_dds'):
-            self.create_subscription(Image,f'/drone_{drone}/depth/image',self.image,qos_profile_sensor_data)
+            self.create_subscription(Image,camera_topic(drone, 'depth', 'image'),self.image,qos_profile_sensor_data)
         self.create_subscription(String,f'/drone_{drone}/observation',self.observation,QoSProfile(depth=100,durability=DurabilityPolicy.TRANSIENT_LOCAL))
-        self.create_subscription(String,f'/drone_{drone}/view_execution',self.executed,q)
+        self.create_subscription(String,view_execution(drone),self.executed,q)
         self.create_subscription(String,f'/drone_{drone}/flight_status',self.flight,qos_profile_sensor_data)
         for i in range(len(self.seeds)):
             if i!=drone:self.create_subscription(String,f'/drone_{i}/peer_state',self.peer,q)

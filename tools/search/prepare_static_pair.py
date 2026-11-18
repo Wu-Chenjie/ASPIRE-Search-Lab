@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(ROOT),str(ROOT/'src')]
-from person_search.static_pair import prepare_pair
+from aspire_planning.static_pair import prepare_pair
 
 
 def main():

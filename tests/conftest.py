@@ -9,4 +9,4 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 PACKAGE = ROOT / 'src' / 'annual_planner'
 if os.environ.get('ANNUAL_TEST_INSTALLED') != '1':
-    sys.path.insert(0, str(PACKAGE / 'src'))
+    sys.path[:0] = [str(ROOT / 'src'), str(PACKAGE / 'src')]

@@ -5,22 +5,8 @@ A historical visible surface is not a body centre or a full target volume.
 """
 from itertools import islice
 from math import gcd
-import json
-from .static_hypothesis import projected_visibility, visibility_capture, Visibility, VisibilityConfig
-
-
-def visibility_ros_arguments(runtime):
-    """Validate optional prepared-runtime calibration and preserve ROS string type."""
-    config=runtime.get('static_visibility_config')
-    if config is None:return []
-    model=runtime.get('static_visibility_model_id')
-    if runtime.get('confirmation_mode')!='registry' or not isinstance(model,str) or not 0<len(model)<=128:
-        raise ValueError('Surface visibility requires registry and explicit calibration identity')
-    if not isinstance(config,dict):raise ValueError('Visibility configuration must be an object')
-    VisibilityConfig(**config)
-    # Outer JSON quotes become a YAML string; ROS must not interpret a dict parameter.
-    return ['-p','static_visibility_config:='+json.dumps(json.dumps(config,separators=(',',':'))),
-            '-p','static_visibility_model_id:='+json.dumps(model)]
+from .static_hypothesis import projected_visibility, visibility_capture, Visibility
+from aspire_interfaces.visibility import visibility_ros_arguments
 
 
 def visibility_batch(evidence,tracker,ns,depth,k,transform,now,config,model_id):

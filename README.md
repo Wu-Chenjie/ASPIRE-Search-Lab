@@ -1,40 +1,50 @@
-# ASPIRE
+# ASPIRE Search Lab
 
-**面向灾后环境的无人机自主建图与人员搜索系统研究**
+灾后室内单机自主建图与人员搜索仿真。A 运行 ROS 2 / Gazebo / PX4 SITL，使用原生 RACER 探索和复查。B 提供人员观测，C 提供配准的 RGB-D 数据，D 提供房间几何、遮挡和起点。
 
-基于原生 ROS2 RACER 的单机自主建图与人员搜索研究，采用 ROS2 Jazzy、Gazebo Harmonic 8.15.0、PX4 SITL 和 RViz。当前研究对象为室内静止人员，使用 RGB-D 人体候选、独立定位质量、持久假设与有界方位引导；多机与真实灾后环境验证仍为后续目标。
+| 成员 | 开发入口 | 交给谁 |
+| --- | --- | --- |
+| A · 规划与仿真 | [仿真入口](tools/flight/run.py)、[场景装配与飞行参数](tools/flight/scene_bundle.py)、[规划与执行](src/annual_planner/src)、[复查策略](src/aspire_planning)、[RACER 集成](tools/flight) | 消费 D 的场景、C 的深度和 B 的观测，发布执行反馈 |
+| B · 视觉识别 | [视觉节点](src/person_search/node.py)、[人员观测编码](src/person_search/registry_evidence.py)、[检测器配置](config/detectors) | 给 A 发布候选、确认状态、方位和可选表面位置 |
+| C · 深度相机集成 | [相机包](src/aspire_camera)、[仿真相机与 ROS 桥接](src/aspire_camera/gazebo.py)、[安装几何](src/aspire_camera/mount.py) | 给 A、B 提供图像、标定、TF 和捕获时刻的位姿 |
+| D · 地图与场景 | [房间定义](tools/scenarios/room.json)、[世界生成器](tools/scenarios/room.py)、[已有 HM3D 工具](tools/hm3d) | 给 A 交付地图 JSON 或可直接加载的场景包 |
 
-本仓库为 **Private**，前身为 `aster-search`。2026-10-19 整理版本包含冻结的 **Stage45 共同源码**与 **Stage68 外部输入/取证层**，保留初始 Stage30 Git 历史。原生 RACER 未替换，不把共同工程栈称作未经修改的全栈基线。
+接口变更由提供方和使用方共同核对。[模块接口与验收](docs/TEAM-INTERFACES.md)
 
-## 当前结果
+## D 准备场景
 
-| 项目 | 已核实结果 |
-|---|---|
-| 固定预算比较 | 六对、12 个主 arm，各 180 仿真秒；另保留 2 次中止 |
-| 当前核心与取证门 | 12/12 通过 |
-| 全部严格检查 | 9/12 通过；定位表面污染与身份帧未定仍存在 |
-| 独立确认人数增益 | 六对 B−A 均为 0，尚无引导组人数收益证据 |
-| 关键局限 | 有人场景在启动就绪前已确认两人，不能据此证明隐藏人员搜索优势 |
-
-结果、协议修订和未完成项见 [当前状态](docs/STATUS.md)；原始结论摘录及逐轮数值见 [最终报告](docs/results/stage68/FINAL-REPORT.md)、[比较表](docs/results/stage68/RUNS.csv)。末重复为 0 不等于全过程无重复；表面位置误差不是人体中心误差。GNSS 辅助 SITL 不等于无 GNSS 室内实机定位。
-
-## 目录
-
-- `src/`、`tools/`、`config/`：感知、搜索、执行与仿真工具。
-- `external/racer_ros2_ws/`：锁定的原生 ROS2 RACER；其余 `external/` 为必要模型资产。
-- `experiments/`：与冻结源码分开的输入、测量、审计层和历史测试；禁止把已关闭批次重新运行。
-- `tests/`：共同源码测试。
-- `docs/`：状态、复现边界、方法与精简结果；`docs/provenance/` 保存来源哈希。
-- `licenses/`、`dependencies.lock.json`：已有许可证和依赖来源，不推定缺失授权。
-
-## 本地验证
-
-在已有依赖环境执行：
+在仓库根目录使用已安装 [Python 依赖](requirements.txt) 的环境运行。复制房间 JSON 即可修改地图边界、命名起点、遮挡物、墙体和单个人物的初始姿态。下面三条命令只生成场景，各需一个新的输出目录。
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider tests
+python3 -m tools.flight.scene_bundle --output /tmp/aspire-lab-visible --layout visible-left
+python3 -m tools.flight.scene_bundle --output /tmp/aspire-lab-occluded --layout original
+python3 -m tools.flight.scene_bundle --output /tmp/aspire-lab-empty --negative
 ```
 
-外部工程层、仿真所需依赖与路径限制见 [复现说明](docs/REPRODUCIBILITY.md)。本仓库整理不新跑仿真；历史测试与本次测试分别列在 [检查记录](docs/REPOSITORY-UPDATE.md)。
+自定义地图加 `--spec path/to/room.json --layout 自定义起点名`。场景包内包含世界 SDF、无人机和相机模型、ROS 桥配置、运行配置、地图原稿和独立评测真值。提交地图原稿即可；生成物放到代码树外。
 
-构建、权重、运行图像、视频、原始证据和 VM 镜像均保存在代码树外。在线规划与检测不得读取真值，未知空间不能当作自由空间；真值仅用于场景生成和独立评测。不自动追加实验、不运行真实无人机。唯一持续研究记忆仍为本机共享 `task-3/PROJECT_MEMORY.md`，本仓库状态文档是日期明确的交付快照。
+## A 加载并运行
+
+飞行入口支持 D 提供的 `--prepared 场景包目录`，也支持 `--scene-spec 地图JSON --layout 起点名`。运行前加载团队已有的 ROS 2 Jazzy、px4_msgs 和对应 RACER 安装环境，准备 Gazebo Harmonic、PX4 SITL、Micro XRCE Agent、检测环境及匹配的本地权重。下列变量由运行机设置，输出路径须尚未使用。
+
+```sh
+export PYTHONPATH="$PWD:$PWD/src:$PWD/src/annual_planner/src${PYTHONPATH:+:$PYTHONPATH}"
+RACER_EXECUTION_SAFETY=1 python3 tools/flight/run.py \
+  --prepared /tmp/aspire-lab-occluded --output "$ASPIRE_RUN_DIR" \
+  --external "$ASPIRE_SITL_EXTERNAL" --budget-clock sim --seconds 180 \
+  --confirmation-mode registry --detector yolo11n-seg \
+  --segmentation-weights "$ASPIRE_SEG_WEIGHTS" --bearing-bias
+```
+
+`--external` 指向运行机上已有的 PX4 和 Agent 构建依赖目录。仓库自带模型可供离线生成场景。上述组合接入人员观测注册表及方位引导；主动静态复查的成对实验还需经验证的 [运行设置](docs/STATIC-EVALUATION.md)。历史运行入口、固定批次与当前演示的适用范围见 [复现说明](docs/REPRODUCIBILITY.md)。
+
+## 开发验证
+
+```sh
+python3 -m pytest -q -p no:cacheprovider tests
+python3 tools/racer_ros2/verify.py external/racer_ros2_ws
+```
+
+原生协议测试使用 C++ 编译器和 Boost 头文件。若 macOS 的 Boost 安装在 Homebrew 的 include 目录，可先运行 `export CPATH="/opt/homebrew/include${CPATH:+:$CPATH}"`。缺少 ROS、指定录制或运行环境的测试会分别跳过。
+
+代码基于 [Wu-Chenjie/ASPIRE 的 8892f464](https://github.com/Wu-Chenjie/ASPIRE/tree/8892f4643ce740129a5691f6f6514363d82e06cb)，取自第 28 轮使用的开发分支后续提交。本仓库从该提交的完整文件快照独立建库。历史结果位于 [状态记录](docs/STATUS.md)，第三方来源见 [许可证目录](licenses) 和 [依赖清单](dependencies.lock.json)。

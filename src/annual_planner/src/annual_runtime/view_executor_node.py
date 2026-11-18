@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 import math
 import numpy as np
+from aspire_interfaces.topics import view_execution
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, DurabilityPolicy, qos_profile_sensor_data
@@ -104,7 +105,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         q = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub = self.create_publisher(PoseStamped, f'/drone_{self.id}/target', 1)
         self.trajectory_pub = self.create_publisher(MultiDOFJointTrajectory, f'/drone_{self.id}/command/trajectory', 1)
-        self.report_pub = self.create_publisher(String, f'/drone_{self.id}/view_execution', q)
+        self.report_pub = self.create_publisher(String, view_execution(self.id), q)
         self.create_subscription(String, f'/drone_{self.id}/view_command', self.command, q)
         self.create_subscription(String, '/experiment/control', self.control, q)
         self.create_subscription(String, f'/drone_{self.id}/observation', self.observation, QoSProfile(depth=100,durability=DurabilityPolicy.TRANSIENT_LOCAL))

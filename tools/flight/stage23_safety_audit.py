@@ -20,8 +20,7 @@ from zlib import error as ZlibError
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT / 'src/annual_planner/src') not in sys.path:
-    sys.path.insert(0, str(ROOT / 'src/annual_planner/src'))
+sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/annual_planner/src')]
 from core.exploration.voxel_mapping import VoxelMap
 from core.exploration.voxel_config import voxel_environment
 from core.planning.motion_limits import motion_environment

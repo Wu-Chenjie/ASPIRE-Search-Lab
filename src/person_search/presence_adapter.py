@@ -4,7 +4,7 @@ import json
 import numpy as np
 from .node import matrix,rgb_pixels,newest_bracketed_capture,capture_age_valid
 from .segmentation import localize_masks
-from annual_runtime.rgbd_alignment import require_registered_pair,stamp_ns
+from aspire_camera.rgbd_alignment import require_registered_pair,stamp_ns
 
 
 def capture_world(node,frame,ns,history,Time,*,pose_bracketed=False):
@@ -35,7 +35,7 @@ def geometry_pair(node,queues,ns):
 
 
 def prepare_geometry(node,images,history,Time):
-    from annual_runtime.rgbd_registration import decode_depth,camera_info_model,CaptureTransform,register_depth
+    from aspire_camera.rgbd_registration import decode_depth,camera_info_model,CaptureTransform,register_depth
     rgb,depth,ri,di=images;ns=stamp_ns(rgb.header);dns=stamp_ns(depth.header)
     if node.rgbd_registration_mode=='strict':
         transform=capture_world(node,depth.header.frame_id,ns,history,Time)
@@ -84,7 +84,7 @@ def bind_identity_context(node,ns,rgb,queues,history,Time):
     from tf2_ros import TransformException
     try:
         if node.rgbd_registration_mode=='reproject':
-            from annual_runtime.rgbd_registration import camera_info_model
+            from aspire_camera.rgbd_registration import camera_info_model
             info=queues['ri'].get(ns)
             if info is None:raise ValueError('missing_exact_rgb_calibration')
             model,calibration_id=camera_info_model(info,rgb,node.rgbd_image_mode)

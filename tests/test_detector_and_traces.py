@@ -111,18 +111,18 @@ def test_trace_pipeline_emits_independent_axial_hint_without_invented_age():
 
 
 def test_trace_frame_shares_projection_and_preserves_unique_support(monkeypatch):
-    from person_search import perception
+    from aspire_camera import point_cloud
     from person_search.segmentation import PersonMask
     from person_search.trace_pipeline import TracePipeline
 
     validated = []
-    validate_transform = perception.validate_transform
+    validate_transform = point_cloud.validate_transform
 
     def count_projection(transform):
         validated.append(transform)
         return validate_transform(transform)
 
-    monkeypatch.setattr(perception, 'validate_transform', count_projection)
+    monkeypatch.setattr(point_cloud, 'validate_transform', count_projection)
     mask = np.zeros((120, 160), bool)
     mask[40:80, 40:120] = True
     trace = PersonMask((40, 40, 80, 40), .9, mask, semantic_class='footprint')

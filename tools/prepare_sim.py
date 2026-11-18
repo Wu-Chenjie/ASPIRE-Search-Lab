@@ -12,8 +12,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT/'src/annual_planner'
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(PACKAGE/'src'))
-from tools.rgbd_scene.cameras import configure_camera, transforms
+sys.path[:0] = [str(ROOT/'src'), str(PACKAGE/'src')]
+from aspire_camera.gazebo import configure_camera, transforms, bridge_topics, RGB_DEPTH_CONTRACT
 from core.planning.motion_limits import MotionLimits, RACER_EXAMPLE, AGGRESSIVE
 
 
@@ -158,13 +158,8 @@ def prepare(map_file, output, gui=False, models=None, *, depth_odometry=None,
         ET.SubElement(include,'pose').text=f'{start[0]} {start[1]} 0 0 0 0'
         runtime['vehicles'].append(dict(drone_id=i,px4_instance=i+1,model=vehicle_name,
             spawn=[start[0],start[1],.24],initial_position=initial[i],start=start))
-        for modality in ('depth','rgb'):
-            for topic,kind,gz_kind in [('image','Image','Image'),('camera_info','CameraInfo','CameraInfo')]:
-                bridge.append(dict(ros_topic_name=f'/drone_{i}/{modality}/{topic}',gz_topic_name=f'/drone_{i}/{modality}/{topic}',
-                                   ros_type_name=f'sensor_msgs/msg/{kind}',gz_type_name=f'gz.msgs.{gz_kind}',direction='GZ_TO_ROS',qos_profile='SENSOR_DATA'))
-    runtime['rgb_depth_contract']=dict(configuration='co-located equal-resolution pinhole cameras',
-        direct_pixel_indexing='requires matching image stamps, dimensions, K/D/R/P and identity RGB-depth TF; reject mismatches',
-        optical_axes='x right, y down, z forward',depth_units='metres, axial optical Z')
+        bridge.extend(bridge_topics(i))
+    runtime['rgb_depth_contract'] = RGB_DEPTH_CONTRACT.copy()
     if rgbd_test_scene:
         from tools.rgbd_scene.scene import add_test_scene
         add_test_scene(world,output,runtime)

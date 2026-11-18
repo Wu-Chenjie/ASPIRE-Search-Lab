@@ -72,7 +72,8 @@ def test_horizon_surface_cannot_be_free_when_range_is_missing():
 
 
 def test_ideal_rig_reuses_the_pixel_aligned_projection(monkeypatch):
-    from person_search import perception, policy
+    from person_search import perception
+    from aspire_planning import review_views
     from person_search.perception import candidates, candidates_from_cloud
 
     height, width = 88, 96
@@ -99,7 +100,7 @@ def test_ideal_rig_reuses_the_pixel_aligned_projection(monkeypatch):
         pytest.fail("a same-capture projection was already provided")
 
     monkeypatch.setattr(perception, "cloud", unexpected_projection)
-    monkeypatch.setattr(policy, "cloud", unexpected_projection)
+    monkeypatch.setattr(review_views, "cloud", unexpected_projection)
     reused_volume = ObservedVolume()
     reused_volume.add(depth, k, camera_to_map, points=points)
     actual = candidates_from_cloud(rgb, depth, points, detector)

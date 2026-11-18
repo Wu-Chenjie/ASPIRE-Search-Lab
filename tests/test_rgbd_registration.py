@@ -85,7 +85,7 @@ def test_ros_adapter_queries_both_times_and_localizes_in_rgb_frame(monkeypatch):
     assert calls==[('rgb',1_010_000_000,'depth',1_000_000_000,'map')]
     assert np.isnan(z[0,0]) and z[0,1]==1 and z[0,2]==2 and world[0,3]==3
     assert q['skew_s']==pytest.approx(.01) and q['calibration_id']
-    from annual_runtime import rgbd_registration
+    from aspire_camera import rgbd_registration
     from person_search.node import capture_age_valid
     now_ns=1_020_000_000
     def camera_info_with_delay(*args):

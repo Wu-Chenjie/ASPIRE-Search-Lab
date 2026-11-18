@@ -6,14 +6,15 @@ import uuid
 from collections import deque
 import numpy as np
 import rclpy
+from aspire_interfaces.topics import camera_topic
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, QoSProfile, DurabilityPolicy
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
-from annual_runtime.pose_history import PoseHistory
+from aspire_camera.poses import PoseHistory
 from annual_runtime.flight_session import FlightSessionFault
-from annual_runtime.depth_projection import project_depth_message, SENSOR_TRANSLATION
+from aspire_camera.depth_projection import project_depth_message, SENSOR_TRANSLATION
 from std_msgs.msg import String
 from core.exploration.voxel_mapping import VoxelMap
 from .map_evidence import bind_capture,close_capture,mapper_received,mapper_before,mapper_after
@@ -48,8 +49,8 @@ class PointCloudMapper(Node):
         self.create_subscription(String, f'/drone_{self.id}/map_bootstrap', lambda m: setattr(self, 'full_requested', True), q)
         self.create_subscription(Odometry, f'/drone_{self.id}/estimated_odometry', self.odom, qos_profile_sensor_data)
         self.calibration = None
-        self.create_subscription(CameraInfo, f'/drone_{self.id}/depth/camera_info', self.camera_info, qos_profile_sensor_data)
-        self.create_subscription(Image, f'/drone_{self.id}/depth/image', self.cloud, qos_profile_sensor_data)
+        self.create_subscription(CameraInfo, camera_topic(self.id, 'depth', 'camera_info'), self.camera_info, qos_profile_sensor_data)
+        self.create_subscription(Image, camera_topic(self.id, 'depth', 'image'), self.cloud, qos_profile_sensor_data)
 
     def destroy_node(self):
         close_capture(self)

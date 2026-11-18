@@ -376,3 +376,13 @@ def test_launch_applies_explicit_pacing_in_world_without_physics(harness):
     assert result['requested_sim_real_time_factor']==result['effective_sim_real_time_factor']==2.
     assert (harness.prepared/'scene.sdf').read_text()==original
     assert '<real_time_factor>2.0</real_time_factor>' in (harness.output/'scene.sdf').read_text()
+
+
+def test_team_bundle_relocates_models_and_retains_negative_case(harness):
+    manifest = {"version": 1, "negative": True}
+    (harness.prepared / "bundle.json").write_text(json.dumps(manifest))
+    result = harness.launch()
+    assert result["negative"] is True
+    config = json.loads((harness.output / "runtime.json").read_text())
+    assert config["models"] == str(run.ROOT / "external/PX4-gazebo-models/models")
+    assert json.loads((harness.output / "bundle.json").read_text()) == manifest

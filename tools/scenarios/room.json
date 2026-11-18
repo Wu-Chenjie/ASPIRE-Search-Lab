@@ -1,0 +1,17 @@
+{
+  "bounds": [[-3, -4, 0], [7, 4, 4]],
+  "starts": {
+    "original": [0, 0, 2.2], "visible-left": [0, -2.0, 2.2],
+    "partial-left": [0, -0.9, 2.2], "visible-right": [0, 2.0, 2.2],
+    "partial-right": [0, 0.9, 2.2]
+  },
+  "person_pose": [4, 0, 0, 0, 0, -1.5707963267948966],
+  "boxes": [
+    {"name": "board", "center": [2, 0, 1.1], "size": [0.08, 0.9, 2.2]},
+    {"name": "room_back", "center": [-3.1, 0, 2], "size": [0.2, 8, 4]},
+    {"name": "room_front", "center": [7.1, 0, 2], "size": [0.2, 8, 4]},
+    {"name": "room_left", "center": [2, -4.1, 2], "size": [10, 0.2, 4]},
+    {"name": "room_right", "center": [2, 4.1, 2], "size": [10, 0.2, 4]},
+    {"name": "room_ceiling", "center": [2, 0, 4.1], "size": [10, 8, 0.2]}
+  ]
+}

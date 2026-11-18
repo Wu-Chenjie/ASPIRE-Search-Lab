@@ -1,6 +1,7 @@
 """RGB-only angular evidence. No range, human truth, or movement commands."""
 from dataclasses import dataclass, field
 import math
+from aspire_interfaces.bearing import bearing_packet
 import numpy as np
 from .confirmation_quality import best_box_match, box_iou
 from .perception import validate_transform
@@ -130,10 +131,3 @@ class BearingMemory:
 
     def active(self,now):
         return [self.report(t,now) for t in self.tracks if t.last_capture_s<=now<=t.last_capture_s+self.ttl]
-
-
-def bearing_packet(report):
-    """Version1, fixed map frame; numeric layout is shared with native header."""
-    return [1.,float(report['source_uav']),float(report['cue_id']),report['capture_time_s'],*report['origin'],*report['direction'],
-        report['half_angle_rad'],report['confidence'],float(report['support_captures']),float(report['observation_coverage']),
-        float(report['localization_state']=='localized_surface'),report['support_first_s'],report['camera_half_fov_rad']]

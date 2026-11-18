@@ -5,6 +5,7 @@ independent proof of person identity. Legacy Tracker remains unchanged.
 """
 from dataclasses import asdict, dataclass, field
 import numpy as np
+from aspire_camera.mount import DEPTH_TRANSLATION
 from .tracking import Track, nearest_track
 from .confirmation_quality import ConfirmationQuality, SemanticCandidateMemory, QUALITY_PROXY_VERSION, mask_iou
 
@@ -26,7 +27,8 @@ def review_execution_ready(execution, now):
 def review_pose(target, goal):
     """Convert the selected lens position to the commanded base pose."""
     yaw = float(np.arctan2(target[1]-goal[1], target[0]-goal[0]))
-    base = np.asarray(goal) - [.13233*np.cos(yaw), .13233*np.sin(yaw), .02078]
+    x, y, z = DEPTH_TRANSLATION
+    base = np.asarray(goal) - [x*np.cos(yaw) - y*np.sin(yaw), x*np.sin(yaw) + y*np.cos(yaw), z]
     return base, yaw
 
 

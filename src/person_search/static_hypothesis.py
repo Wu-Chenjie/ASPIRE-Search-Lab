@@ -11,6 +11,7 @@ from itertools import product
 import math
 import numpy as np
 from .perception import validate_transform
+from aspire_interfaces.visibility import VisibilityConfig
 
 
 @dataclass(frozen=True)
@@ -19,26 +20,6 @@ class Visibility:
     reason: str
     capture_s: float
     checked_pixels: int = 0
-
-
-@dataclass(frozen=True)
-class VisibilityConfig:
-    # Must be frozen from the actual camera/imaging validation, not tuned on test.
-    min_range_m: float
-    max_range_m: float
-    max_capture_age_s: float
-    min_pixels: int
-    depth_margin_m: float
-    max_pixels: int = 65536
-
-    def __post_init__(self):
-        values=(self.min_range_m,self.max_range_m,self.max_capture_age_s,
-                self.min_pixels,self.depth_margin_m,self.max_pixels)
-        if any(not math.isfinite(x) or x<=0 for x in values):
-            raise ValueError('positive finite visibility limits required')
-        if (self.max_range_m<=self.min_range_m or self.max_pixels<self.min_pixels
-                or int(self.min_pixels)!=self.min_pixels or int(self.max_pixels)!=self.max_pixels):
-            raise ValueError('invalid visibility range or pixel limits')
 
 
 CORNER_SIGNS = np.array(list(product((-1, 1), repeat=3)))

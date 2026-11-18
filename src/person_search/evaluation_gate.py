@@ -4,8 +4,7 @@ Checks declared freeze/provenance contracts; does not authenticate dataset
 independence, annotation correctness or caller-provided timestamps.
 """
 import datetime as dt
-import hashlib
-import json
+from aspire_interfaces.provenance import protocol_digest
 import re
 from sys import float_info
 
@@ -17,11 +16,6 @@ DISCOVERY_COUNTS = ('unique_true_discoveries', 'false_positives', 'duplicates')
 
 def is_sha256(value):
     return isinstance(value,str) and re.fullmatch('[0-9a-f]{64}',value) is not None
-
-
-def protocol_digest(protocol):
-    data = json.dumps(protocol, sort_keys=True, separators=(',', ':'), allow_nan=False)
-    return hashlib.sha256(data.encode()).hexdigest()
 
 
 def is_finite_number(value):

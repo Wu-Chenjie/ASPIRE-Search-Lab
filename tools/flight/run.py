@@ -12,8 +12,9 @@ import xml.etree.ElementTree as ET
 import yaml
 ROOT=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(ROOT),str(ROOT/'src'),str(ROOT/'src/annual_planner/src')]
-from tools.prepare_sim import prepare,model
-from tools.rgbd_scene.cameras import tf_arguments,set_text
+from aspire_interfaces import topics
+from tools.flight.scene_bundle import scene
+from aspire_camera.gazebo import tf_arguments,set_text
 from tools.flight.gazebo_shutdown import terminate_flight
 from tools.flight.cpu_profile import CPUProfile
 from tools.flight.gazebo_guard import configuration as guard_configuration,verify_loaded as verify_guard_loaded
@@ -21,30 +22,6 @@ from tools.flight.run_safety import BootstrapTrackingWatchdog,StartupDeadline
 from core.planning.motion_limits import motion_environment
 from core.planning.execution_safety import EXECUTION_PROFILE_ENV, SITL_RELAXED_PROFILE, SITL_FRONTIER_PROFILE
 from core.exploration.voxel_config import voxel_environment
-
-
-def scene(out,negative,layout="original",performance="legacy"):
-    # Initial position and room bounds only are provided to the planning runtime.
-    spec=dict(bounds=[[-3,-4,0],[7,4,4]],search_starts=[[0,{'original':0,'visible-left':-2.,'partial-left':-.9,'visible-right':2.,'partial-right':.9}[layout],2.2]],obstacles=[])
-    (out/'map.json').write_text(json.dumps(spec));prepare(out/'map.json',out,motion_profile='legacy')
-    tree=ET.parse(out/'scene.sdf');world=tree.find('world')
-    if not negative:
-        inc=ET.SubElement(world,'include')
-        for key,value in [('uri','model://person_standing'),('name','stationary_person'),('static','true'),('pose','4 0 0 0 0 -1.5707963267948966')]:ET.SubElement(inc,key).text=value
-    model(world,'board',[2,0,1.1],('box',{'size':'.08 .9 2.2'}))
-    for name,center,size in [('back',[-3.1,0,2],[.2,8,4]),('front',[7.1,0,2],[.2,8,4]),('left',[2,-4.1,2],[10,.2,4]),('right',[2,4.1,2],[10,.2,4]),('ceiling',[2,0,4.1],[10,8,.2])]:model(world,'room_'+name,center,('box',{'size':' '.join(map(str,size))}))
-    ET.SubElement(world,'plugin',filename='gz-sim-contact-system',name='gz::sim::systems::Contact')
-    tree.write(out/'scene.sdf')
-    basepath=out/'models/annual_base_0/model.sdf';base=ET.parse(basepath);link=base.find('model/link[@name="base_link"]');sensor=ET.SubElement(link,'sensor',name='evaluation_contact',type='contact');set_text(sensor,'always_on','true');set_text(sensor,'update_rate','20');set_text(sensor,'topic','/evaluation/contacts');contact=ET.SubElement(sensor,'contact')
-    for c in link.findall('collision'):ET.SubElement(contact,'collision').text=c.get('name')
-    base.write(basepath)
-
-    cfg=json.loads((out/'runtime.json').read_text());cfg.update(research_planner='racer_ros2',native_frame_source='mapper_observation',racer_planning_scale=.5,racer_flight_limits=[.7,3.],control_timing_diagnostics=True,bootstrap_altitudes=[1.75,2.65,2.2])
-    cfg.update(layout=layout,performance_profile=performance)
-    if performance!='legacy':cfg.update(motion_limits=dict(speed=1.,acceleration=1.2,jerk=4.,yaw_rate=.9),racer_planning_limits=dict(speed=.3,acceleration=.4,jerk=4.,yaw_rate=.325),racer_min_time=performance!='consistent')
-    if performance=='bounded-fast':cfg.update(motion_limits=dict(speed=1.2,acceleration=1.5,jerk=4.,yaw_rate=1.),racer_planning_limits=dict(speed=.45,acceleration=.6,jerk=4.,yaw_rate=.4),racer_min_time=False,racer_feasible_time=True)
-    (out/'runtime.json').write_text(json.dumps(cfg,indent=2));(out/'evaluation-truth.json').write_text(json.dumps(dict(person=None if negative else [4,0,0],board=[2,0,1.1],use='independent evaluation only')))
-    return cfg
 
 
 def validate_flight_scene(out, config):
@@ -125,7 +102,18 @@ def main():
                          help='SITL frontier geometry and finer certified stop candidates')
     profile.add_argument('--sitl-relaxed-execution', action='store_true',
                    help='Compare relaxed in-flight geometry and tracking triggers using PX4 SITL')
-    p.add_argument('--output',type=Path,required=True);p.add_argument('--static-guidance-settings',type=Path,help='Validated common static settings JSON for both arms; --bearing-bias selects guided');p.add_argument('--px4-build',type=Path,help='Isolated verified PX4 SITL build directory');p.add_argument('--sim-real-time-factor',type=float,help='Diagnostic pacing only; physics timestep stays unchanged');p.add_argument('--wall-watchdog-seconds',type=float,help='Explicit harness wall budget for slow simulation; never changes flight guards');p.add_argument('--external',type=Path,default=Path('/planner/external'));p.add_argument('--seconds',type=float,default=240);p.add_argument('--budget-clock',choices=['wall','sim'],default='wall');p.add_argument('--negative',action='store_true');p.add_argument('--active-review',action='store_true');p.add_argument('--active-confirmation',action='store_true',help='Opt-in confirmation only after a measured RACER review and fresh RGB-D evidence');p.add_argument('--confirmation-mode',choices=['legacy','strict','hybrid','decoupled','registry'],default='',help='Explicit confirmation mode, independent of active review for fair comparisons');p.add_argument('--registry-cue-fixture',action='store_true',help='Explicit negative SITL-only target-observation ID churn/dropout fixture');p.add_argument('--bearing-bias',action='store_true',help='Opt-in bounded RGB bearing utility in native RACER candidate ranking');p.add_argument('--review-continuation',action='store_true',help='Opt-in bounded native continuation of the same review request');p.add_argument('--stop-and-plan',action='store_true',help='Wait for measured trajectory completion before replanning, independently of perception');p.add_argument('--recover-no-path',action='store_true');p.add_argument('--layout',choices=['original','visible-left','partial-left','visible-right','partial-right'],default='original');p.add_argument('--performance',choices=['legacy','moderate','consistent','bounded-fast'],default='legacy');p.add_argument('--rviz',action='store_true');p.add_argument('--record-video',action='store_true');p.add_argument('--prepared',type=Path,help='Generated flyable scene; sensor truth files are not read by decision nodes');p.add_argument('--no-perception',action='store_true');p.add_argument('--vertical-samples',action='store_true',help='Opt-in native viewpoint altitude sampling');p.add_argument('--detector',choices=['hog','yolo11n-seg'],default='hog');p.add_argument('--segmentation-weights',default='');p.add_argument('--detector-python-path',default='');p.add_argument('--fault-injection',choices=['flags','position','dds'],help='Explicit SITL-only application/message or owned-agent interruption fixture');p.add_argument('--map-delay-fixture',action='store_true',help='Explicit SITL-only bounded interruption of the owned depth mapper');a=p.parse_args()
+    p.add_argument('--scene-spec', type=Path, help='D-owned indoor scene JSON')
+    p.add_argument('--output',type=Path,required=True);p.add_argument('--static-guidance-settings',type=Path,help='Validated common static settings JSON for both arms; --bearing-bias selects guided');p.add_argument('--px4-build',type=Path,help='Isolated verified PX4 SITL build directory');p.add_argument('--sim-real-time-factor',type=float,help='Diagnostic pacing only; physics timestep stays unchanged');p.add_argument('--wall-watchdog-seconds',type=float,help='Explicit harness wall budget for slow simulation; never changes flight guards');p.add_argument('--external',type=Path,default=Path('/planner/external'));p.add_argument('--seconds',type=float,default=240);p.add_argument('--budget-clock',choices=['wall','sim'],default='wall');p.add_argument('--negative',action='store_true');p.add_argument('--active-review',action='store_true');p.add_argument('--active-confirmation',action='store_true',help='Opt-in confirmation only after a measured RACER review and fresh RGB-D evidence');p.add_argument('--confirmation-mode',choices=['legacy','strict','hybrid','decoupled','registry'],default='',help='Explicit confirmation mode, independent of active review for fair comparisons');p.add_argument('--registry-cue-fixture',action='store_true',help='Explicit negative SITL-only target-observation ID churn/dropout fixture');p.add_argument('--bearing-bias',action='store_true',help='Opt-in bounded RGB bearing utility in native RACER candidate ranking');p.add_argument('--review-continuation',action='store_true',help='Opt-in bounded native continuation of the same review request');p.add_argument('--stop-and-plan',action='store_true',help='Wait for measured trajectory completion before replanning, independently of perception');p.add_argument('--recover-no-path',action='store_true');p.add_argument('--layout', default='original', help='Named start from the scene specification');p.add_argument('--performance',choices=['legacy','moderate','consistent','bounded-fast'],default='legacy');p.add_argument('--rviz',action='store_true');p.add_argument('--record-video',action='store_true');p.add_argument('--prepared',type=Path,help='Generated flyable scene; sensor truth files are not read by decision nodes');p.add_argument('--no-perception',action='store_true');p.add_argument('--vertical-samples',action='store_true',help='Opt-in native viewpoint altitude sampling');p.add_argument('--detector',choices=['hog','yolo11n-seg'],default='hog');p.add_argument('--segmentation-weights',default='');p.add_argument('--detector-python-path',default='');p.add_argument('--fault-injection',choices=['flags','position','dds'],help='Explicit SITL-only application/message or owned-agent interruption fixture');p.add_argument('--map-delay-fixture',action='store_true',help='Explicit SITL-only bounded interruption of the owned depth mapper');a=p.parse_args()
+    if a.prepared and a.scene_spec:
+        p.error("choose either --prepared or --scene-spec")
+    bundle = None
+    if a.prepared and (a.prepared / "bundle.json").is_file():
+        bundle = json.loads((a.prepared / "bundle.json").read_text())
+        if bundle.get("version") != 1 or type(bundle.get("negative")) is not bool:
+            p.error("unsupported prepared scene manifest")
+        if a.negative and not bundle["negative"]:
+            p.error("--negative conflicts with prepared scene manifest")
+        a.negative = bundle["negative"]
     for flag, seconds in (('--seconds', a.seconds), ('--wall-watchdog-seconds', a.wall_watchdog_seconds)):
         if seconds is not None and (not math.isfinite(seconds) or seconds < 0):
             p.error(flag+' must be finite and nonnegative')
@@ -192,7 +180,7 @@ def main():
         shutil.copytree(a.prepared/'models',out/'models')
         for name in ('scene.sdf','runtime.json','bridge.yaml'):
             shutil.copyfile(a.prepared/name,out/name)
-        for name in ('scene-audit.json','evaluation-truth.json'):
+        for name in ('scene-audit.json','evaluation-truth.json','scene-spec.json','bundle.json'):
             src=a.prepared/name
             if src.is_file():
                 try:
@@ -200,8 +188,13 @@ def main():
                 except OSError as error:
                     warn(name,error)
         cfg=json.loads((out/'runtime.json').read_text())
+        if bundle is not None:
+            cfg['models'] = str(ROOT / 'external/PX4-gazebo-models/models')
         a.layout=cfg['layout'];a.performance=cfg['performance_profile']
-    else:cfg=scene(out,a.negative,a.layout,a.performance)
+    elif a.scene_spec:
+        cfg = scene(out, a.negative, a.layout, a.performance, spec_path=a.scene_spec)
+    else:
+        cfg = scene(out, a.negative, a.layout, a.performance)
     validate_flight_scene(out,cfg)
     requested_rtf,rtf=scene_real_time_factor(out/'scene.sdf',a.sim_real_time_factor,execution_safety)
     if requested_rtf!=rtf:
@@ -229,7 +222,7 @@ def main():
     elif a.sitl_relaxed_execution:
         cfg['execution_safety_profile'] = SITL_RELAXED_PROFILE
     if a.static_guidance_settings:
-        from person_search.static_pair import apply_static_settings
+        from aspire_planning.static_pair import apply_static_settings
         try:
             if not a.prepared or weights_sha256 is None:
                 raise ValueError('Static paired runs require a prepared scene and explicit detector weights')
@@ -252,7 +245,7 @@ def main():
         cfg[key]=options[key]
     cfg.pop('static_cancel_session',None)
     if cfg.get('static_pair'):
-        from person_search.static_pair import common_runtime_digest
+        from aspire_planning.static_pair import common_runtime_digest
         cfg['static_pair']['common_runtime_sha256']=common_runtime_digest(cfg)
     if options['static_cancel_session']:
         session=options['static_cancel_session']
@@ -266,7 +259,7 @@ def main():
         os.environ['RACER_STATIC_MOVING_C2']='1'
     else:os.environ.pop('RACER_STATIC_MOVING_C2',None)
     (out/'runtime.json').write_text(json.dumps(cfg,indent=2));ext=a.external.resolve()
-    from person_search.visibility_evidence import visibility_ros_arguments
+    from aspire_interfaces.visibility import visibility_ros_arguments
     try:
         visibility_args=visibility_ros_arguments(cfg)
     except (ValueError,TypeError,KeyError) as error:
@@ -341,8 +334,8 @@ def main():
     from rclpy.qos import qos_profile_sensor_data,QoSProfile,DurabilityPolicy
     from nav_msgs.msg import Odometry
     from sensor_msgs.msg import Image,CameraInfo
-    from annual_runtime.pose_history import PoseHistory
-    from annual_runtime.rgbd_alignment import stamp_ns
+    from aspire_camera.poses import PoseHistory
+    from aspire_camera.rgbd_alignment import stamp_ns
     import numpy as np
     try:
         import cv2
@@ -357,7 +350,10 @@ def main():
     def image_received(key,msg):
         q=frames[key];q[stamp_ns(msg.header)]=msg
         while len(q)>30:del q[min(q)]
-    for key,kind,topic in [('rgb',Image,'rgb/image'),('depth',Image,'depth/image'),('ri',CameraInfo,'rgb/camera_info'),('di',CameraInfo,'depth/camera_info')]:node.create_subscription(kind,'/drone_0/'+topic,lambda m,k=key:image_received(k,m),qos_profile_sensor_data)
+    for key, kind, stream, channel in [('rgb', Image, 'rgb', 'image'), ('depth', Image, 'depth', 'image'),
+                                       ('ri', CameraInfo, 'rgb', 'camera_info'), ('di', CameraInfo, 'depth', 'camera_info')]:
+        topic = topics.camera_topic(0, stream, channel)
+        node.create_subscription(kind, topic, lambda m,k=key:image_received(k,m), qos_profile_sensor_data)
     try:
         evidence=(out/'telemetry.jsonl').open('x',buffering=1)
     except OSError as error:
@@ -394,19 +390,19 @@ def main():
     from px4_msgs.msg import EstimatorStatusFlags
     from annual_runtime.px4_bridge_node import px4_topic
     node.create_subscription(EstimatorStatusFlags,px4_topic('/px4_1/fmu','out','estimator_status_flags',EstimatorStatusFlags),lambda m:record('estimator_fusion',{k:bool(getattr(m,k)) for k in ('cs_gnss_pos','cs_gnss_vel','cs_gps_hgt','cs_ev_pos','cs_ev_hgt','cs_ev_yaw','cs_baro_hgt') if hasattr(m,k)}),qos_profile_sensor_data)
-    for kind,topic,qos in [('flight','/drone_0/flight_status',qos_profile_sensor_data),('execution','/drone_0/view_execution',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL)),('tracks','/search/tracks',10),('semantic','/search/semantic_candidates',10),('perception_timing','/search/perception_timing',10),('active_confirmation','/search/active_confirmation',10),('presence_event','/search/presence_events',30),('review_status','/search/review_status',10),('review_cancel','/search/review_cancel',10),('bearing','/search/bearings',30),('bearing_decision','/search/bearing_decision',100),('person_records','/uav0/search/person_records',100),('target_registry_events','/uav0/search/target_registry_events',100),('target_summary','/search/target_summary',100),('target_sync','/search/target_sync_request',100)]:node.create_subscription(String,topic,lambda m,k=kind:record_message(k,m),qos)
+    for kind,topic,qos in [('flight','/drone_0/flight_status',qos_profile_sensor_data),('execution',topics.view_execution(0),QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL)),('tracks','/search/tracks',10),('semantic','/search/semantic_candidates',10),('perception_timing','/search/perception_timing',10),('active_confirmation','/search/active_confirmation',10),('presence_event','/search/presence_events',30),('review_status',topics.REVIEW_STATUS,10),('review_cancel',topics.REVIEW_CANCEL,10),('bearing','/search/bearings',30),('bearing_decision','/search/bearing_decision',100),('person_records','/uav0/search/person_records',100),('target_registry_events','/uav0/search/target_registry_events',100),('target_summary','/search/target_summary',100),('target_sync','/search/target_sync_request',100)]:node.create_subscription(String,topic,lambda m,k=kind:record_message(k,m),qos)
     if os.environ.get('ASPIRE_SAFETY_MAP_TIMING')=='1':
         for kind in ('static_cancel','static_cancel_ack','execution_feedback'):
             topic='feedback' if kind=='execution_feedback' else kind
             node.create_subscription(Float64MultiArray,f'/baseline/{topic}_0',
                 lambda m,k=kind:record(k,dict(data=list(m.data),sim_ns=node.get_clock().now().nanoseconds)),100)
-        node.create_subscription(String,'/uav0/search/target_observations',
+        node.create_subscription(String,topics.target_observations('uav0'),
             lambda m:record_message('target_observations',m),100)
     registry_fixture=None;registry_fixture_pub=None
     if a.registry_cue_fixture:
         from tools.flight.registry_cue_fixture import ChurningCueFixture
         registry_fixture=ChurningCueFixture()
-        registry_fixture_pub=node.create_publisher(String,'/uav0/search/target_observations',20)
+        registry_fixture_pub=node.create_publisher(String,topics.target_observations('uav0'),20)
     def start_viewer():
         rviz_cfg=yaml.safe_load((ROOT/'config/search.rviz').read_text())
         # Bound visualization work on the software-rendered local container.
