@@ -11,6 +11,30 @@
 
 日常改动从 `main` 开短分支，如 `b/vision-confidence` 或 `d/room-layout`。提交 PR 时附上验证命令和结果。改动话题、坐标、时间戳或场景格式时，同步更新接口说明，并请数据提供方和使用方共同复核。合并前跑一次全套主机测试。[接口与验收](docs/TEAM-INTERFACES.md)
 
+## 复现 Depot 07 联调
+
+在团队的 WSL 运行机上，从仓库根目录执行。资产使用 `/opt/aspire/assets/depot07-20261118`。该目录的 `start.sh` 用于单独查看 Gazebo 世界。联调入口读取同一套资产，保留仓库、人物、R-01 及原始摆位，把配准 RGB-D 和 PX4 所需的改动写入外部运行目录中的场景副本。原始资产仍由资产目录维护。
+
+运行机应已配置 ROS 2 Jazzy、Gazebo Harmonic 8.15、colcon、RViz、Xvfb、x11vnc 和 noVNC。脚本使用现有的 `/opt/aspire/build/ros-ws`、`/opt/aspire/build/px4-sitl`、`/planner/external/agent_install`、分析及分割 Python 环境、DDS 配置、YOLO 权重和已校验的 x86 Gazebo 退出保护。WSL 的 Windows I 盘启动时需有至少 6.4 GB 可用空间。[联调环境与验收](docs/REPRODUCIBILITY.md)
+
+首次构建或原生代码变更后，在仓库外构建原生 RACER。再次运行可以复用同一提交的构建。
+
+```sh
+source /opt/ros/jazzy/setup.bash
+source /opt/aspire/build/ros-ws/install/setup.bash
+native="$(mktemp -d /opt/aspire/build/search-lab-native.XXXXXX)"
+CMAKE_BUILD_PARALLEL_LEVEL=2 bash tools/search/build.sh "$native" --execution-safety --consistent-inflation
+```
+
+```sh
+run="/opt/aspire/evidence/depot07-$(date +%Y%m%d-%H%M%S)"
+bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
+```
+
+默认传入 `--rviz`，运行 180 仿真秒。运行期间在运行机上打开 [RViz 浏览器视图](http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale)。远程观看时通过已有 SSH 连接将本机端口转发到运行机的 `127.0.0.1:18680`。
+
+启动日志在 `$run/launch.log`，生成的场景在 `$run/scene/`，退出码在 `$run/exit-code.txt`。验收查看 `$run/run/result.json`、`telemetry.jsonl` 和 `flight/0/events.jsonl`，核对场景加载、RGB-D 配对、人员观测进入原生注册表，以及轨迹激活和到达后的新观测。
+
 ## D 准备场景
 
 在仓库根目录使用已安装 [Python 依赖](requirements.txt) 的环境运行。复制房间 JSON 即可修改地图边界、命名起点、遮挡物、墙体和单个人物的初始姿态。下面三条命令只生成场景，各需一个新的输出目录。
@@ -33,7 +57,7 @@ RACER_EXECUTION_SAFETY=1 python3 tools/flight/run.py \
   --prepared /tmp/aspire-lab-occluded --output "$ASPIRE_RUN_DIR" \
   --external "$ASPIRE_SITL_EXTERNAL" --budget-clock sim --seconds 180 \
   --confirmation-mode registry --detector yolo11n-seg \
-  --segmentation-weights "$ASPIRE_SEG_WEIGHTS" --bearing-bias
+  --segmentation-weights "$ASPIRE_SEG_WEIGHTS" --bearing-bias --rviz
 ```
 
 `--external` 指向运行机上已有的 PX4 和 Agent 构建依赖目录。仓库自带模型可供离线生成场景。上述组合接入人员观测注册表及方位引导。主动静态复查的成对实验另有运行设置和评分协议。[配对验收](docs/STATIC-EVALUATION.md)
