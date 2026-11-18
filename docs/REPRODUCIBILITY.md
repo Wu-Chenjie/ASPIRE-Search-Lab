@@ -1,46 +1,28 @@
-# 验证、依赖与复现边界
+# 联调环境与验收
 
-## 共同源码单元测试
-
-在仓库根目录、已有依赖环境执行：
+日常开发使用 [Python 依赖](../requirements.txt)。涉及 C++ 协议与执行的主机回归还需要 C++ 编译器和 Boost 头文件。macOS 如通过 Homebrew 安装 Boost，可以把对应 include 目录添加到 CPATH。
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider tests
+export PYTHONDONTWRITEBYTECODE=1
+python3 -m pytest -q -p no:cacheprovider tests
+python3 tools/racer_ros2/verify.py external/racer_ros2_ws
 ```
 
-`requirements.txt` 列出主机依赖，`requirements-segmentation.lock` 列出可选分割依赖。缺失 ROS/Gazebo 依赖导致的跳过项必须单列。此命令不会启动新的搜索仿真。
+A 在 Linux 联调机准备 ROS 2 Jazzy、Gazebo Harmonic、colcon、px4_msgs、PX4 SITL 与 Micro XRCE Agent。系统包与已有构建由运行机统一管理。B 负责提供匹配 [检测配置](../config/detectors/yolo11n-seg-locked.json) 的本地权重及检测环境。权重、场景生成物、构建和日志写到仓库外。
 
-## 外部层无飞行测试
-
-下面选择可独立执行的捕获审计与原子发布测试；不运行原飞行入口测试中的机器固定路径，不把这个子集当作全栈验收：
+在载入 ROS 与 px4_msgs 后构建启用执行校验的原生 RACER。构建目录使用新目录或空目录。
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 \
-PYTHONPATH="$PWD:$PWD/src:$PWD/src/annual_planner/src:$PWD/experiments/stage65/scripts:$PWD/experiments/stage66/scripts:$PWD/experiments/stage68/scripts" \
-python3 -m pytest -q -p no:cacheprovider \
-  experiments/stage65/tests/test_stage65_passive.py \
-  experiments/stage65/tests/test_stage65_capture_audit.py \
-  experiments/stage65/tests/test_stage65_rejection_replay.py \
-  experiments/stage66/tests/test_stage66_capture_audit.py \
-  experiments/stage67/tests/test_monitor_inventory.py \
-  experiments/stage68/tests/test_stage68_publication.py
+bash tools/search/build.sh "$ASPIRE_NATIVE_WS" --execution-safety
+source "$ASPIRE_NATIVE_WS/install/setup.bash"
 ```
 
-## 仿真栈
+如果暂时没有 ROS 2，可用下面的命令验证源码生成和覆盖流程。之后由 A 按 [README](../README.md) 的仿真命令执行整套联调。
 
-原生 ROS2 RACER 在 `external/racer_ros2_ws/src/racer_core/`；本机环境为 ROS2 Jazzy、Gazebo Harmonic 8.15.0、PX4 SITL、RViz。锁定信息见 `dependencies.lock.json`；Stage68 实际使用的额外二进制、权重和测量依赖哈希见 [PREFLIGHT](results/stage68/PREFLIGHT.json) 与 [入口清单](results/stage68/ENTRY-MANIFEST.json)。历史锁定文件不自动代表最终全部外部运行层。
+```sh
+python3 tools/search/build_native.py "$ASPIRE_NATIVE_SRC_CHECK" --execution-safety
+```
 
-`experiments/` 保存原始源码以便审计：Stage49 原生公开请求、Stage53/54 元数据与精确公开输出构建、Stage58 观测、Stage62 有界公开反馈、Stage64 ULog 审计、Stage65/66 捕获与握手、Stage67/68 监督和原子发布。没有采用 Stage47 改变积分语义的子步原型。Stage68 的规划/控制数学及入口原守卫 AST 等价记录保留。
+A 与 D 先用同一个房间确认三组场景能加载。无人组用于检查误报，起点可见组用于检查感知链路，遮挡组用于检查复查决策。每次使用独立输出目录，并记录代码提交、场景、检测权重和运行配置。结束后看 `result.json`、`telemetry.jsonl` 和 `flight/0/events.jsonl`。需要复核执行证书时，使用 [离线证书审计](../tools/flight/stage23_safety_audit.py)。报告中注明使用了主机测试、静态采集还是 PX4 SITL 闭环，跳过项注明原因。
 
-这些脚本原样包含历史 `/tmp`、容器和外盘路径，以及只允许执行一次的旧批次 ID。它们是冻结实验源码，**不是可直接重启的演示命令**。本次未把原批次改造成跨机器一键启动器。重新运行需要新的协议与 ID、实际 Linux 容器、已核验依赖、代码树外输出目录及完整前检；不能通过改路径绕过已关闭批次的停止约定。
-
-权重、PX4 构建产物、容器/VM 镜像、原始 RGB-D/ULog/PAX 和完整场景生成结果均未上传。必要静态模型已实体复制。场景真值与离线审计不得接入在线决策。
-
-## 来源与证据
-
-- [Stage45 原冻结清单](provenance/stage45-frozen-source.json)：599 项全部在整理前核对相同。仓库入口文档及 Git 忽略规则单独更新；算法、ROS 接口和测试保持原内容。
-- [外部层当前文件](provenance/measurement-files.json)：八个实际入口/测量文件与冻结 SHA-256 相符。
-- [导入文件清单](provenance/imported-files.json)：外部源码、历史说明和结果的原路径、大小、哈希。
-- `docs/results/` 是独立评测摘要，包含失败和中止。原报告相对链接中未随仓库收录的详细证据仍在本机原归档；见 [归档索引](provenance/LOCAL-ARCHIVES.md)。
-
-原始恢复镜像、工作 shadow、容器实例与服务不由本仓库管理，本次未停启或改动它们。
+同一固定场景的引导开关对照见 [配对验收](STATIC-EVALUATION.md)。

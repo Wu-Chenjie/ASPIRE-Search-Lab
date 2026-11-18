@@ -1,6 +1,0 @@
-{
-  "equal_after_reversing_only_JSON_publication_call": true,
-  "original_SHA256": "5cffd2c20ce0cc760f538f78244852aa63ffe8d8e6d755ae2c9e38aca5cb03f1",
-  "new_SHA256": "0af2759579768f36f544a66f157f346fd17b8a018966e69f072207e6ccd81d6e",
-  "no_pacing_control_math_parameters_or_deadlines_changed": true
-}

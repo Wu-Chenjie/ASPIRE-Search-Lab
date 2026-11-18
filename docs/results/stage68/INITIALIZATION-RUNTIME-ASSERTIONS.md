@@ -1,9 +1,0 @@
-# 首次源合同的运行时限制
-
-完整入口在首次4ms准备时尚未启动px4_bridge_node/view_executor_node/racer_adapter/person_search；准备后记录实际子进程清单并再次断言。原pacer先要求world仍暂停于0，执行原生commander status：必须实际Disarmed、无Offboard、in failsafe:no，否则失败。
-
-5wall分支仅在wanted==4000执行，且必须第一真实IMU marker的header_ns==4000000；没有marker或首header不同立即失败，不允许跳到8/12ms或填造。两raw真实公开4ms反馈完成后再次原commander状态核验，才写准备ready；完整入口核验这两个真实状态并启动原bridge，再以自己的release文件允许后续步骤。
-
-后续wanted>4000没有5s分支：原请求/clock各500ms、整步真实raw/积分反馈500ms、每个完整原CLI查询250ms。所有原实际飞行安全/到达/时效门和外层120/180/1260wall总上限保持。首次源生成合同已从旧500ms改为限定未解锁5s，旧失败不改判，不能称原启动期限完全不变。
-
-独立审计要求源header从4ms到目标逐4ms完整、原始protobuf可重序列化、两raw每步真实并逐位匹配、积分每步实际timestamp和dt/六向量完整、ULog所有交叠逐位一致、原生DownSampler全窗0裁剪；缺源/缺帧/失序/超时/未来/错误即失败。新规则只允许第一测量生成之前有界等待，不授权忽略任何真实输入丢失。没有内部代数trace，仍不冒称直接记录所有内部消费代数。
