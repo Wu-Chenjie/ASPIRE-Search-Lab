@@ -1,6 +1,6 @@
 # ASPIRE Search Lab 工作约定
 
-本仓库保存灾后室内人员搜索仿真工程，保持私有。四人职责和运行入口见 README.md，跨模块协议见 docs/TEAM-INTERFACES.md。
+本仓库公开维护灾后室内人员搜索仿真工程，方便团队协作。四人职责和运行入口见 README.md，跨模块协议见 docs/TEAM-INTERFACES.md。
 
 - A 负责原生 ROS 2 RACER 规划、仿真运行和执行反馈。B 负责视觉识别与人员观测。C 负责 RGB-D 相机和配准。D 负责地图、遮挡物、人物布置及场景交付。
 - 保留原生 RACER 依赖与第三方许可证。新试验使用新运行目录。精简前的实验批次与结果见 README.md 的归档链接。
