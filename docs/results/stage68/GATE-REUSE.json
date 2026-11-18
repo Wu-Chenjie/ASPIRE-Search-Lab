@@ -1,0 +1,16 @@
+{
+  "actual_gate": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage63/audits/racer-stage63-g01-fair-metrics.json",
+  "actual_gate_sha256": "66de5aa36772dd2d1e31422080c50a8a2727372b7cf9ac9840ef44d5a3604bd5",
+  "original27_passed": true,
+  "new_physical_gate_runs": 0,
+  "gate_excluded_from_pair_statistics": true,
+  "same_original_control_mapping_detector_planner_safety_source": true,
+  "same_native_PX4_model_Physics_Stopguard": true,
+  "measurement_layer_changed": true,
+  "not_a_new_full_Stage65_stack_gate": true,
+  "justification": "Original actual Stage63 control/identity27 only. All original control/mapping/detector/planner/safety sources and binaries remain exact; immutable Stage65 passive receive library and wrapper are reused. Only diagnostic producer acknowledgment transport and failure traceback changed. Real separate-process nominal, silent negative, controlled transient diagnostic drop and saved-estimated-input load cases passed plus complete regressions. All12 main arms use one newly frozen version; all6 historical started arms excluded. Not a new full Stage66 stack flight gate.",
+  "not_a_new_full_Stage66_stack_gate": true,
+  "scope_note": "Same immutable Stage65 receive/record and original policies; only producer acknowledgment transport and error traceback changed; historical actual27 is not a new full Stage66 flight gate",
+  "stage67_scope": "External monitor regular-file stat race only; actual flight entry66/capture/source/binaries unchanged. HistoricalG scope unchanged, not new fullstackGate.",
+  "stage68_scope": "Historical actual27 only, not new fullstack gate. Original numerical/control policy same AST; initialization JSON atomic publication and external monitoring differ explicitly."
+}

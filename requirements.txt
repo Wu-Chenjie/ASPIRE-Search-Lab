@@ -1,0 +1,6 @@
+numpy
+scipy
+PyYAML
+pytest
+Pillow
+opencv-python>=4.6

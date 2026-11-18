@@ -1,0 +1,102 @@
+{
+  "inherited_complete_prefix_all8": [
+    {
+      "run": "racer-stage66-p01-a",
+      "all_core_pass": true,
+      "strict_gate_pass": true,
+      "failed_soft_checks": [],
+      "fair_SHA256": "79d2c500cf200beb3e400a142286db317c9442ffcf44c570d664269bf5154ca1"
+    },
+    {
+      "run": "racer-stage66-p01-b",
+      "all_core_pass": true,
+      "strict_gate_pass": true,
+      "failed_soft_checks": [],
+      "fair_SHA256": "6efb7aaa12be26d38c83b407e1940d7284930ae56f4298c44272092d94062cc9"
+    },
+    {
+      "run": "racer-stage66-p02-b",
+      "all_core_pass": true,
+      "strict_gate_pass": false,
+      "failed_soft_checks": [
+        "surface_all_qualified_valid"
+      ],
+      "fair_SHA256": "d1384756545d4142f3fb01265cf124ecaa3766353ea4d9d4922a333e0c7e16a2"
+    },
+    {
+      "run": "racer-stage66-p02-a",
+      "all_core_pass": true,
+      "strict_gate_pass": true,
+      "failed_soft_checks": [],
+      "fair_SHA256": "d474da8d90548f4cd15408ab456571f182e618e42623d55ec091c85764c603d7"
+    },
+    {
+      "run": "racer-stage66-p03-a",
+      "all_core_pass": true,
+      "strict_gate_pass": true,
+      "failed_soft_checks": [],
+      "fair_SHA256": "4ea4a205d4a8050059aa73e511054f93461a5c9e19aaace6a7451290c2d2ac94"
+    },
+    {
+      "run": "racer-stage66-p03-b",
+      "all_core_pass": true,
+      "strict_gate_pass": true,
+      "failed_soft_checks": [],
+      "fair_SHA256": "f00ee3a1bc639c497e170722e8f49e310d0bb2a196d0f291bcc3141277262fac"
+    },
+    {
+      "run": "racer-stage66-p04-b",
+      "all_core_pass": true,
+      "strict_gate_pass": false,
+      "failed_soft_checks": [
+        "confirmed_source_capture_identity_determined"
+      ],
+      "fair_SHA256": "8b0f1e74ab55057f9b9e4cfc70b34fdbe157c9f2249353abfc043d3074673c10"
+    },
+    {
+      "run": "racer-stage66-p04-a",
+      "all_core_pass": true,
+      "strict_gate_pass": false,
+      "failed_soft_checks": [
+        "confirmed_source_capture_identity_determined",
+        "surface_all_qualified_valid"
+      ],
+      "fair_SHA256": "9b7bfb8fd7bc046a48fab74b1c06af03a9e8f8adea7097996f74324122c43462"
+    }
+  ],
+  "failed_interruption_retained": {
+    "run": "racer-stage66-p05-a",
+    "sim_s": 30.108,
+    "wall_s": 125.95705753199945,
+    "not_relabelled_success": true,
+    "no_old_ID_relaunch": true
+  },
+  "new_suffix": [
+    {
+      "tag": "P05-A",
+      "condition": "C1",
+      "arm": "A"
+    },
+    {
+      "tag": "P05-B",
+      "condition": "C1",
+      "arm": "B"
+    },
+    {
+      "tag": "P06-B",
+      "condition": "C0",
+      "arm": "B"
+    },
+    {
+      "tag": "P06-A",
+      "condition": "C0",
+      "arm": "A"
+    }
+  ],
+  "selection_not_based_on_performance": true,
+  "not_original_preregistered_success": true,
+  "all8_complete_prefix_inherited_regardless_of_performance": true,
+  "both_old_interruptions_in": "INTERRUPTED-ATTEMPTS.json",
+  "same_numerical_control_policy_AST": true,
+  "measurement_publication_and_file_hashes_changed_explicitly": true
+}

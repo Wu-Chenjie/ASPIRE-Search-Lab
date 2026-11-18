@@ -1,0 +1,36 @@
+{
+  "platform": {
+    "ros": "jazzy",
+    "gazebo_sim": "8.15.0",
+    "container": "annual-px4-research",
+    "docker_context": "colima-racer-gvp"
+  },
+  "existing_image": {
+    "tag": "annual-planner:px4-jazzy",
+    "id": "sha256:7a7b22889dc201b08ec948d512d9ede2c7bf72e9203362022bc320b3b0d825eb",
+    "note": "Locally observed image; no image download performed."
+  },
+  "observed_python": {
+    "python": "3.12.3",
+    "numpy": "1.26.4",
+    "scipy": "1.11.4",
+    "opencv": "4.6.0",
+    "PyYAML": "6.0.1"
+  },
+  "racer_commit": "049c332e3634ef72d8beb155b4c13dc91ca52916",
+  "px4_models_commit": "e05f4312d3f28aa621157610584a4870406cb6d3",
+  "person_asset_lock": "tools/rgbd_scene/assets.lock.json",
+  "copied_files": "docs/source-manifest.json",
+  "generated_sources": "external/racer_ros2_ws/migration.json",
+  "detector": "OpenCV built-in default people HOG SVM; no external model weights",
+  "runtime_scope": "Local PX4 SITL dynamics + ROS2 RACER; GNSS-aided EKF2; no hardware flight",
+  "existing_px4_binary_sha256": "9531e9fbd365b3edc6460572e04514c11b502fff0bf6b3f40781d26b300d974c",
+  "flight_sources": "docs/flight-source-manifest.json",
+  "installed_gui_packages": {
+    "ros-jazzy-rviz2": "14.1.24-1noble.20260916.104902",
+    "novnc": "1:1.3.0-2",
+    "websockify": "0.10.0+dfsg1-5build2",
+    "x11vnc": "0.9.16-10"
+  },
+  "gui_install_scope": "Official configured ROS/Ubuntu apt sources in existing local container; mutable container differs from base image."
+}

@@ -1,0 +1,11 @@
+{
+  "source": "https://www.artec3d.com/3d-models/body-scan",
+  "download": "https://cdn.artec3d.com/content-hub-3dmodels/3d-body-scan.zip?VersionId=EA9mxOXJFoZeMpLc_IMh0QR1914D8WG1",
+  "archive_sha256": "a931d512a7ee87970d61d6731f556ed1d841af2140c7bead6c3ff38909f304b2",
+  "attribution": "Artec Group inc.",
+  "license": "CC BY 3.0 Unported, bundled license retained; website currently links CC BY 4.0",
+  "modifications": "Coordinates converted from millimetres to metres, XY bounds centered, feet at Z=0; triangles and texture preserved; explicit nonmetallic rough PBR material for scanned albedo",
+  "vertices": 391978,
+  "faces": 764896,
+  "model_sha256": "8881a78b7a560b9a6fad4615477b033fd28c37dc201f4358db2ccf3589e3ce93"
+}

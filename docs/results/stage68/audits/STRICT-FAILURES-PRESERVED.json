@@ -1,0 +1,27 @@
+[
+  {
+    "run": "racer-stage66-p02-b",
+    "failed_checks": [
+      "surface_all_qualified_valid"
+    ],
+    "surface_failure": 1,
+    "critical_identity_unknown": 0
+  },
+  {
+    "run": "racer-stage66-p04-b",
+    "failed_checks": [
+      "confirmed_source_capture_identity_determined"
+    ],
+    "surface_failure": 0,
+    "critical_identity_unknown": 1
+  },
+  {
+    "run": "racer-stage66-p04-a",
+    "failed_checks": [
+      "confirmed_source_capture_identity_determined",
+      "surface_all_qualified_valid"
+    ],
+    "surface_failure": 6,
+    "critical_identity_unknown": 11
+  }
+]

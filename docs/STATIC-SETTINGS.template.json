@@ -1,0 +1,18 @@
+{
+  "static_event_min_interval_s": null,
+  "static_guidance_budget": {
+    "duration_s": null,
+    "reserve_time_s": null,
+    "observation_s": null,
+    "initial_energy_j": null,
+    "reserve_energy_j": null,
+    "power_upper_w": null,
+    "model_id": null
+  },
+  "static_weak_enabled": false,
+  "static_cancel_enabled": false,
+  "static_visibility_config": null,
+  "static_visibility_model_id": null,
+  "static_moving_c2": false,
+  "static_c2_lead_s": null
+}

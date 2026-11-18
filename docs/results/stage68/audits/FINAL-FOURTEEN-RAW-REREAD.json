@@ -1,0 +1,136 @@
+{
+  "date_utc": "2026-10-18T21:41:59.187466+00:00",
+  "total_started": 14,
+  "complete_main": 12,
+  "interrupted": 2,
+  "records": [
+    {
+      "run": "racer-stage66-p01-a",
+      "regular_files": 2939,
+      "content_bytes": 399419589,
+      "archive_bytes": 404828160,
+      "fresh_archive_SHA256": "aee08e53fa61c29a070d0d1e0a7845dcaaf2417da7d624932711df8e0a72f4f3",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p01-b",
+      "regular_files": 2927,
+      "content_bytes": 403759285,
+      "archive_bytes": 409128960,
+      "fresh_archive_SHA256": "78a9c2d6f27a2594627b471875cc14bac2a173ba31d57255bee0a515f738786d",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p02-b",
+      "regular_files": 3023,
+      "content_bytes": 569928027,
+      "archive_bytes": 575488000,
+      "fresh_archive_SHA256": "ea82de24a1ad690fa5295273c7d8679b4552611f5d648948e049d023a17c1e4f",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p02-a",
+      "regular_files": 2956,
+      "content_bytes": 521470063,
+      "archive_bytes": 526878720,
+      "fresh_archive_SHA256": "cdb79401edbdf0bbe03a9b001273b6c6c4d5d842fe82764c3b490e6ce2a34701",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p03-a",
+      "regular_files": 3050,
+      "content_bytes": 567918225,
+      "archive_bytes": 573409280,
+      "fresh_archive_SHA256": "e1c35da4a161a9df882e41c8d463c656d968726c8940c8ac4ff0010db51b98cf",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p03-b",
+      "regular_files": 3033,
+      "content_bytes": 569456593,
+      "archive_bytes": 574894080,
+      "fresh_archive_SHA256": "5abfcf7ca03e94559e45161c5c28a2d0e31bb8c3dd7c7b5478542d25258bddac",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p04-b",
+      "regular_files": 3029,
+      "content_bytes": 588373714,
+      "archive_bytes": 593909760,
+      "fresh_archive_SHA256": "ff96b30bf94ed789618254cd606e60a6eac151f87a710b0e6f4fa147de4e4e83",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p04-a",
+      "regular_files": 3075,
+      "content_bytes": 569769810,
+      "archive_bytes": 575395840,
+      "fresh_archive_SHA256": "6d34b0975ac45664c7b9585c68ebfce925314bf26452e82a2b4b7ca7b8108346",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage66-p05-a",
+      "regular_files": 494,
+      "content_bytes": 79193096,
+      "archive_bytes": 80138240,
+      "fresh_archive_SHA256": "ac32f11650e01a5f3a8eea65b895b27abdac1f48e796a2525a8df85b0c021aae",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage67-p05-a",
+      "regular_files": 54,
+      "content_bytes": 1965331,
+      "archive_bytes": 2088960,
+      "fresh_archive_SHA256": "c5e0a5ee375e32d532f12c23df0933bd1ff12a3c12559e9cbd06f77cdf7fb179",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage68-p05-a",
+      "regular_files": 2974,
+      "content_bytes": 486929935,
+      "archive_bytes": 492400640,
+      "fresh_archive_SHA256": "c3765ed5ee9907776fa9d45690c5626dbeecc47c3df2c90dc90792b5f98ecd7d",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage68-p05-b",
+      "regular_files": 2987,
+      "content_bytes": 501153547,
+      "archive_bytes": 506634240,
+      "fresh_archive_SHA256": "ebce67d5ca8f64c50b6036cfdac7ae5c677fbab480ae892f0c5172e668006721",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage68-p06-b",
+      "regular_files": 2922,
+      "content_bytes": 403520456,
+      "archive_bytes": 408872960,
+      "fresh_archive_SHA256": "90ce27d9663763c644938efb6b1798718266fe09b1dab93b697d7a9a41d49ff8",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    },
+    {
+      "run": "racer-stage68-p06-a",
+      "regular_files": 2896,
+      "content_bytes": 405076811,
+      "archive_bytes": 410337280,
+      "fresh_archive_SHA256": "dd9d37ec11e0621ae87868b12f341ae35ee6560c11f90196cd42ef646709a9ee",
+      "archival_content_metadata_proof_unchanged": true,
+      "analysis_view_regular_SHA_all_equal": true
+    }
+  ],
+  "all_passed": true,
+  "same_physical_disk_not_independent_media": true
+}

@@ -1,0 +1,76 @@
+{
+  "actual_original_container_raw_all14_equal": [
+    {
+      "run": "racer-stage66-p01-a",
+      "files": 2939,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p01-b",
+      "files": 2927,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p02-b",
+      "files": 3023,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p02-a",
+      "files": 2956,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p03-a",
+      "files": 3050,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p03-b",
+      "files": 3033,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p04-b",
+      "files": 3029,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p04-a",
+      "files": 3075,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage66-p05-a",
+      "files": 494,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage67-p05-a",
+      "files": 54,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage68-p05-a",
+      "files": 2974,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage68-p05-b",
+      "files": 2987,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage68-p06-b",
+      "files": 2922,
+      "all_regular_SHA_equal": true
+    },
+    {
+      "run": "racer-stage68-p06-a",
+      "files": 2896,
+      "all_regular_SHA_equal": true
+    }
+  ],
+  "active_simulation_processes": [],
+  "guest_free_bytes": 23005372416
+}

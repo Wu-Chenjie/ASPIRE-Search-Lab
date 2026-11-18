@@ -1,0 +1,662 @@
+{
+  "docs/history/STAGE45-README.md": {
+    "source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-stage45/README.md",
+    "sha256": "2b714e9a652625862338536e2a741c774b86a6ff403b0b07b6524a60f145e97f",
+    "bytes": 16753
+  },
+  "docs/history/STAGE45-AGENTS.md": {
+    "source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-stage45/AGENTS.md",
+    "sha256": "82305b98961bf27628155b40680c6a07aed8e14c4746be6a18874297ee675c82",
+    "bytes": 8708
+  },
+  "docs/provenance/stage45-frozen-source.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/BASE-SOURCE-MANIFEST.json",
+    "sha256": "399e486ccc6c87b7187324f9c84b9a35065bb37015a10f89526b1a5c2541c580",
+    "bytes": 72568
+  },
+  "experiments/stage65/scripts/stage65_capture.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65_capture.py",
+    "sha256": "ac2b35482cf2cd78c5f510987ecf5c472f5a23857cb00cb1d17afdcb6db81967",
+    "bytes": 7394
+  },
+  "experiments/stage65/scripts/stage65-node-entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65-node-entry.py",
+    "sha256": "3cc72984517b1af0a5bfdbcf00d92a20a3ccce286c18d7df398b69f1672f2362",
+    "bytes": 679
+  },
+  "experiments/stage65/scripts/run-regression.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/run-regression.py",
+    "sha256": "67517edd711fd04ed3a594bdc61909b7cab595e0983e3837fc6044d8ca458801",
+    "bytes": 408
+  },
+  "experiments/stage65/scripts/stage65-flight-entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65-flight-entry.py",
+    "sha256": "442c505c21aeffaccbe0a112af515280e8aecea3ab45ea8fa64c4af625f10c2b",
+    "bytes": 35482
+  },
+  "experiments/stage65/scripts/stage65-startup-probe.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65-startup-probe.py",
+    "sha256": "44d32a84098a3e80a7ec0fce91b71b286b73f2799bb69e815db2958803a2e8ad",
+    "bytes": 1131
+  },
+  "experiments/stage65/scripts/stage65-monitor.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65-monitor.py",
+    "sha256": "9d9f11eed0cb05748c43865d742ad632e8557991971459a276f469343b731340",
+    "bytes": 3848
+  },
+  "experiments/stage65/scripts/gateway-component.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/gateway-component.py",
+    "sha256": "34e60d15e11923e4ccc43deabc49f355e4cc75f1f5b66d5a6f112b26abc1369c",
+    "bytes": 2176
+  },
+  "experiments/stage65/scripts/stage65_capture_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65_capture_audit.py",
+    "sha256": "4d5633aad3cad2e19baba448b04f4d18425f62c7b77f17ec70d8dcad99c75c40",
+    "bytes": 6387
+  },
+  "experiments/stage65/scripts/dynamic_truth_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/dynamic_truth_audit.py",
+    "sha256": "ba48fa8ae114a03b120aea76317eebddc4b564f56968eff55b96fa67620a9f6f",
+    "bytes": 16884
+  },
+  "experiments/stage65/scripts/metrics_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/metrics_audit.py",
+    "sha256": "13f2e050f749af37e6149dd33ce12229ba5ac135af31ac74322322e843523c49",
+    "bytes": 10384
+  },
+  "experiments/stage65/scripts/fair_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/fair_metrics.py",
+    "sha256": "c95e023ae10a963725ea67f2f3ab3eb3b16854398b09ce7c601d86b8661d20e8",
+    "bytes": 14211
+  },
+  "experiments/stage65/scripts/raster_fast.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/raster_fast.py",
+    "sha256": "fd7732c8fa9a096d6d5d041557ca1882b80e98fb1555831ba21bef45f8579118",
+    "bytes": 597
+  },
+  "experiments/stage65/scripts/startup_failure_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/startup_failure_metrics.py",
+    "sha256": "5046c30e4b0955bfb083c0c4e7cd7642805ab87d0be609c7ceb62b02dedf5a0b",
+    "bytes": 1756
+  },
+  "experiments/stage65/scripts/audit_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/audit_one.py",
+    "sha256": "ed345aca7b83eee7308155605519864f975184db86ac50730354d45949672457",
+    "bytes": 3142
+  },
+  "experiments/stage65/scripts/run_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/run_one.py",
+    "sha256": "b7e757a574f23b847864371b76eab398ecbb6b9b448264f4a522d5fbc4ad5da4",
+    "bytes": 11142
+  },
+  "experiments/stage65/scripts/batch_driver.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/batch_driver.py",
+    "sha256": "e087f9dbac42b224e915ad58b536f94e9703e5426f7cbee8e0d007065800013f",
+    "bytes": 3048
+  },
+  "experiments/stage65/scripts/summarize.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/summarize.py",
+    "sha256": "80eb65e3a570408a250e6690e27b80de59fec56b62b272a24c980f7487d174dc",
+    "bytes": 12087
+  },
+  "experiments/stage65/scripts/stage65_rejection_replay.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/stage65_rejection_replay.py",
+    "sha256": "0d867b15d6743a3fdbac26aa89270fdbeb4ac8c7ed7602592ff24650b7205c0c",
+    "bytes": 5289
+  },
+  "experiments/stage65/scripts/gateway-component-final.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/scripts/gateway-component-final.py",
+    "sha256": "5fd54e2cf70f4bc196a54bd39e6f35444b7b34060f61717fb812867b8916a4ab",
+    "bytes": 2182
+  },
+  "experiments/stage65/tests/test_stage65_passive.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/tests/test_stage65_passive.py",
+    "sha256": "c5242bc9902a4fd68bb74e0fc74b6c2088efe2ebfea8926078b50842b6abcf8b",
+    "bytes": 5586
+  },
+  "experiments/stage65/tests/test_stage65_ros_probe.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/tests/test_stage65_ros_probe.py",
+    "sha256": "7113e070e63a8079f9dbb0fc763f8401256aba2ceb6e53e3bd932ff085f6733f",
+    "bytes": 4355
+  },
+  "experiments/stage65/tests/test_stage65_entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/tests/test_stage65_entry.py",
+    "sha256": "273bbfc26c6f19b0292dee29a3d4410470e61abf75d2ca20048831e9c5e05939",
+    "bytes": 1317
+  },
+  "experiments/stage65/tests/test_stage65_capture_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/tests/test_stage65_capture_audit.py",
+    "sha256": "a34297413fb5f55e2b1082570aa0e688c5f3241d3573ab8d16b874ca578d9215",
+    "bytes": 3435
+  },
+  "experiments/stage65/tests/test_stage65_rejection_replay.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/tests/test_stage65_rejection_replay.py",
+    "sha256": "dae6473cd8ac09516c40b665b51b56dae246b4f4a9dd0976fa2c368a848137ce",
+    "bytes": 2185
+  },
+  "experiments/stage66/scripts/stage66-startup-probe.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/stage66-startup-probe.py",
+    "sha256": "60f80d7459f7922b052ed1c7d94a832d61408c5b4598486f24c9360969b0f1fa",
+    "bytes": 2745
+  },
+  "experiments/stage66/scripts/component-node.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/component-node.py",
+    "sha256": "12238089f52fbd06ce5598297bce4b083c053f04db2e28a260b602b31b5af238",
+    "bytes": 1490
+  },
+  "experiments/stage66/scripts/multiprocess-probe-component.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/multiprocess-probe-component.py",
+    "sha256": "3d6311f7b791ba7b6bc6d98453b3b6d346cd52bcbc1b885874fef4cabdccf2a1",
+    "bytes": 5464
+  },
+  "experiments/stage66/scripts/stage66-flight-entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/stage66-flight-entry.py",
+    "sha256": "d8c5408f853edc0f5ca0317548823c0fe1780794dbe033ffb27d01fef170a7a7",
+    "bytes": 35602
+  },
+  "experiments/stage66/scripts/dynamic_truth_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/dynamic_truth_audit.py",
+    "sha256": "b6c877169f9dd42ffaea4c2b0f2dabfde3a7d4ba2b2884f84a8943e1c91d7497",
+    "bytes": 16884
+  },
+  "experiments/stage66/scripts/metrics_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/metrics_audit.py",
+    "sha256": "665d203d9cbd7aa8eb8f9672bfdf7dec001843c4a3aa2ac159751214c1db02ec",
+    "bytes": 10384
+  },
+  "experiments/stage66/scripts/fair_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/fair_metrics.py",
+    "sha256": "67536113ba7dbca14b99ae5ee7536ed96655bf617620afac143ff3680478acc2",
+    "bytes": 14211
+  },
+  "experiments/stage66/scripts/raster_fast.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/raster_fast.py",
+    "sha256": "fd7732c8fa9a096d6d5d041557ca1882b80e98fb1555831ba21bef45f8579118",
+    "bytes": 597
+  },
+  "experiments/stage66/scripts/startup_failure_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/startup_failure_metrics.py",
+    "sha256": "79cf3977605a6266e103fb00a4168ad3350815903a0a62224b79abee5bfcccb7",
+    "bytes": 1756
+  },
+  "experiments/stage66/scripts/audit_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/audit_one.py",
+    "sha256": "203f5b98f3c4b972b9f99a8bef7809379b83af0879260a63880e2ddb6297824a",
+    "bytes": 3142
+  },
+  "experiments/stage66/scripts/run_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/run_one.py",
+    "sha256": "455d8b77c4116ca472815a798546596fa35a6cb9e80d0081b05e443940c9ea12",
+    "bytes": 11178
+  },
+  "experiments/stage66/scripts/batch_driver.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/batch_driver.py",
+    "sha256": "a3e6d8535d2f29d8bd1a52f16b587a929adf4a7b7d84b4519995665d1336553d",
+    "bytes": 3048
+  },
+  "experiments/stage66/scripts/summarize.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/summarize.py",
+    "sha256": "63ed830be3f93b6804a5d4a6a9db68c81660aa13c974a4974d6e18f632109b08",
+    "bytes": 12158
+  },
+  "experiments/stage66/scripts/stage66_capture_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/stage66_capture_audit.py",
+    "sha256": "d8418c50cad4693f07ef7689572f82a712590413106a976cab024a5ef4b1b38b",
+    "bytes": 7226
+  },
+  "experiments/stage66/scripts/run-regression.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/scripts/run-regression.py",
+    "sha256": "d711100fa2e7aaf97b3c30b470b060bfd3ceb017aa45ef4161a4c2b8decefe3b",
+    "bytes": 484
+  },
+  "experiments/stage66/tests/test_stage66_capture_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/tests/test_stage66_capture_audit.py",
+    "sha256": "64ccea8fa5d20560e72f180ef8db0ed756c7f8b08f7c0c486e2854ebd12b39d7",
+    "bytes": 3941
+  },
+  "experiments/stage66/tests/test_stage66_entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/tests/test_stage66_entry.py",
+    "sha256": "725bfad0f371810bb36dbf803987059b301a5541fb75dacb91324b5a743f32b8",
+    "bytes": 1317
+  },
+  "experiments/stage67/scripts/stage67_monitor_inventory.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/stage67_monitor_inventory.py",
+    "sha256": "4d7a1799ff04f0883bbd6b3269c365129a123eb383c7850ebb81f18aa29643b7",
+    "bytes": 861
+  },
+  "experiments/stage67/scripts/stage67-monitor.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/stage67-monitor.py",
+    "sha256": "f07193c546baf887fd013129bbcad2397cd6fa7c713c0dc93c45cdf106f58a75",
+    "bytes": 3726
+  },
+  "experiments/stage67/scripts/dynamic_truth_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/dynamic_truth_audit.py",
+    "sha256": "2bfcbd21a46854e14d18398639daa6979c5bcbcb960ee91685ca026e5a88e7b8",
+    "bytes": 16884
+  },
+  "experiments/stage67/scripts/metrics_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/metrics_audit.py",
+    "sha256": "d340845971e5b3530556ffbbdbe12936d98bbf202a69d9a0e2c6ec1b262913ef",
+    "bytes": 10384
+  },
+  "experiments/stage67/scripts/fair_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/fair_metrics.py",
+    "sha256": "e3bad86c0bea889cd5f383cc16233ab36748f053a17fad2e20ab982b2543e24d",
+    "bytes": 14211
+  },
+  "experiments/stage67/scripts/raster_fast.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/raster_fast.py",
+    "sha256": "fd7732c8fa9a096d6d5d041557ca1882b80e98fb1555831ba21bef45f8579118",
+    "bytes": 597
+  },
+  "experiments/stage67/scripts/startup_failure_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/startup_failure_metrics.py",
+    "sha256": "ad846c587a24f879fe1b637f00698b024ce7417f1442b578a0801de8dc44a4be",
+    "bytes": 1756
+  },
+  "experiments/stage67/scripts/audit_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/audit_one.py",
+    "sha256": "71f7fbdc7a9990a8aca67181a6ba5b5df95a1a589b228a245bc9ff4fe91c423c",
+    "bytes": 3193
+  },
+  "experiments/stage67/scripts/run_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/run_one.py",
+    "sha256": "e65f04b08cfe7a00703a5ee2861b45fdc882e6a2b49820c2bdbfb4fca4859293",
+    "bytes": 11156
+  },
+  "experiments/stage67/scripts/batch_driver.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/batch_driver.py",
+    "sha256": "2fdf83ebb45280f462fd347be5707f4187b3b2a4b7d6af982f1d37f6a55f13bf",
+    "bytes": 3074
+  },
+  "experiments/stage67/scripts/summarize.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/summarize.py",
+    "sha256": "3a4c69b2c0a2e642d2c4298f8c5dbb6a3d652c34667f653ff03c71cd0e6bebbc",
+    "bytes": 13187
+  },
+  "experiments/stage67/scripts/run-regression.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/scripts/run-regression.py",
+    "sha256": "8ebd664d1d614681831111d2effe12ab9b037e76868a6de0c17acec9cbbd7abc",
+    "bytes": 590
+  },
+  "experiments/stage67/tests/test_monitor_inventory.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/tests/test_monitor_inventory.py",
+    "sha256": "f890b3fbb81d8a4750f117297bef541c9ec89b096387060bbb7f59bf13aaaa99",
+    "bytes": 2145
+  },
+  "experiments/stage68/scripts/stage67_monitor_inventory.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/stage67_monitor_inventory.py",
+    "sha256": "4d7a1799ff04f0883bbd6b3269c365129a123eb383c7850ebb81f18aa29643b7",
+    "bytes": 861
+  },
+  "experiments/stage68/scripts/stage68-monitor.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/stage68-monitor.py",
+    "sha256": "1daf13fecf86c3e23892602f533d39d00360d2cee27c8cb6d8fdb068ed7fbc4f",
+    "bytes": 3914
+  },
+  "experiments/stage68/scripts/dynamic_truth_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/dynamic_truth_audit.py",
+    "sha256": "1a452a2974117eecac73df4dc0c054239cee5d04c2724bacc6a6650a15d37941",
+    "bytes": 16884
+  },
+  "experiments/stage68/scripts/metrics_audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/metrics_audit.py",
+    "sha256": "577e6d4dcdeb231d27d20b962f2e4f1cfb1ff5845533202013d6b6d57f4eb8e6",
+    "bytes": 10384
+  },
+  "experiments/stage68/scripts/fair_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/fair_metrics.py",
+    "sha256": "885d8f50a0d12737e2f915cb8355c90a603796eb9e4a3e046ecc839c3c346aac",
+    "bytes": 14211
+  },
+  "experiments/stage68/scripts/raster_fast.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/raster_fast.py",
+    "sha256": "fd7732c8fa9a096d6d5d041557ca1882b80e98fb1555831ba21bef45f8579118",
+    "bytes": 597
+  },
+  "experiments/stage68/scripts/startup_failure_metrics.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/startup_failure_metrics.py",
+    "sha256": "8fb413c6a4d8607e53c489a7b5b4792734064d0beb92450043b99af8ff0082e1",
+    "bytes": 1756
+  },
+  "experiments/stage68/scripts/audit_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/audit_one.py",
+    "sha256": "e5cd1d382d8581ad5225a5b4c069bc56073ffc5f43e16995c63218e73e1757f0",
+    "bytes": 3193
+  },
+  "experiments/stage68/scripts/run_one.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/run_one.py",
+    "sha256": "0bdf26531ce1db45f21c55f9d265515f14918574d9218c51ea65f832fa426e10",
+    "bytes": 11156
+  },
+  "experiments/stage68/scripts/batch_driver.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/batch_driver.py",
+    "sha256": "cd724321194dd7ef0e02754b71f7575eedd5ed77f4560080d891ec0260863958",
+    "bytes": 3183
+  },
+  "experiments/stage68/scripts/summarize.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/summarize.py",
+    "sha256": "96d647cd082b7c03392f2613151681332b58f8558af4d4b7e9ad1762c4277f4c",
+    "bytes": 13457
+  },
+  "experiments/stage68/scripts/run-regression.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/run-regression.py",
+    "sha256": "8ebd664d1d614681831111d2effe12ab9b037e76868a6de0c17acec9cbbd7abc",
+    "bytes": 590
+  },
+  "experiments/stage68/scripts/stage68-pacer.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/stage68-pacer.py",
+    "sha256": "0af2759579768f36f544a66f157f346fd17b8a018966e69f072207e6ccd81d6e",
+    "bytes": 10980
+  },
+  "experiments/stage68/scripts/stage68_publication.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/stage68_publication.py",
+    "sha256": "0ca47e45b17170a0e9e8d870e2d527e38d88bac97003d9ffdc7450fa3416a996",
+    "bytes": 241
+  },
+  "experiments/stage68/scripts/stage68-flight-entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/stage68-flight-entry.py",
+    "sha256": "857c38450736e68a38afb1b2e9f657f2ca02666ff0a00444a168a576b9399825",
+    "bytes": 35686
+  },
+  "experiments/stage68/scripts/stage68_monitor_inventory.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scripts/stage68_monitor_inventory.py",
+    "sha256": "b740d21eafd011ea73ae470e81431e2a9a8853120096dbdb5fe3edc1248543a1",
+    "bytes": 1321
+  },
+  "experiments/stage68/tests/test_stage68_publication.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/tests/test_stage68_publication.py",
+    "sha256": "08543c1f75aaffb363c8cb9f4fd9cdc0e59c887d50a0037664be5847ed8e768d",
+    "bytes": 3024
+  },
+  "experiments/stage68/tests/test_stage68_entry.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/tests/test_stage68_entry.py",
+    "sha256": "240302803ecc5e36c0632782a123cc9fe293e18ce92931c0209aa2ce4f64db64",
+    "bytes": 1315
+  },
+  "experiments/stage58/scripts/stage58-observer.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage58/scripts/stage58-observer.py",
+    "sha256": "b05e5533014006afab552a23c1b3880095b781760c7527441dac9a7c879f35fd",
+    "bytes": 5890
+  },
+  "experiments/stage62/scripts/stage62_public_rpc.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage62/scripts/stage62_public_rpc.py",
+    "sha256": "8f407e8c86a011c8871a053991478e6e876d2a36bf39b71225bcb0dd66fdd540",
+    "bytes": 1480
+  },
+  "experiments/stage64/scripts/stage64-imu-audit.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage64/scripts/stage64-imu-audit.py",
+    "sha256": "a46b72c5b85454d35e356e107cae5095d378dec352fe7eb60308a512a4750956",
+    "bytes": 9292
+  },
+  "experiments/stage64/scripts/stage64_ulog_subset.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage64/scripts/stage64_ulog_subset.py",
+    "sha256": "dccf6cdc30879464b5c8c7d6b2183303b56abbd7f2ce16af8859d7ed7a78cce8",
+    "bytes": 744
+  },
+  "experiments/stage54/scripts/stage54-build-precise-public-v2.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/scripts/stage54-build-precise-public-v2.py",
+    "sha256": "5eb6a8d85711a976b66f2ccfee1aeddf65f36a5e2e39226003a877b3e934fa79",
+    "bytes": 4486
+  },
+  "experiments/stage54/scripts/stage54-float-roundtrip.cpp": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/scripts/stage54-float-roundtrip.cpp",
+    "sha256": "1485f3e9c671ccb76555b21f944395ae5ad9680d748ca5fdf2c3a10b9d75cb84",
+    "bytes": 852
+  },
+  "experiments/stage49/scripts/stage49-native-request.cpp": {
+    "source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-evidence/stage-49-consumption-paced-input/scripts/stage49-native-request.cpp",
+    "sha256": "3784984043cde118969420587162076495bb0a761e8d6c7001b3bce102c951a4",
+    "bytes": 1610
+  },
+  "experiments/stage49/scripts/stage49-build-request.py": {
+    "source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-evidence/stage-49-consumption-paced-input/scripts/stage49-build-request.py",
+    "sha256": "5f57c794c77f7327f80c6cbb77b30c1188562c892a045f0f90b735d7942bd5bd",
+    "bytes": 953
+  },
+  "experiments/stage49/scripts/stage49-prepare-native-feedback.py": {
+    "source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-evidence/stage-49-consumption-paced-input/scripts/stage49-prepare-native-feedback.py",
+    "sha256": "de08651b7b5bbe7f33d38c58369886c1ef1ade5381493c63dbd312321bace837",
+    "bytes": 5058
+  },
+  "experiments/stage49/scripts/stage49-build-feedback.py": {
+    "source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-evidence/stage-49-consumption-paced-input/scripts/stage49-build-feedback.py",
+    "sha256": "eac6b2f72f3866e076e62f7e496e3a756783d354a84d4c177bedd428b22096da",
+    "bytes": 1556
+  },
+  "experiments/stage53/scripts/stage53-build-metadata-only.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/scripts/stage53-build-metadata-only.py",
+    "sha256": "f73da68291711b9bf9f0b3183da9ca1465c3dd2bfa1c7a6b23ab6222e6513e7d",
+    "bytes": 3571
+  },
+  "experiments/support/archive-container-directory.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/scripts/archive-container-directory.py",
+    "sha256": "2fe83530ea328e555d1ab0aba04c1b160598e8b0f50df27f793fef5a7013c121",
+    "bytes": 2998
+  },
+  "experiments/support/create-analysis-view.py": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/scripts/create-analysis-view.py",
+    "sha256": "d5842defd16393badf7d2df90b60460e989ec68942158aab5272efe4549a6a1a",
+    "bytes": 2204
+  },
+  "experiments/stage68/configs/common.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/configs/common.json",
+    "sha256": "1be925656fe440d1c2ab2c4b485ad1028ce5ee2b73de1697d899f7d9db3d289d",
+    "bytes": 7062
+  },
+  "experiments/stage68/configs/A.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/configs/A.json",
+    "sha256": "904c85cf55e145de2dfc756458ac99cf1683883627503dfa8746db0b9c405af8",
+    "bytes": 194
+  },
+  "experiments/stage68/configs/B.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/configs/B.json",
+    "sha256": "0c5ca90a042736c76ed1ec796c13f197fbc6a5c3dca795faddb19ec1fa51bcbb",
+    "bytes": 192
+  },
+  "docs/results/stage68/FINAL-REPORT.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/FINAL-REPORT.md",
+    "sha256": "70f5f2270495c84632866c5aa6f1abb0a11a866baae8d743dea4de3e22c681d4",
+    "bytes": 6468
+  },
+  "docs/results/stage68/RESULTS.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/RESULTS.md",
+    "sha256": "839f458f7f9036953c42b5c69cc43e19308fbbff96d0bffc3d4536a5d31dce59",
+    "bytes": 5738
+  },
+  "docs/results/stage68/COMPARISON.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/COMPARISON.json",
+    "sha256": "9315a9fe96dc95ca2f1f61a3e3de97e6216b2e7cd58aa12af21a70bd80f6642a",
+    "bytes": 72611
+  },
+  "docs/results/stage68/RUNS.csv": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/RUNS.csv",
+    "sha256": "8638ea751a1cdc6fc2a4ac22bac512633a36f382827db0e4feeda4985e788770",
+    "bytes": 4979
+  },
+  "docs/results/stage68/PROTOCOL.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/PROTOCOL.md",
+    "sha256": "63001ce08b0ae53012ed2e995d066e974963584113daeeaa3825ecd2c57af12c",
+    "bytes": 3030
+  },
+  "docs/results/stage68/ROOT-CAUSE.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/ROOT-CAUSE.md",
+    "sha256": "6f34a8862ff8ff2cd0279627fcf486c6f6e16cfb335ad81ffcb6fda083d2b3d9",
+    "bytes": 2434
+  },
+  "docs/results/stage68/STATUS.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/STATUS.json",
+    "sha256": "f02c251305375d61753fb725ce28152fbaa7fd8c17fa93fa7f0169e3db0fa701",
+    "bytes": 1861
+  },
+  "docs/results/stage68/BATCH.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/BATCH.json",
+    "sha256": "7da8cb74441fbc4f74bc0787f08348e05b4e2c56b18bcc43cd5214c9036198e9",
+    "bytes": 4388
+  },
+  "docs/results/stage68/ENTRY-MANIFEST.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/ENTRY-MANIFEST.json",
+    "sha256": "99bec99598d0f3009f2bcb60c1cc361641d248e705547179d05a7e94cc702d0f",
+    "bytes": 1450
+  },
+  "docs/results/stage68/PRE-RUN-FREEZE.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/PRE-RUN-FREEZE.json",
+    "sha256": "c78fba16fb71ca5687a6b54c9698c2507ddfe6619f54e06cc0bcd8427bdb1a45",
+    "bytes": 7266
+  },
+  "docs/results/stage68/PREFLIGHT.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/PREFLIGHT.json",
+    "sha256": "da0108822f784a0c73d089ffdf998d2537658cbbfad8405421acb0be785cf57e",
+    "bytes": 12557
+  },
+  "docs/results/stage68/INHERITANCE.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/INHERITANCE.json",
+    "sha256": "add1c1d78c55c0073438d3fb6b4d0f9c4441765b5d5ea133aaea90a4c3991e49",
+    "bytes": 2958
+  },
+  "docs/results/stage68/GATE-REUSE.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/GATE-REUSE.json",
+    "sha256": "52f6de6611bf4598c1394c53a066ab1ab7c5053c6e27cce85b6af5e4666025c8",
+    "bytes": 1763
+  },
+  "docs/results/stage68/INTERRUPTED-ATTEMPTS.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/INTERRUPTED-ATTEMPTS.json",
+    "sha256": "afebf3f7d35c77fceed936141085dd129a205a1d02a1adc5627712bab5ea78bb",
+    "bytes": 26230
+  },
+  "docs/results/stage68/INITIALIZATION-RUNTIME-ASSERTIONS.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/INITIALIZATION-RUNTIME-ASSERTIONS.md",
+    "sha256": "7a6597bbab8650641c0317a9c0ddfc5ca7bc7f7daf81ab0f63c94191a4ed1b73",
+    "bytes": 1520
+  },
+  "docs/results/stage68/FINAL-ACCEPTANCE.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/FINAL-ACCEPTANCE.json",
+    "sha256": "26e291efde3ea78666a0cf0948342f32f56f31952f1aa53c4f36e40e1dfeb968",
+    "bytes": 1192
+  },
+  "docs/results/stage68/scene-manifest.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/scene-manifest.json",
+    "sha256": "468c5db5a5937cee620b0150d240ae3ccc3a250d3249a963d27489e839a7b703",
+    "bytes": 4248
+  },
+  "docs/results/stage68/audits/STARTUP-SATURATION.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/STARTUP-SATURATION.json",
+    "sha256": "6b4bc8131ef48dc70e6075d32219a9216299c3032863aa81a698d547c30d45d0",
+    "bytes": 2739
+  },
+  "docs/results/stage68/audits/STRICT-FAILURES-PRESERVED.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/STRICT-FAILURES-PRESERVED.json",
+    "sha256": "d13c51707ef299996ad67259a2be02ccefc30223c9394ec72c1d99d2cb0f7598",
+    "bytes": 585
+  },
+  "docs/results/stage68/audits/FINAL-FOURTEEN-RAW-REREAD.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/FINAL-FOURTEEN-RAW-REREAD.json",
+    "sha256": "1fb43193aaceaa8c9a60a626b559fb9b9c2f565b5d5c02c95b1b2f00aabff164",
+    "bytes": 5117
+  },
+  "docs/results/stage68/audits/FINAL-ORIGINAL-CONTAINER-SHA.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/FINAL-ORIGINAL-CONTAINER-SHA.json",
+    "sha256": "80e4dc27c775c09a88659e24d260bf55ede9a4ccf638493d0007a198fa25eecc",
+    "bytes": 1609
+  },
+  "docs/results/stage68/audits/FINAL-SOURCE-AND-DEPENDENCIES.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/FINAL-SOURCE-AND-DEPENDENCIES.json",
+    "sha256": "976704575ed1db9864f1ff2090174d7320161e51b446057b5cc4fd579f1a35b6",
+    "bytes": 141
+  },
+  "docs/results/stage68/audits/PACER-NUMERICAL-AST-EQUAL.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/PACER-NUMERICAL-AST-EQUAL.json",
+    "sha256": "eb579cca1f43d408d1ca8d526db89a651135129b1d370cc7998defc84071b5e9",
+    "bytes": 302
+  },
+  "docs/results/stage68/audits/ENTRY-AST-EQUAL.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/ENTRY-AST-EQUAL.json",
+    "sha256": "fb7c87a7c2a91188c034cbf251813d8e867af178e23cb9aaaae75d86dbda72c0",
+    "bytes": 137
+  },
+  "docs/results/stage68/audits/racer-stage66-p01-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p01-a-fair-metrics.json",
+    "sha256": "79d2c500cf200beb3e400a142286db317c9442ffcf44c570d664269bf5154ca1",
+    "bytes": 17598
+  },
+  "docs/results/stage68/audits/racer-stage66-p01-b-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p01-b-fair-metrics.json",
+    "sha256": "6efb7aaa12be26d38c83b407e1940d7284930ae56f4298c44272092d94062cc9",
+    "bytes": 17488
+  },
+  "docs/results/stage68/audits/racer-stage66-p02-b-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p02-b-fair-metrics.json",
+    "sha256": "d1384756545d4142f3fb01265cf124ecaa3766353ea4d9d4922a333e0c7e16a2",
+    "bytes": 19253
+  },
+  "docs/results/stage68/audits/racer-stage66-p02-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p02-a-fair-metrics.json",
+    "sha256": "d474da8d90548f4cd15408ab456571f182e618e42623d55ec091c85764c603d7",
+    "bytes": 19227
+  },
+  "docs/results/stage68/audits/racer-stage66-p03-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p03-a-fair-metrics.json",
+    "sha256": "4ea4a205d4a8050059aa73e511054f93461a5c9e19aaace6a7451290c2d2ac94",
+    "bytes": 18904
+  },
+  "docs/results/stage68/audits/racer-stage66-p03-b-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p03-b-fair-metrics.json",
+    "sha256": "f00ee3a1bc639c497e170722e8f49e310d0bb2a196d0f291bcc3141277262fac",
+    "bytes": 19313
+  },
+  "docs/results/stage68/audits/racer-stage66-p04-b-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p04-b-fair-metrics.json",
+    "sha256": "8b0f1e74ab55057f9b9e4cfc70b34fdbe157c9f2249353abfc043d3074673c10",
+    "bytes": 19684
+  },
+  "docs/results/stage68/audits/racer-stage66-p04-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage66-p04-a-fair-metrics.json",
+    "sha256": "9b7bfb8fd7bc046a48fab74b1c06af03a9e8f8adea7097996f74324122c43462",
+    "bytes": 23486
+  },
+  "docs/results/stage68/audits/racer-stage63-g01-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage63-g01-fair-metrics.json",
+    "sha256": "66de5aa36772dd2d1e31422080c50a8a2727372b7cf9ac9840ef44d5a3604bd5",
+    "bytes": 10657
+  },
+  "docs/results/stage68/audits/racer-stage67-p05-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage67-p05-a-fair-metrics.json",
+    "sha256": "02ec44af1dc6313ee3a7744283217cb5bb4ea7607b8e084428d356f6068e61e9",
+    "bytes": 2601
+  },
+  "docs/results/stage68/audits/racer-stage68-p05-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage68-p05-a-fair-metrics.json",
+    "sha256": "e570ce40a5c6647a21d558dd20a5d260a046c5ab58754484c901ac05ef7f5a43",
+    "bytes": 19351
+  },
+  "docs/results/stage68/audits/racer-stage68-p05-b-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage68-p05-b-fair-metrics.json",
+    "sha256": "31e3fc2f636e3c4829f65619e513c4e19d2411a0d5f51f934da702cd2c8e6eba",
+    "bytes": 19388
+  },
+  "docs/results/stage68/audits/racer-stage68-p06-b-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage68-p06-b-fair-metrics.json",
+    "sha256": "e4088d5f8bb6b2b0a7be7074631050fec77e8fd253946c619333c01bb67f5bea",
+    "bytes": 17533
+  },
+  "docs/results/stage68/audits/racer-stage68-p06-a-fair-metrics.json": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage68/audits/racer-stage68-p06-a-fair-metrics.json",
+    "sha256": "d84c22e1e9894b97ecc7696350014e01d71961dbf4485e70fa16a6034b07ac27",
+    "bytes": 17489
+  },
+  "docs/results/stage67/ROOT-CAUSE.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage67/ROOT-CAUSE.md",
+    "sha256": "c37fbfc98b17d3568ae64eddaa2fae56053ab76a5d1e34aa20dcbce33b04dfe8",
+    "bytes": 1751
+  },
+  "docs/results/stage65/CLASSIFICATION.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage65/CLASSIFICATION.md",
+    "sha256": "8d276731a5a25aa09db91a515f4f9aa1ee45aa09b2096ace064d967e1ba1a9cc",
+    "bytes": 1613
+  },
+  "docs/results/stage66/ROOT-CAUSE-ACK.md": {
+    "source": "/Volumes/WuChenjie/Mac-runtime/runtime-stage52-20261018T1315Z/evidence/stage66/ROOT-CAUSE-ACK.md",
+    "sha256": "5eada29c29f21fac04cef984e612c9bd713a6d75b941695c7ed22b51714fd944",
+    "bytes": 1854
+  }
+}

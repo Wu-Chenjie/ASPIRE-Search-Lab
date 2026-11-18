@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "model_sha256": "55ed65c56c91713d23e8402371c6c49a6fd84f257f7dce452e8d70e41dcbe152",
+  "backend": "pytorch",
+  "device": "cpu",
+  "precision": "fp32",
+  "runtime_versions": {
+    "ultralytics": "8.3.228",
+    "torch": "2.5.1",
+    "torchvision": "0.20.1"
+  },
+  "class_map": {
+    "0": "person"
+  },
+  "input_size": 640,
+  "preprocess_contract": "rgb8_to_bgr_ultralytics_letterbox_v1",
+  "mask_output_contract": "visible_binary_original_rgb_pixels_v1",
+  "purpose": "person"
+}

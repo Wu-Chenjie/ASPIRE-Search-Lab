@@ -1,0 +1,11 @@
+{
+  "arm": "A",
+  "inherits": "common.json",
+  "only_behavioral_delta": {
+    "bearing_bias": false
+  },
+  "native_delta": {
+    "search.bearing_bias": false
+  },
+  "same_source_binary": true
+}

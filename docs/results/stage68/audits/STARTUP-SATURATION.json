@@ -1,0 +1,78 @@
+{
+  "all8_positive_arms_already_confirmed_before_startup_ready": true,
+  "not_a_claim_of_pre_motor_or_pre_physical_takeoff": true,
+  "records": [
+    {
+      "run": "racer-stage66-p02-b",
+      "first_visual_confirmations": {
+        "stationary_person": 8.188,
+        "stationary_person_2": 8.188
+      },
+      "startup_ready_sim_s": 13.940000000000001,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage66-p02-a",
+      "first_visual_confirmations": {
+        "stationary_person": 9.772,
+        "stationary_person_2": 9.772
+      },
+      "startup_ready_sim_s": 15.260000000000002,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage66-p03-a",
+      "first_visual_confirmations": {
+        "stationary_person": 7.924,
+        "stationary_person_2": 7.924
+      },
+      "startup_ready_sim_s": 13.868,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage66-p03-b",
+      "first_visual_confirmations": {
+        "stationary_person": 10.42,
+        "stationary_person_2": 10.42
+      },
+      "startup_ready_sim_s": 16.248,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage66-p04-b",
+      "first_visual_confirmations": {
+        "stationary_person": 8.584000000000001,
+        "stationary_person_2": 8.584000000000001
+      },
+      "startup_ready_sim_s": 13.940000000000001,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage66-p04-a",
+      "first_visual_confirmations": {
+        "stationary_person": 7.792000000000001,
+        "stationary_person_2": 7.792000000000001
+      },
+      "startup_ready_sim_s": 13.408000000000001,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage68-p05-a",
+      "first_visual_confirmations": {
+        "stationary_person": 7.792000000000001,
+        "stationary_person_2": 7.792000000000001
+      },
+      "startup_ready_sim_s": 13.408000000000001,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    },
+    {
+      "run": "racer-stage68-p05-b",
+      "first_visual_confirmations": {
+        "stationary_person": 7.792000000000001,
+        "stationary_person_2": 7.792000000000001
+      },
+      "startup_ready_sim_s": 13.608,
+      "ready_definition": "fresh_estimated_departure_0.3m_or_executor_ready_while_armed_offboard"
+    }
+  ]
+}

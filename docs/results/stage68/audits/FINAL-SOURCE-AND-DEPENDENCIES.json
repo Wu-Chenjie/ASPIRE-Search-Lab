@@ -1,0 +1,8 @@
+{
+  "host599_equal": true,
+  "guest_dependencies": {
+    "files": 29,
+    "all_equal": true
+  },
+  "pre_run_static_freeze_all_equal": true
+}

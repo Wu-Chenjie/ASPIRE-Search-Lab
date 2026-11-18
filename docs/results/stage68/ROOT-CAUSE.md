@@ -1,0 +1,11 @@
+# Stage68初始化标记可见性与跨进程JSON读取
+
+Stage67唯一P05-A在初始化阶段0预算sim/13.226958741wall失败，未启动bridge、未起飞；实际首4ms初始化物理步已发生，不能将预算字段0叫作零物理执行。54原始文件1965331字节已独立PAX/SHA保存。原堆栈明确在flight-entry读initial-bootstrap-ready.json时JSONDecodeError；原pacer先create文件再write的存在性窗口可暴露空内容。最终该文件完整并不反证先前半写入，不能改判原失败。
+
+新pacer只将这一原JSON字符串写到同目录独占临时文件initial-bootstrap-ready.tmp，关闭完成后原子replace为原ready名称。原实际传感器源/积分/CLI/RPC/DownSampler、时钟步长、真实Disarmed/noOffboard/noFailsafe断言、所有期限和数值参数不改。不重试、不用旧文件补值。写入/改名失败仍失败、残件保留。RPC通过链接复用原文件。
+
+[数值AST证明](audits/PACER-NUMERICAL-AST-EQUAL.json)逆转唯一发布调用及导入后与原pacer完全同AST；[实际入口AST证明](audits/ENTRY-AST-EQUAL.json)只在选择新pacer及记录辅助文件SHA不同。新半写入反例在写到第5字节时确认最终ready仍不可见，完成后原文逐字节相等；[十轮保存ready](audits/TEN-SAVED-READY-PAYLOADS-EXACT.json)原实际字符串经新发布函数均SHA一致，无新仿真，不把旧失败改判。
+
+同一跨进程发布审计还发现原EvidenceRing.close直接写status.json。保留599原源码与原ring不改：外部只读监督若遇刚创建不足1wall的半JSON，明确记录partial_closed_status_publication并继续检查原健康心跳；一秒后仍损坏立即失败，权限/持久证据缺失等仍失败。没有无限重试、延长原8s清理或任何飞行/安全期限。进程结束后独立审计仍必须读取完整有效关闭状态；即使最后一次轮询待发布也不能豁免最终数据门。原health和observer-status已原子发布。
+
+Stage67的真实原子改名修复继续复用；新临时ready加入精确根路径允许表，其余永久/未知临时/嵌套同名/权限错误不抑制。新增有界半status/持续坏status反例。首次完整Jazzy回归516过/1失败是测试导入缓存载入旧同名清点模块；现为明确stage68模块名，原失败日志保留，实际部署也明确新模块。全部完整回归须最终通过才开始新动态。

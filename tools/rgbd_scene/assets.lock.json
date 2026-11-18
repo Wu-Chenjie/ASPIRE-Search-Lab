@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/osrf/gazebo_models",
+  "commit": "8163eb4b5e7e21985c6591d1c0bfb56468c0093f",
+  "files": {
+    "person_standing/materials/textures/eyebrow001-unmodified.png": "25410f9d9621c3012d55f1fcf63b84fd20ad9352",
+    "person_standing/materials/textures/eyebrow001.png": "b881f60ac23238747c0e8ec94b7ab22eff5ababa",
+    "person_standing/materials/textures/green_eye.png": "e68426cfbf594d5e7aa2edf84228b691e03a888b",
+    "person_standing/materials/textures/jeans01_normals.png": "2da1eede334dba1fced20e9b2467cf4bd0a39730",
+    "person_standing/materials/textures/jeans_basic_diffuse.png": "559b6027e4c3fddfe4a6b5c889e1dc863a5f5315",
+    "person_standing/materials/textures/male02_diffuse_black-unmodified.png": "b1f3b4a0d8d8d9d7960dfcb7961a0362460bf21d",
+    "person_standing/materials/textures/male02_diffuse_black.png": "c81a83e5d9c87a13791e4cdc1347a933cd43c05c",
+    "person_standing/materials/textures/teeth.png": "338b9e2c2fd123f5e88a3ff2b25ab3269c7c7cd8",
+    "person_standing/materials/textures/tshirt02_normals.png": "11af253acc4f0225147d049f55206bfb970c95d7",
+    "person_standing/materials/textures/tshirt02_texture.png": "6710e6de9f8005450c8ab9447f7f220c666c113b",
+    "person_standing/materials/textures/young_lightskinned_male_diffuse.png": "15df3828390455c2d8d5da7286c6516a31c331b9",
+    "person_standing/meshes/standing.dae": "1cc0576f4a1e560631b5a5c1fa348e8f633c688e",
+    "person_standing/model.config": "2ddfc464e2ace46c37a25a4a2d9253f3337f7d66",
+    "person_standing/model.sdf": "4fce9ce7ac4e48ecbc32e812662123f81cb8052f"
+  }
+}

@@ -1,0 +1,153 @@
+[
+  {
+    "run": "flight-04",
+    "scope": "PX4 SITL dynamics, EKF2 estimated odometry, original guarded executor and native RACER FSM; GNSS-aided simulation, not indoor localization acceptance",
+    "active_review": false,
+    "negative": false,
+    "wall_s": 180.68928978900658,
+    "error": null,
+    "cleanup": {
+      "owned_processes": 18,
+      "forced_kill_pids": [],
+      "remaining_pids": []
+    },
+    "confirmed_people": 1,
+    "false_confirmed_tracks": 0,
+    "first_true_confirmation_wall_s": 78.8619009910035,
+    "first_ready_wall_s": 69.92307676700875,
+    "confirmed_tracks": [
+      {
+        "id": 2,
+        "first_wall_s": 78.8619009910035,
+        "xyz": [
+          3.839829100036491,
+          -0.09474985332062191,
+          1.262353371086935
+        ]
+      }
+    ],
+    "activated_curves": 2,
+    "completed_observations": 2,
+    "handoffs": 0,
+    "rejections": {
+      "Trajectory exceeds executor dynamics envelope": 525,
+      "Handoff violates position / C2 / yaw boundary continuity": 7
+    },
+    "estimated_path_m": 11.67769802239868,
+    "max_estimated_height_m": 2.720084399731128,
+    "tracking_samples": 52,
+    "tracking_error_p95_m": 0.17034293793522348,
+    "tracking_error_max_m": 0.17427612138541437,
+    "any_latched_flight_fault": false,
+    "captured_pairs": 0,
+    "paired_intrinsics_and_pose_brackets_valid": null
+  },
+  {
+    "run": "flight-negative-01",
+    "scope": "PX4 SITL dynamics, EKF2 estimated odometry, original guarded executor and native RACER FSM; GNSS-aided simulation, not indoor localization acceptance",
+    "active_review": false,
+    "negative": true,
+    "wall_s": 180.64069988098345,
+    "error": null,
+    "cleanup": {
+      "owned_processes": 18,
+      "forced_kill_pids": [],
+      "remaining_pids": []
+    },
+    "confirmed_people": 0,
+    "false_confirmed_tracks": 0,
+    "first_true_confirmation_wall_s": null,
+    "first_ready_wall_s": 70.04987375700148,
+    "confirmed_tracks": [],
+    "activated_curves": 5,
+    "completed_observations": 5,
+    "handoffs": 0,
+    "rejections": {
+      "Trajectory exceeds executor dynamics envelope": 484,
+      "No known-free native prefix with C2 stop": 6
+    },
+    "estimated_path_m": 10.557637061341008,
+    "max_estimated_height_m": 2.7266307562597047,
+    "tracking_samples": 72,
+    "tracking_error_p95_m": 0.07434200971370514,
+    "tracking_error_max_m": 0.0839172515084645,
+    "any_latched_flight_fault": false,
+    "captured_pairs": 0,
+    "paired_intrinsics_and_pose_brackets_valid": null
+  },
+  {
+    "run": "flight-active-01",
+    "scope": "PX4 SITL dynamics, EKF2 estimated odometry, original guarded executor and native RACER FSM; GNSS-aided simulation, not indoor localization acceptance",
+    "active_review": true,
+    "negative": false,
+    "wall_s": 180.60198186599882,
+    "error": null,
+    "cleanup": {
+      "owned_processes": 18,
+      "forced_kill_pids": [],
+      "remaining_pids": []
+    },
+    "confirmed_people": 1,
+    "false_confirmed_tracks": 0,
+    "first_true_confirmation_wall_s": 94.50311728200177,
+    "first_ready_wall_s": 71.43689154597814,
+    "confirmed_tracks": [
+      {
+        "id": 2,
+        "first_wall_s": 94.50311728200177,
+        "xyz": [
+          3.9133932472767468,
+          -0.18298854491267658,
+          1.1223249492621339
+        ]
+      }
+    ],
+    "activated_curves": 8,
+    "completed_observations": 8,
+    "handoffs": 0,
+    "rejections": {
+      "Trajectory exceeds executor dynamics envelope": 176,
+      "native_static_root_stale": 1
+    },
+    "estimated_path_m": 17.017635315609034,
+    "max_estimated_height_m": 2.665979098671361,
+    "tracking_samples": 217,
+    "tracking_error_p95_m": 0.07731764833645997,
+    "tracking_error_max_m": 0.1104737310792426,
+    "any_latched_flight_fault": false,
+    "captured_pairs": 33,
+    "paired_intrinsics_and_pose_brackets_valid": true
+  },
+  {
+    "run": "flight-active-negative-01",
+    "scope": "PX4 SITL dynamics, EKF2 estimated odometry, original guarded executor and native RACER FSM; GNSS-aided simulation, not indoor localization acceptance",
+    "active_review": true,
+    "negative": true,
+    "wall_s": 180.75987394101685,
+    "error": null,
+    "cleanup": {
+      "owned_processes": 18,
+      "forced_kill_pids": [],
+      "remaining_pids": []
+    },
+    "confirmed_people": 0,
+    "false_confirmed_tracks": 0,
+    "first_true_confirmation_wall_s": null,
+    "first_ready_wall_s": 71.47660302201984,
+    "confirmed_tracks": [],
+    "activated_curves": 13,
+    "completed_observations": 13,
+    "handoffs": 0,
+    "rejections": {
+      "Trajectory exceeds executor dynamics envelope": 11
+    },
+    "estimated_path_m": 29.05891503834085,
+    "max_estimated_height_m": 2.909980659680489,
+    "tracking_samples": 417,
+    "tracking_error_p95_m": 0.06413387406927304,
+    "tracking_error_max_m": 0.12237193975657493,
+    "any_latched_flight_fault": false,
+    "captured_pairs": 33,
+    "paired_intrinsics_and_pose_brackets_valid": true
+  }
+]

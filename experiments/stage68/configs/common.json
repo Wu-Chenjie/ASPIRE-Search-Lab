@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "kind": "stage65_uniform_measurement_spec",
+  "status": "FROZEN_BEFORE_NEW_MAIN",
+  "execute": true,
+  "reference_source": "/Users/wuchenjie/Documents/Codex/2026-10-13/task-3-stage38",
+  "future_execution_source": "/tmp/racer-stage45-src plus explicit externalStage65 measurement entry",
+  "upstream_commit": "049c332e3634ef72d8beb155b4c13dc91ca52916",
+  "baseline_label": "RACER-ROS2 + common execution repairs + identical perception (guidance OFF)",
+  "fleet_size": 1,
+  "comparison_scope": "Only local person-evidence influence on native next-view selection; no multi-UAV claim",
+  "same_source_binary_for_both_arms": true,
+  "detector": {
+    "backend": "yolo11n-seg",
+    "weights_sha256": "55ed65c56c91713d23e8402371c6c49a6fd84f257f7dce452e8d70e41dcbe152",
+    "ultralytics": "8.3.228",
+    "device": "cpu",
+    "torch_threads": 2,
+    "train": false,
+    "thread_enforcement": "After discarded public warmup; assert actual2 before/after every real predict"
+  },
+  "runner": {
+    "confirmation_mode": "registry",
+    "performance": "consistent",
+    "budget_clock": "sim",
+    "seconds": 180,
+    "wall_watchdog_seconds_proposed": 1260,
+    "transport_wall_cap_seconds_proposed": 1360,
+    "sim_real_time_factor": 1.0,
+    "stop_and_plan": true,
+    "recover_no_path": true,
+    "active_review": false,
+    "active_confirmation": false,
+    "review_continuation": false,
+    "no_perception": false,
+    "registry_cue_fixture": false,
+    "vertical_samples": false,
+    "fault_injection": null,
+    "map_delay_fixture": false,
+    "record_video": false,
+    "rviz": false,
+    "prepared_scene": "/tmp/racer-stage42-scenes/{condition}",
+    "px4_build": "/tmp/stage54-precise-public-px4-v2",
+    "models_root": "/tmp/racer-stage23-src/external/PX4-gazebo-models/models",
+    "wall_watchdog_seconds": 1260,
+    "transport_wall_cap_seconds": 1360,
+    "world_control": "actual world paused zero and public4ms single-step, actual raw/integral feedback before next step; no synthesis"
+  },
+  "native_expected_parameters": {
+    "search.target_registry": true,
+    "search.stop_and_plan": true,
+    "search.no_path_recovery": true,
+    "search.recover_frontiers": true,
+    "search.active_review": false,
+    "search.review_continuation": false,
+    "frontier.task_vertical_samples": false,
+    "fsm.authorized_execution": true,
+    "exploration.drone_num": 1,
+    "manager.min_time": false,
+    "search.feasible_time": false
+  },
+  "motion_limits": {
+    "speed": 1.0,
+    "acceleration": 1.2,
+    "jerk": 4.0,
+    "yaw_rate": 0.9
+  },
+  "racer_planning_limits": {
+    "speed": 0.3,
+    "acceleration": 0.4,
+    "jerk": 4.0,
+    "yaw_rate": 0.325
+  },
+  "safety_and_timing_reference": {
+    "clearance_m": 0.6,
+    "tracking_tube_m": 0.1,
+    "brake_trigger_m": 0.05,
+    "arrival_position_m": 0.07,
+    "arrival_yaw_rad": 0.12,
+    "map_age_s": 1.0,
+    "execution_delay_s": 0.2,
+    "observation_deadline_s": 1.5,
+    "native_admission_s": 6.0,
+    "rgb_age_s": 0.75,
+    "pose_gap_s": 0.04,
+    "nominal_speed": 0.3,
+    "nominal_acceleration": 0.4
+  },
+  "sensor_contract": {
+    "depth_update_rate_hz": 15,
+    "rgb_update_rate_hz": 15,
+    "rgb_min_consumption_period_s": 0.2,
+    "max_rgb_frame_age_s": 0.75,
+    "control_timer_s": 0.02,
+    "actual_prepared_model_verified": true,
+    "correction": "New shared R15 resource profile; Stage38/39 prepared30Hz remains historical, no cross-profile algorithm benefit attribution."
+  },
+  "seed": {
+    "gazebo": 123,
+    "status": "Hard-coded in current run.py; repeats use the same seed, not multi-seed generalization",
+    "px4_and_solver_seed": "not controlled/verified; log actual settings before future execution"
+  },
+  "forbidden_environment_values": {
+    "RACER_FLIGHT_FIXTURE": "must be absent or none; no --flight-fixture build",
+    "RACER_EXECUTION_SAFETY": "must be 1 in both arms"
+  },
+  "future_readiness": {
+    "current_execution_paused_for_migration": false,
+    "main_thread_notice_and_environment_validation_required": false,
+    "post_repair_single_two_person_gate_required": true,
+    "new_common_source_manifest_required": true,
+    "baseline_same_input_identity_probe_required": true,
+    "scene_and_runtime_start_consistency_required": true,
+    "capacity_preflight_required": true,
+    "logs_and_capture_settings_identical": true
+  },
+  "surface_support": {
+    "mask_border_px": 3,
+    "prior_stage37_px": 2,
+    "other_quality_gates_unchanged": true,
+    "development_only_inputs": [
+      "D1",
+      "B1"
+    ]
+  },
+  "common_native_fix": "Valid stopped feedback releases owned execution ID inPLAN as well asEXEC; onlyEXEC needsPLANtransition. Preserve freshness/observation/admission/safety gates.",
+  "runtime_source_unchanged_from_stage39": false,
+  "cpu_profile": {
+    "name": "render3-perception2",
+    "gazebo": "first3 existing allowed CPUs",
+    "person_search": "last2 existing allowed CPUs",
+    "other_roles": "inherit existing parent set",
+    "expand_vm_cpu": false
+  },
+  "common_python_repairs": [
+    "identity capture context before inference with original gates; current bearing/XYZ freshness unchanged",
+    "actual2 CPU threads after lazy backend initialization",
+    "public Gazebo stop within original8-second cleanup budget",
+    "direct same motion_limits.accepts replaces internal serialization roundtrip",
+    "owned PX4/agent/sensor bridge SIGINT before public server stop, within same8s total",
+    "passive threadCPU/resource observations",
+    "ownedclient descendants and evaluation subscriber quiesce before public server stop; original8s total",
+    "Pinned common Gazebo native Sensors.Stop serialization; actual source/ELF/plugin/mapping verified; original8s cleanup and failure classification unchanged",
+    "Lossless public Float32 snapshots, finite actual consumed-integral acknowledgement, paused startup and unchanged physics/safety/time budgets",
+    "Grounded first4ms source generation bounded5wall before bridge; exact original publicCLI protocol queries each250ms and allfeedback500ms; no SDK/estimator/input synthesis"
+  ],
+  "gazebo_shutdown_guard": {
+    "required": true,
+    "environment": "RACER_GZ_SHUTDOWN_GUARD",
+    "binary": "/tmp/racer-stage44-gazebo-guard/libgz_sensor_stop_guard.so",
+    "binary_sha256": "64d78adeeb6aca7717e7613a1b5ab1d14199001b8724ba0fad6388889285cb0a",
+    "source_sha256": "b63a85e46ff19c0c29139ef2c321e8f84295e9c85c9ed513b3173b29494952d8",
+    "sensors_plugin_sha256": "0493ffe406078647a1cde59fcbf2f21b89e177183d8691913eca1e21331716d0",
+    "native_abi_scope": "Linux aarch64, Gazebo Harmonic8.15.0 current vendor plugin, one world/one Sensors",
+    "no_injection": true
+  },
+  "px4_common_engineering_variant": {
+    "sha256": "16f3efeceda2ce9793da5b1896e852f9f5930fbc1cc8b69b2bb58bdc70fa5ef2",
+    "changes": [
+      "GZBridge raw topic metadata advertise before first step",
+      "uORB readonly Float32 debug format %.5f to %.9g"
+    ],
+    "original_estimator_controller_archives_unchanged": true,
+    "no_trace": true,
+    "production_c359_not_overwritten": true
+  }
+}
