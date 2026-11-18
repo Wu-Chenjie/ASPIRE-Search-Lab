@@ -1,4 +1,5 @@
 """Run the normal SITL entry point against deterministic ROS and child-process stubs."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -110,7 +111,8 @@ def harness(tmp_path, monkeypatch):
         name = Path(stdout.name).stem
         if name == 'rviz':
             raise FileNotFoundError('rviz2 unavailable')
-        process = NS(pid=100+len(state.children), returncode=4 if name in ('evaluation','continuous_rgb') else None)
+        process = NS(pid=100+len(state.children), returncode=4 if name in ('evaluation','continuous_rgb') else None,
+                     args=args)
         process.poll = lambda:process.returncode
         state.children[name] = process
         return process
@@ -203,6 +205,29 @@ def test_missing_viewer_config_and_optional_modes_leave_base_run_available(harne
     assert set(result['diagnostics']) >= {
         'viewer_configuration', 'perception', 'registry_cue_fixture', 'map_delay_fixture',
         'review_continuation', 'static_pair'}
+
+
+@pytest.mark.parametrize('custom_model', [False, True])
+def test_yolo_manifest_reaches_only_the_perception_node(harness, tmp_path, monkeypatch, custom_model):
+    weights = tmp_path/'model weights.pt'
+    weights.write_bytes(b'test weights')
+    manifest = tmp_path/'model manifest.json'
+    manifest.write_text(json.dumps({'model_sha256': hashlib.sha256(weights.read_bytes()).hexdigest()}))
+    monkeypatch.chdir(tmp_path)
+    options = ['--detector-manifest', manifest.name] if custom_model else []
+    weights_arg = weights.name if custom_model else str(weights)
+
+    result = harness.launch('--confirmation-mode', 'registry', '--detector', 'yolo11n-seg',
+                            '--segmentation-weights', weights_arg, *options)
+    perception_args = harness.children['person_search'].args
+    assert result['error'] is None and result['confirmation_mode'] == 'registry'
+    assert f'segmentation_weights:={weights}' in perception_args
+    assert [arg for arg in perception_args if arg.startswith('detector_manifest:=')] == (
+        [f'detector_manifest:={manifest}'] if custom_model else [])
+    assert result['detector_manifest_sha256'] == (
+        hashlib.sha256(manifest.read_bytes()).hexdigest() if custom_model else None)
+    planner_args = harness.children['racer_adapter'].args
+    assert all('detector_manifest' not in arg for arg in planner_args)
 
 
 def test_missing_evidence_hashes_do_not_stop_owned_processes(harness, monkeypatch):
