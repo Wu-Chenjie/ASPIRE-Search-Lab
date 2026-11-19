@@ -7,6 +7,7 @@ from core.exploration.voxel_mapping import VoxelMap
 from core.planning.bspline_trajectory import native_trajectory,append_safe_brake
 from core.planning.continuous_trajectory import ContinuousTrajectory
 from core.planning.execution_safety import NativeSafetyMap,ExecutionCorridor,certified_brake,polynomial_box
+from core.planning.execution_safety import stopped_planning_reference
 from core.planning.motion_limits import motion_limits
 
 
@@ -21,6 +22,33 @@ def maps():
 def recorded_curve():
     packet=json.loads((Path(__file__).parent/'fixtures/active06_native_id9.json').read_text())
     return append_safe_brake(native_trajectory(packet),SimpleNamespace(safe_path=lambda p:True))
+
+
+def test_native_planning_reference_uses_fixed_hover_instead_of_odometry_drift():
+    runtime, native = maps()
+    runtime.state[8, 8, 4] = 1
+    runtime.rebuild()
+    corridor = ExecutionCorridor(runtime, native)
+    fixed = [3.21, 3.21, 2.20]
+    actual = [3.21, 3.21, 2.19]
+    assert corridor.box_safe(fixed, fixed)
+    assert not corridor.box_safe(actual, actual)
+    report = dict(time=8., position_stamp=7.95, epoch=0, ready=True, arrived=True,
+                  reference=fixed, actual_position=actual, reference_yaw=.3,
+                  reference_velocity=[0., 0., 0.], reference_acceleration=[0., 0., 0.],
+                  reference_yaw_rate=0.)
+    assert stopped_planning_reference(report, -1, False, 8.1) == [8., *fixed, .3]
+    completed = dict(report, token='accepted', native_plan_id=5, epoch=3)
+    assert stopped_planning_reference(completed, 5, True, 8.1) == [8., *fixed, .3]
+    assert stopped_planning_reference(completed, 4, True, 8.1) is None
+    assert stopped_planning_reference(completed, -1, False, 8.1) is None
+    assert stopped_planning_reference(completed, 5, False, 8.1) is None
+
+    for invalid in (dict(ready=False), dict(arrived=False), dict(pending_token='pending'), dict(epoch=3),
+                    dict(time=7.5), dict(position_stamp=7.5), dict(actual_position=[3.21, 3.21, 2.]),
+                    dict(reference_velocity=[0., 0., .01]), dict(reference_acceleration=[0., 0., .01]),
+                    dict(reference_yaw_rate=.01)):
+        assert stopped_planning_reference(dict(report, **invalid), -1, False, 8.1) is None
 
 
 def test_actual_id9_new_hits_invalidate_brake_and_allow_early_c2_stop():

@@ -37,6 +37,7 @@ from core.planning.handoff import validate_handoff, curve_fingerprint, validate_
 from core.planning.execution_safety import (
     NativeSafetyMap, ExecutionCorridor, stopping_reserve, MAX_MAP_AGE, REACTION_HORIZON,
     relaxed_sitl_execution, frontier_sitl_execution, static_reference_jump_limit,
+    stopped_planning_reference,
 )
 from core.planning.motion_limits import motion_environment, motion_limits
 from core.exploration.voxel_config import voxel_environment
@@ -73,6 +74,9 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
         self.config = config = static_feature_options(dict(
             config, execution_safety=self.safety_enabled, static_cancel_session=self.authorization_session,
             static_moving_c2=config.get('static_moving_c2') is True and os.environ.get('RACER_STATIC_MOVING_C2') == '1'))
+        self.use_stopped_reference = (os.environ.get('ASPIRE_FRONTIER_STEPS') == '1'
+            and self.safety_enabled and config.get('stop_and_plan')
+            and not (config.get('active_review') or config.get('static_event_replan')))
         self._static_gateway_setup(config['static_cancel_session'])
         self.static_moving_c2 = config['static_moving_c2']
         self.native_safety = NativeSafetyMap()
@@ -586,7 +590,12 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
             # A stale sensor pauses new admission independently of this receipt.
             feedback.append(float(stopped_id))
             ready = ready and _failed_observation_root_safe(self, t)
-        self.transport.send(dict(type='feedback', drone=self.id, time=t, ready=ready, data=feedback))
+        row = dict(type='feedback', drone=self.id, time=t, ready=ready, data=feedback)
+        if getattr(self, 'use_stopped_reference', False) and ready and self.pending is None and len(feedback) == 7:
+            reference = stopped_planning_reference(self.execution, active_id, bool(feedback[2]), t)
+            if reference is not None:
+                row['stopped_reference'] = [float(active_id), *reference]
+        self.transport.send(row)
 
 
 def _failed_observation_root_safe(agent, now):

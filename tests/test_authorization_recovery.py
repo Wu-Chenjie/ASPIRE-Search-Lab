@@ -133,7 +133,9 @@ struct FastExplorationFSM {
     double feedback_stamp_=9.9, task_collision_stop_stamp_=9.8;
     int executed_id_=42, task_collision_stop_id_=42, task_collision_stop_released_id_=-1;
     int dispatched=0;
+    int settled_references=0;
     void taskReturnLog(const char*) {}
+    void settledReferenceFeedback(const std_msgs::Float64MultiArrayConstPtr&) { ++settled_references; }
     void executionFeedback(const std_msgs::Float64MultiArrayConstPtr&);
 };
 ''' + fsm[start:end] + r'''
@@ -145,6 +147,10 @@ int main() {
     assert(f.task_return_.attempt(9.,false));
     f.task_return_.proposed(42);
     assert(f.task_return_.activated(42));
+    auto ref=std::make_shared<std_msgs::Message>();
+    ref->data={42.,9.9,0.,0.,1.8,0.};
+    f.executionFeedback(ref);
+    assert(f.settled_references==1 && f.dispatched==0);
     auto send = [&](double sent, int id, double request, double done=0., int candidate=-1) {
         auto msg=std::make_shared<std_msgs::Message>();
         msg->data={-1.,.564,done,double(candidate),-1.,sent,0.,double(id),request};

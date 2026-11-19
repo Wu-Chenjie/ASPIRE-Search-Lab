@@ -287,7 +287,15 @@ class NativeDDSTransport(Node):
             self.publishers_by_kind['cloud',i].publish(cloud)
         elif kind=='feedback':
             data=self._feedback_data(row)
-            self.publishers_by_kind['feedback',i].publish(Float64MultiArray(data=data))
+            publisher = self.publishers_by_kind['feedback',i]
+            publisher.publish(Float64MultiArray(data=data))
+            reference = row.get('stopped_reference')
+            if (isinstance(reference, list) and len(reference) == 6 and len(data) == 7
+                    and row['ready'] and self.fleet_size == 1
+                    and all(isinstance(value, (int, float)) and math.isfinite(value) for value in reference)
+                    and reference[0] == data[0] and (data[0] < 0 or data[2] == 1.)
+                    and 0. <= data[5]-reference[1] <= .5):
+                publisher.publish(Float64MultiArray(data=list(map(float, reference))))
             self.ready[i]=row['ready']
             if self.fast_stop_feedback and len(data)==9:
                 key=tuple(data[7:9])

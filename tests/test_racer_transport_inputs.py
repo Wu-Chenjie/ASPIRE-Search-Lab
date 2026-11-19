@@ -124,6 +124,20 @@ def test_bad_observation_and_feedback_do_not_poison_following_samples(transport)
     assert gateway.error is None
 
 
+def test_settled_reference_supplements_legacy_feedback_for_single_aircraft(transport):
+    transport.fleet_size = 1
+    reference = [-1., 8., .68, -5.96, 2.20, 0.]
+    original = feedback(8.1)
+    transport.send(dict(original, stopped_reference=reference))
+    transport.send(dict(original, stopped_reference=[4., *reference[1:]]))
+    transport.send(dict(original, stopped_reference=[-1., 7., *reference[2:]]))
+    transport.send(dict(original, stopped_reference=['invalid', *reference[1:]]))
+    transport.poll()
+    assert [message.data for message in transport.received] == [
+        original['data'], reference, original['data'], original['data'], original['data']]
+    assert transport.drops == 0
+
+
 def test_subnanosecond_negative_stamp_is_rejected_before_rounding(transport):
     frame = dict(type='frame', drone=0, origin=[0, 0, 0], points=[[0, 0, 1]])
     transport.send(dict(frame, time=-1e-12))

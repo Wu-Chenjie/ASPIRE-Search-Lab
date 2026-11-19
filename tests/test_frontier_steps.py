@@ -49,3 +49,10 @@ def test_frontier_steps_run_after_bearing_on_settled_exploration_only(tmp_path):
     fsm = (src / 'fast_exploration_fsm.cpp').read_text()
     assert ('res = expl_manager_->planExploreMotion(fd_->start_pt_, fd_->start_vel_, fd_->start_acc_,\n'
             '        fd_->start_yaw_, live_execution_ && task_stop_and_plan_ && fd_->static_state_);') in fsm
+    planner = fsm[fsm.index('int FastExplorationFSM::callExplorationPlanner('):
+                  fsm.index('void FastExplorationFSM::visualize(')]
+    assert planner.index('settled_reference_id_ == executed_id_') < planner.index(
+        'fd_->start_pt_ = settled_reference_position_;') < planner.index('planExploreMotion(')
+    assert 'fd_->start_vel_.setZero();\n    fd_->start_acc_.setZero();' in planner
+    assert '!task_review_enabled_ && !task_static_replan_' in planner
+    assert 'ref[0] == executed_id_ && (executed_id_ < 0 || executed_done_)' in fsm

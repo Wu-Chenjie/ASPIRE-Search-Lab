@@ -120,10 +120,61 @@ def apply(core):
     # A stopped native curve may end a few ULPs past a full turn. Give the
     # next plan the equivalent principal heading, preserving both derivatives.
     at = '  bool task_planned_alternative = false;'
-    f.write_text(replace_once(f.read_text(), at, """  if(aspire_steps::enabled() && fd_->static_state_ &&
+    text=replace_once(f.read_text(), at, """  if(aspire_steps::enabled() && fd_->static_state_ &&
      std::isfinite(fd_->start_yaw_[0]) && std::abs(fd_->start_yaw_[0])<=3*M_PI+1e-6){
     const double raw=fd_->start_yaw_[0];
     fd_->start_yaw_[0]=std::remainder(raw,2*M_PI);
     if(std::abs(fd_->start_yaw_[0]-raw)>1.)ROS_INFO("FRONTIER_STEP equivalent heading raw=%.9f principal=%.9f",raw,fd_->start_yaw_[0]);
   }
-""" + at))
+""" + at)
+    header=core/'include/exploration_manager/fast_exploration_fsm.h'
+    at='  bool live_execution_ = false, live_sent_ = false;'
+    header.write_text(replace_once(header.read_text(), at, '''  Eigen::Vector3d settled_reference_position_ = Eigen::Vector3d::Zero();
+  double settled_reference_yaw_ = 0., settled_reference_stamp_ = -1.;
+  int settled_reference_id_ = -2;
+  void settledReferenceFeedback(const std_msgs::Float64MultiArrayConstPtr& msg);
+'''+at))
+    at='  bool review = fd_->static_state_ && taskReviewReady();'
+    text=replace_once(text, at, at+'''
+  const double now = racer_ros::Time::now().toSec();
+  if (aspire_steps::enabled() && live_execution_ && task_stop_and_plan_ && fd_->static_state_ &&
+      expl_manager_->ep_->drone_num_ == 1 && !task_review_enabled_ && !task_static_replan_ &&
+      !review && !fd_->go_back_ && !fd_->avoid_collision_ && settled_reference_id_ == executed_id_ &&
+      now >= settled_reference_stamp_ && now - settled_reference_stamp_ <= .5 &&
+      now >= task_return_odom_stamp_ && now - task_return_odom_stamp_ <= .5 &&
+      (fd_->odom_pos_ - settled_reference_position_).norm() <= .10 && fd_->odom_vel_.norm() <= .05) {
+    // The incumbent controller still tracks this stationary reference. Keep
+    // the measured odometry for mapping and for the independent activation gate.
+    fd_->start_pt_ = settled_reference_position_;
+    fd_->start_vel_.setZero();
+    fd_->start_acc_.setZero();
+    fd_->start_yaw_ << settled_reference_yaw_, 0., 0.;
+    ROS_INFO("FRONTIER_STEP settled_reference id=%d stamp=%.6f root=%.6f,%.6f,%.6f",
+        settled_reference_id_, settled_reference_stamp_, fd_->start_pt_.x(),
+        fd_->start_pt_.y(), fd_->start_pt_.z());
+  }
+''')
+    at='void FastExplorationFSM::executionFeedback(const std_msgs::Float64MultiArrayConstPtr& msg) {'
+    text=replace_once(text, at, '''void FastExplorationFSM::settledReferenceFeedback(
+    const std_msgs::Float64MultiArrayConstPtr& msg) {
+  const auto& ref = msg->data;
+  const double now = racer_ros::Time::now().toSec();
+  if (aspire_steps::enabled() && live_execution_ && task_stop_and_plan_ && !task_static_replan_ &&
+      !task_review_enabled_ && expl_manager_->ep_->drone_num_ == 1 &&
+      ref[0] == executed_id_ && (executed_id_ < 0 || executed_done_) &&
+      std::all_of(ref.begin(), ref.end(), [](double value) { return std::isfinite(value); }) &&
+      ref[1] >= settled_reference_stamp_ && now >= ref[1] && now - ref[1] <= .5) {
+    settled_reference_id_ = executed_id_;
+    settled_reference_stamp_ = ref[1];
+    settled_reference_position_ = Eigen::Vector3d(ref[2], ref[3], ref[4]);
+    settled_reference_yaw_ = std::remainder(ref[5], 2. * M_PI);
+  }
+}
+
+'''+at+'''
+  if (msg->data.size() == 6) {
+    settledReferenceFeedback(msg);
+    return;
+  }
+''')
+    f.write_text(text)

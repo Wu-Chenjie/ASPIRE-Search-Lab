@@ -39,6 +39,36 @@ def static_reference_jump_limit():
     return .075 if relaxed_sitl_execution() else STATIC_REFERENCE_JUMP_M
 
 
+def stopped_planning_reference(report, active_id, completed, now):
+    """Serialize the fixed executor reference once it is ready and stopped."""
+    if (report.get('ready') is not True or report.get('arrived') is not True
+            or report.get('pending_token') is not None):
+        return None
+    if active_id < 0:
+        if (report.get('epoch') != 0 or report.get('token') is not None
+                or report.get('native_plan_id') is not None):
+            return None
+    elif not completed or report.get('native_plan_id') != active_id:
+        return None
+
+    try:
+        stamp = float(report['time'])
+        if not 0. <= now-stamp <= .5 or not 0. <= now-float(report['position_stamp']) <= .5:
+            return None
+        position, actual, velocity, acceleration = np.asarray(
+            [report['reference'], report['actual_position'],
+             report['reference_velocity'], report['reference_acceleration']], dtype=float)
+        yaw, yaw_rate = float(report['reference_yaw']), float(report['reference_yaw_rate'])
+        if (position.shape != (3,) or not np.isfinite([position, actual, velocity, acceleration]).all()
+                or not np.isfinite([yaw, yaw_rate]).all()
+                or np.linalg.norm(position-actual) > TRACKING_MARGIN
+                or np.linalg.norm(velocity)+np.linalg.norm(acceleration)+abs(yaw_rate) > 1e-5):
+            return None
+    except (KeyError, TypeError, ValueError):
+        return None
+    return [stamp, *position.tolist(), yaw]
+
+
 def tracking_brake_trigger():
     return .075 if relaxed_sitl_execution() else TRACKING_BRAKE_TRIGGER
 
