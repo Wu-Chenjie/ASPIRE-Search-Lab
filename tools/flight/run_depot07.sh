@@ -8,6 +8,10 @@ out="$(realpath -m "${3:?Supply a new output directory outside the repository}")
 case "$out/" in
     "$repo/"*|"$assets/"*) echo "Output must be outside the repository and asset pack." >&2; exit 1 ;;
 esac
+detector_args=(--segmentation-weights "$(realpath -m "${ASPIRE_SEG_WEIGHTS:-/opt/aspire/assets/yolo11n-seg.pt}")")
+if [[ -n "${ASPIRE_DETECTOR_MANIFEST:-}" ]]; then
+    detector_args+=(--detector-manifest "$(realpath -m "$ASPIRE_DETECTOR_MANIFEST")")
+fi
 
 # The existing runner uses fixed local GUI and DDS ports.
 exec 3>/tmp/aspire-sitl.lock
@@ -50,7 +54,7 @@ timeout -s INT -k 45s 770s python3 -B -m tools.flight.run \
     --prepared "$out/scene" --output "$out/run" \
     --external /planner/external --px4-build /opt/aspire/build/px4-sitl \
     --confirmation-mode registry --detector yolo11n-seg \
-    --segmentation-weights /opt/aspire/assets/yolo11n-seg.pt \
+    "${detector_args[@]}" \
     --detector-python-path /opt/aspire/venvs/seg/lib/python3.12/site-packages \
     --stop-and-plan --recover-no-path --bearing-bias --rviz --sim-real-time-factor 0.42 \
     --budget-clock sim --seconds 180 --wall-watchdog-seconds 700 \

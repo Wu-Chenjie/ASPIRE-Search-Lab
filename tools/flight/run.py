@@ -103,9 +103,13 @@ def main():
     profile.add_argument('--sitl-relaxed-execution', action='store_true',
                    help='Compare relaxed in-flight geometry and tracking triggers using PX4 SITL')
     p.add_argument('--scene-spec', type=Path, help='D-owned indoor scene JSON')
+    p.add_argument('--detector-manifest', type=Path,
+                   help='Local JSON manifest for the YOLO segmentation weights and runtime')
     p.add_argument('--output',type=Path,required=True);p.add_argument('--static-guidance-settings',type=Path,help='Validated common static settings JSON for both arms; --bearing-bias selects guided');p.add_argument('--px4-build',type=Path,help='Isolated verified PX4 SITL build directory');p.add_argument('--sim-real-time-factor',type=float,help='Diagnostic pacing only; physics timestep stays unchanged');p.add_argument('--wall-watchdog-seconds',type=float,help='Explicit harness wall budget for slow simulation; never changes flight guards');p.add_argument('--external',type=Path,default=Path('/planner/external'));p.add_argument('--seconds',type=float,default=240);p.add_argument('--budget-clock',choices=['wall','sim'],default='wall');p.add_argument('--negative',action='store_true');p.add_argument('--active-review',action='store_true');p.add_argument('--active-confirmation',action='store_true',help='Opt-in confirmation only after a measured RACER review and fresh RGB-D evidence');p.add_argument('--confirmation-mode',choices=['legacy','strict','hybrid','decoupled','registry'],default='',help='Explicit confirmation mode, independent of active review for fair comparisons');p.add_argument('--registry-cue-fixture',action='store_true',help='Explicit negative SITL-only target-observation ID churn/dropout fixture');p.add_argument('--bearing-bias',action='store_true',help='Opt-in bounded RGB bearing utility in native RACER candidate ranking');p.add_argument('--review-continuation',action='store_true',help='Opt-in bounded native continuation of the same review request');p.add_argument('--stop-and-plan',action='store_true',help='Wait for measured trajectory completion before replanning, independently of perception');p.add_argument('--recover-no-path',action='store_true');p.add_argument('--layout', default='original', help='Named start from the scene specification');p.add_argument('--performance',choices=['legacy','moderate','consistent','bounded-fast'],default='legacy');p.add_argument('--rviz',action='store_true');p.add_argument('--record-video',action='store_true');p.add_argument('--prepared',type=Path,help='Generated flyable scene; sensor truth files are not read by decision nodes');p.add_argument('--no-perception',action='store_true');p.add_argument('--vertical-samples',action='store_true',help='Opt-in native viewpoint altitude sampling');p.add_argument('--detector',choices=['hog','yolo11n-seg'],default='hog');p.add_argument('--segmentation-weights',default='');p.add_argument('--detector-python-path',default='');p.add_argument('--fault-injection',choices=['flags','position','dds'],help='Explicit SITL-only application/message or owned-agent interruption fixture');p.add_argument('--map-delay-fixture',action='store_true',help='Explicit SITL-only bounded interruption of the owned depth mapper');a=p.parse_args()
     if a.prepared and a.scene_spec:
         p.error("choose either --prepared or --scene-spec")
+    if a.detector_manifest is not None and (a.no_perception or a.detector != 'yolo11n-seg' or not a.segmentation_weights):
+        p.error('--detector-manifest requires enabled perception, --detector yolo11n-seg and --segmentation-weights')
     bundle = None
     if a.prepared and (a.prepared / "bundle.json").is_file():
         bundle = json.loads((a.prepared / "bundle.json").read_text())
@@ -163,6 +167,14 @@ def main():
         a.review_continuation=False
     if a.active_review and a.confirmation_mode in ('strict','hybrid'):
         a.review_continuation=True
+    manifest_sha256 = None
+    if a.detector_manifest is not None:
+        # Child processes start in the repository. Resolve model paths from the caller.
+        a.detector_manifest = a.detector_manifest.expanduser().absolute()
+        a.segmentation_weights = str(Path(a.segmentation_weights).expanduser().absolute())
+        manifest_sha256 = evidence_hash(a.detector_manifest, 'detector_manifest')
+        if manifest_sha256 is None:
+            p.error(f'cannot read --detector-manifest {a.detector_manifest}')
     weights_sha256=evidence_hash(Path(a.segmentation_weights),'segmentation_weights') if a.segmentation_weights else None
     requested_cpu_profile=os.environ.get('RACER_CPU_PROFILE','inherit')
     try:
@@ -227,7 +239,10 @@ def main():
             if not a.prepared or weights_sha256 is None:
                 raise ValueError('Static paired runs require a prepared scene and explicit detector weights')
             settings=json.loads(a.static_guidance_settings.read_text())
-            paired=dict(cfg,static_perception_contract=dict(detector=a.detector,weights_sha256=weights_sha256))
+            perception_contract = dict(detector=a.detector, weights_sha256=weights_sha256)
+            if manifest_sha256 is not None:
+                perception_contract['detector_manifest_sha256'] = manifest_sha256
+            paired = dict(cfg, static_perception_contract=perception_contract)
             cfg=apply_static_settings(paired,settings,guided=a.bearing_bias,seconds=a.seconds,budget_clock=a.budget_clock)
         except (OSError,ValueError,KeyError,TypeError) as error:
             warn('static_pair',error)
@@ -505,7 +520,20 @@ def main():
                     except OSError as error:
                         warn('map_delay_fixture',error)
             start('racer_adapter',[sys.executable,'-m','tools.research.frontier_baselines.live_ros2','--runtime',str(out/'runtime.json'),'--output',str(out/'flight'),'--transport','dds'])
-            if not a.no_perception:start('person_search',[sys.executable,'-m','person_search.node','--ros-args','-p','use_sim_time:=true','-p','require_estimated_pose:=true','-p','active_review:='+str(a.active_review).lower(),'-p','active_confirmation:='+str(a.active_confirmation).lower(),*(['-p','confirmation_mode:='+a.confirmation_mode] if a.confirmation_mode else []),'-p','detector_backend:='+a.detector,'-p','segmentation_weights:='+a.segmentation_weights,'-p','evidence_dir:='+str(out/'perception'),*visibility_args],env={'PYTHONPATH':a.detector_python_path+os.pathsep+os.environ.get('PYTHONPATH','')} if a.detector_python_path else None)
+            if not a.no_perception:
+                detector_args = ['-p', 'detector_backend:='+a.detector,
+                                 '-p', 'segmentation_weights:='+a.segmentation_weights]
+                if a.detector_manifest is not None:
+                    detector_args += ['-p', f'detector_manifest:={a.detector_manifest}']
+                start('person_search', [
+                    sys.executable, '-m', 'person_search.node', '--ros-args',
+                    '-p', 'use_sim_time:=true', '-p', 'require_estimated_pose:=true',
+                    '-p', 'active_review:='+str(a.active_review).lower(),
+                    '-p', 'active_confirmation:='+str(a.active_confirmation).lower(),
+                    *(['-p', 'confirmation_mode:='+a.confirmation_mode] if a.confirmation_mode else []),
+                    *detector_args, '-p', 'evidence_dir:='+str(out/'perception'), *visibility_args,
+                ], env={'PYTHONPATH': a.detector_python_path+os.pathsep+os.environ.get('PYTHONPATH','')}
+                    if a.detector_python_path else None)
             if a.record_video:start('continuous_rgb',[sys.executable,'-m','tools.flight.video_recorder',str(out)])
         while True:
             elapsed=time.monotonic()-started
@@ -610,6 +638,7 @@ def main():
                 warn('core_archive',error)
         report=dict(gazebo_shutdown_guard=guard_report,cpu_profile=cpu_profile.report(),startup=startup_watchdog.report(),deferred_graph_started=deferred_started,registry_cue_fixture=registry_fixture.report() if registry_fixture else None,bearing_bias=a.bearing_bias,confirmation_mode=cfg['confirmation_mode'],review_continuation=a.review_continuation,map_delay_fixture=a.map_delay_fixture,map_delay_state=map_delay.state if map_delay else None,map_delay_brake_seen=map_delay.brake_seen if map_delay else None,execution_safety=cfg['execution_safety'],fault_injection=a.fault_injection,fault_fixture_state=fault.state if fault else None,px4_build=str(build),requested_sim_real_time_factor=requested_rtf,effective_sim_real_time_factor=rtf,harness_wall_watchdog_seconds=a.wall_watchdog_seconds,scope='PX4 SITL dynamics, EKF2 estimated odometry, original guarded executor and native RACER FSM; GNSS-aided simulation, not indoor localization acceptance',wall_s=time.monotonic()-started,budget_clock=a.budget_clock,budget_seconds=a.seconds,budget_end_sim=budget_end_sim,counts=counts,last=last,estimated_path_m=path,max_estimated_height_m=max_z,error=failure,unexpected_exits=unexpected_exits,cleanup=cleanup,layout=a.layout,performance_profile=a.performance,negative=a.negative,active_confirmation=a.active_confirmation,active_review=cfg['active_review'],stop_and_plan=cfg['stop_and_plan'],no_path_recovery=a.recover_no_path,record_video=a.record_video,flight_fixture=os.environ.get('RACER_FLIGHT_FIXTURE','none'),no_perception=a.no_perception,detector=a.detector,detector_python_path=a.detector_python_path,segmentation_weights_sha256=weights_sha256,vertical_samples=a.vertical_samples,prepared_scene=str(a.prepared) if a.prepared else None,captured_pairs=frame_count,code_sha256=source_hashes,native_binary_sha256=native_hash,px4_binary_sha256=evidence_hash(binary,'px4_binary_hash'))
         report['effective_harness_wall_watchdog_seconds'] = wall_watchdog_seconds
+        report['detector_manifest_sha256'] = manifest_sha256
         report['requested_cpu_profile']=requested_cpu_profile
         if evidence is not None:
             try:

@@ -31,6 +31,8 @@ run="/opt/aspire/evidence/depot07-$(date +%Y%m%d-%H%M%S)"
 bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
 ```
 
+更换 Depot 07 的 YOLO 分割模型时，运行前设置 `ASPIRE_SEG_WEIGHTS` 为新权重路径，`ASPIRE_DETECTOR_MANIFEST` 为配套的 JSON 清单路径。
+
 默认传入 `--rviz`，运行 180 仿真秒。运行期间在运行机上打开 [RViz 浏览器视图](http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale)。远程观看时通过已有 SSH 连接将本机端口转发到运行机的 `127.0.0.1:18680`。
 
 启动日志在 `$run/launch.log`，生成的场景在 `$run/scene/`，退出码在 `$run/exit-code.txt`。验收查看 `$run/run/result.json`、`telemetry.jsonl` 和 `flight/0/events.jsonl`，核对场景加载、RGB-D 配对、人员观测进入原生注册表，以及轨迹激活和到达后的新观测。
@@ -61,6 +63,8 @@ RACER_EXECUTION_SAFETY=1 python3 tools/flight/run.py \
 ```
 
 `--external` 指向运行机上已有的 PX4 和 Agent 构建依赖目录。仓库自带模型可供离线生成场景。上述组合接入人员观测注册表及方位引导。主动静态复查的成对实验另有运行设置和评分协议。[配对验收](docs/STATIC-EVALUATION.md)
+
+直接运行飞行入口时，换模型需同时传入 `--segmentation-weights` 和 `--detector-manifest`。可参考现有清单，按新模型填写权重 SHA-256、运行库版本、人员类别 ID 和输入尺寸。模型须返回与原始 RGB 图像对齐的人员分割掩膜。省略清单时使用原有的权重校验。运行记录会保存显式传入的清单 SHA-256。[清单示例](config/detectors/yolo11n-seg-locked.json)
 
 ## 开发验证
 
