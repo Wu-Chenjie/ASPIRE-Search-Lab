@@ -7,24 +7,93 @@ def apply(core):
     shutil.copyfile(Path(__file__).with_name('frontier_steps.hpp'),
                     core/'include/exploration_manager/aspire_frontier_steps.hpp')
     inc='#include <exploration_manager/aspire_frontier_steps.hpp>\n'
+    header=core/'include/exploration_manager/fast_exploration_manager.h'
+    text=replace_once(header.read_text(),
+        'const Vector3d& acc, const Vector3d& yaw);',
+        'const Vector3d& acc, const Vector3d& yaw, bool settled = false);')
+    header.write_text(inc+replace_once(text, 'private:\n', '''private:
+  double frontier_step_radius_;
+  aspire_steps::ReplacementHistory frontier_step_history_;
+'''))
     f=core/'src/exploration_manager/fast_exploration_manager.cpp'
-    at='  std::cout << "Next view: "'
-    f.write_text(inc+replace_once(f.read_text(),at,'''  if (aspire_steps::enabled() && !ed_->points_.empty() && (next_pos-pos).norm()>1.6) {
-    size_t k=0;
-    for(size_t i=1;i<ed_->points_.size();++i)
-      if((ed_->points_[i]-next_pos).squaredNorm()<(ed_->points_[k]-next_pos).squaredNorm()) k=i;
-    Vector3d staged;double look=next_yaw;
-    if(k<ed_->frontiers_.size() && k<ed_->averages_.size() &&
-       aspire_steps::select(*sdf_map_,pos,next_pos,ed_->frontiers_[k],ed_->averages_[k],
-                            [](const Vector3d&){return true;},staged,look)){
-      ROS_INFO("FRONTIER_STEP native observation range=%.3f yaw=%.3f",(staged-pos).norm(),look);
-      next_pos=staged;next_yaw=look;
+    anchor='  planner_manager_->initPlanModules(nh);'
+    s=replace_once(f.read_text(), anchor, anchor+'''
+  nh.param("sdf_map/obstacles_inflation", frontier_step_radius_, -1.0);
+  frontier_step_radius_ = std::max(.50, frontier_step_radius_);''')
+    start=s.index('int FastExplorationManager::planExploreMotion(')
+    end=s.index('\nint FastExplorationManager::planTrajToView(', start)
+    plan=s[start:end]
+    plan=replace_once(plan, 'const Vector3d& acc, const Vector3d& yaw) {',
+                     'const Vector3d& acc, const Vector3d& yaw, bool settled) {')
+    anchor='  findGridAndFrontierPath(pos, vel, yaw, grid_ids, frontier_ids);'
+    plan=replace_once(plan, anchor, anchor+'''
+  int next_frontier = frontier_ids.empty() ? -1 : frontier_ids.front();
+  vector<vector<double>> n_yaws;''')
+    plan=replace_once(plan, '    // // Simply go to the center of the unknown grid',
+                     '    next_frontier = min_cost_id;\n\n    // // Simply go to the center of the unknown grid')
+    plan=replace_once(plan, '      vector<vector<double>> n_yaws;\n', '')
+    plan=replace_once(plan, '    vector<vector<double>> n_yaws;\n', '')
+    anchor='''      ed_->refined_views_ = { next_pos + 2.0 * Vector3d(cos(next_yaw), sin(next_yaw), 0) };
+    }'''
+    plan=replace_once(plan, anchor, anchor+''' else {
+      next_pos = ed_->points_[next_frontier];
+      next_yaw = ed_->yaws_[next_frontier];
+    }''')
+    anchor='  taskBearingRerank(pos,vel,yaw,next_pos,next_yaw);'
+    plan=replace_once(plan, anchor, '''  const bool bearing_selected = taskBearingRerank(pos,vel,yaw,next_pos,next_yaw);
+  const Vector3d tour_point = next_pos;
+  const double tour_yaw = next_yaw;
+  bool prefer_observation = false;
+  if (aspire_steps::enabled() && settled && ep_->drone_num_ == 1 && !bearing_selected &&
+      !task_static_evaluation_ && next_frontier >= 0) {
+    vector<Vector3d> alternatives = {ed_->points_[next_frontier]};
+    vector<double> headings = {ed_->yaws_[next_frontier]};
+    if (!n_yaws.empty()) {
+      alternatives.insert(alternatives.end(), ed_->n_points_.front().begin(), ed_->n_points_.front().end());
+      headings.insert(headings.end(), n_yaws.front().begin(), n_yaws.front().end());
     }
-  }
-'''+at))
+    const auto observation = aspire_steps::refine(*sdf_map_, *frontier_finder_->percep_utils_,
+        pos, yaw[0], tour_point, tour_yaw, alternatives, headings, ed_->frontiers_[next_frontier],
+        ed_->averages_[next_frontier], Vector3d(frontier_step_radius_, frontier_step_radius_, .30),
+        ViewNode::vm_, ViewNode::yd_);
+    const bool candidate = observation.source != aspire_steps::Source::None;
+    prefer_observation = candidate && frontier_step_history_.accept(
+        pos, observation.point, sdf_map_->getResolution());
+    if (prefer_observation) {
+      next_pos = observation.point;
+      next_yaw = observation.yaw;
+    }
+    const char* source = "tour_fallback";
+    const char* reason = (tour_point-pos).norm() <= aspire_steps::max_observation_leg ?
+        "near_tour" : "no_candidate";
+    if (prefer_observation) {
+      source = observation.source == aspire_steps::Source::Native ? "native" : "staged";
+      reason = "selected";
+    } else if (candidate) {
+      reason = "repeat_without_progress";
+    }
+    ROS_INFO("FRONTIER_STEP exploration frontier=%d source=%s changed=%d visible=%d range=%.3f tour_range=%.3f reason=%s",
+        next_frontier, source, int(prefer_observation), observation.visible, (next_pos-pos).norm(),
+        (tour_point-pos).norm(), reason);
+  }''')
+    anchor='''  if (planTrajToView(pos, vel, acc, yaw, next_pos, next_yaw) == FAIL) {
+    return FAIL;
+  }'''
+    plan=replace_once(plan, anchor, '''  if (planTrajToView(pos, vel, acc, yaw, next_pos, next_yaw) == FAIL) {
+    if (!prefer_observation) return FAIL;
+    ROS_INFO("FRONTIER_STEP exploration frontier=%d source=tour_fallback reason=native_plan_failed", next_frontier);
+    ed_->next_pos_ = tour_point;
+    ed_->next_yaw_ = tour_yaw;
+    if (planTrajToView(pos, vel, acc, yaw, tour_point, tour_yaw) == FAIL) return FAIL;
+  }''')
+    f.write_text(inc+s[:start]+plan+s[end:])
     f=core/'src/exploration_manager/fast_exploration_fsm.cpp'
+    text=replace_once(f.read_text(), '''res = expl_manager_->planExploreMotion(
+        fd_->start_pt_, fd_->start_vel_, fd_->start_acc_, fd_->start_yaw_);''',
+        '''res = expl_manager_->planExploreMotion(fd_->start_pt_, fd_->start_vel_, fd_->start_acc_,
+        fd_->start_yaw_, live_execution_ && task_stop_and_plan_ && fd_->static_state_);''')
     at='  // Last observed, previously authorized roots'
-    f.write_text(inc+replace_once(f.read_text(),at,'''  if(aspire_steps::enabled()) {
+    f.write_text(inc+replace_once(text,at,'''  if(aspire_steps::enabled()) {
     // Give a frontier a reachable intermediate observation before falling back
     // to a previously visited root. The recovery budget/blacklist still applies.
     double best=1e9; Eigen::Vector3d chosen;double heading=0;

@@ -4,6 +4,7 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import sys
 import pytest
 
 
@@ -25,3 +26,26 @@ def test_native_frontier_steps_follow_mirrored_measured_space(tmp_path):
     subprocess.run([compiler, '-std=c++17', *flags, '-I', str(root / 'tools/flight'),
                     str(root / 'tests/frontier_steps_test.cpp'), '-o', str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
+
+
+def test_frontier_steps_run_after_bearing_on_settled_exploration_only(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    out = tmp_path / 'native'
+    subprocess.run([sys.executable, str(root / 'tools/search/build_native.py'), str(out),
+                    '--execution-safety', '--consistent-inflation'], check=True)
+    src = out / 'src/racer_core/src/exploration_manager'
+    manager = (src / 'fast_exploration_manager.cpp').read_text()
+    assert 'nh.param("sdf_map/obstacles_inflation", frontier_step_radius_, -1.0);' in manager
+    assert 'sdf_map_->mp_' not in manager
+    plan = manager[manager.index('int FastExplorationManager::planExploreMotion('):
+                   manager.index('int FastExplorationManager::planTrajToView(')]
+    assert (plan.index('const bool bearing_selected = taskBearingRerank(')
+            < plan.index('ep_->drone_num_ == 1 && !bearing_selected &&\n      !task_static_evaluation_')
+            < plan.index('aspire_steps::refine(')
+            < plan.index('planTrajToView(pos, vel, acc, yaw, next_pos, next_yaw)'))
+    assert 'if (!prefer_observation) return FAIL;' in plan
+    assert 'planTrajToView(pos, vel, acc, yaw, tour_point, tour_yaw)' in plan
+    assert 'ed_->frontiers_[next_frontier]' in plan
+    fsm = (src / 'fast_exploration_fsm.cpp').read_text()
+    assert ('res = expl_manager_->planExploreMotion(fd_->start_pt_, fd_->start_vel_, fd_->start_acc_,\n'
+            '        fd_->start_yaw_, live_execution_ && task_stop_and_plan_ && fd_->static_state_);') in fsm
