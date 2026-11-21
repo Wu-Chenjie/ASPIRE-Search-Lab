@@ -136,13 +136,16 @@ def apply(core):
 '''+at))
     at='  bool review = fd_->static_state_ && taskReviewReady();'
     text=replace_once(text, at, at+'''
+  const bool fixed_return = task_return_.started() && fd_->go_back_ && live_execution_ &&
+      task_stop_and_plan_ && fd_->static_state_ && expl_manager_->ep_->drone_num_ == 1 &&
+      !review && !fd_->avoid_collision_;
   const double now = racer_ros::Time::now().toSec();
   if (aspire_steps::enabled() && live_execution_ && task_stop_and_plan_ && fd_->static_state_ &&
       expl_manager_->ep_->drone_num_ == 1 && !task_review_enabled_ && !task_static_replan_ &&
-      !review && !fd_->go_back_ && !fd_->avoid_collision_ && settled_reference_id_ == executed_id_ &&
+      !review && (!fd_->go_back_ || fixed_return) && !fd_->avoid_collision_ && settled_reference_id_ == executed_id_ &&
       now >= settled_reference_stamp_ && now - settled_reference_stamp_ <= .5 &&
       now >= task_return_odom_stamp_ && now - task_return_odom_stamp_ <= .5 &&
-      (fd_->odom_pos_ - settled_reference_position_).norm() <= .10 && fd_->odom_vel_.norm() <= .05) {
+      (fd_->odom_pos_ - settled_reference_position_).norm() <= .25 && fd_->odom_vel_.norm() <= .05) {
     // The incumbent controller still tracks this stationary reference. Keep
     // the measured odometry for mapping and for the independent activation gate.
     fd_->start_pt_ = settled_reference_position_;

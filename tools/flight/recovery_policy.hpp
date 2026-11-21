@@ -12,7 +12,10 @@ using Point = std::array<double,3>;
 inline double distance(const Point& a,const Point& b) {
   double s=0;for(int i=0;i<3;++i)s+=(a[i]-b[i])*(a[i]-b[i]);return std::sqrt(s);
 }
-inline double planningRetryDelay(int attempts) { return attempts>=8 ? 5. : .5; }
+inline double planningRetryDelay(int attempts) {
+  if (attempts <= 0) return .5;
+  return attempts >= 8 ? 2. : .5;
+}
 // Shared review arbitration: current observed-free endpoint is necessary;
 // the full native path and external authorization remain separate gates.
 template<class MeasuredFree>

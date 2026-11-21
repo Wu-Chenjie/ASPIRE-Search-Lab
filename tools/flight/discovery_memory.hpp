@@ -21,7 +21,7 @@ struct DiscoveryGroup {
 struct DiscoveryPlan {int cue=-1,progress=0;bool closed=false;};
 class DiscoveryMemory {
 public:
- double ttl=2.,window=20.,cooldown=15.;int max_attempts=2,mission_attempt_limit=8;
+ double ttl=5.,window=40.,cooldown=4.;int max_attempts=4,mission_attempt_limit=16;
  int mission_attempts=0;std::map<int,DiscoveryCue> cues;std::map<int,DiscoveryGroup> groups;
  std::map<int,DiscoveryPlan> plans;
  double value(int cue,double now)const{
@@ -75,12 +75,12 @@ public:
   if(now<c.capture||now-c.capture>ttl)return "capture_expired";
   const double age_weight=decay(g,now);
   if(age_weight<=0)return "discovery_value_expired";
-  if(g.uses>=2)return "persistent_selection_budget_exhausted";
+  if(g.uses>=4)return "persistent_selection_budget_exhausted";
   if((g.attempts>=max_attempts||mission_attempts>=mission_attempt_limit)&&!g.evaluating)return "evaluation_budget_exhausted";
   if(g.blocked){
    if(now<g.cooldown_until)return "failure_cooldown";
    if(g.serial<=g.blocked_serial)return "awaiting_material_change";
-   if(g.retries>=1)return "retry_budget_exhausted";
+   if(g.retries>=3)return "retry_budget_exhausted";
   }
   if(age_value)*age_value=age_weight;
   return nullptr;

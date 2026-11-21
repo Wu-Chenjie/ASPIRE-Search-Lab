@@ -26,15 +26,16 @@ def scene(out, negative, layout="original", performance="legacy", *, spec_path=D
     tree.write(base_path)
     cfg = json.loads((out / "runtime.json").read_text())
     cfg.update(research_planner="racer_ros2", native_frame_source="mapper_observation",
-               racer_planning_scale=.5, racer_flight_limits=[.7, 3.], control_timing_diagnostics=True,
-               bootstrap_altitudes=[1.75, 2.65, 2.2], layout=layout, performance_profile=performance)
+               racer_planning_scale=.85, racer_flight_limits=[.7, 3.], control_timing_diagnostics=True,
+               bootstrap_altitudes=[2.2], layout=layout, performance_profile=performance)
     if performance != "legacy":
         cfg.update(motion_limits=dict(speed=1., acceleration=1.2, jerk=4., yaw_rate=.9),
-                   racer_planning_limits=dict(speed=.3, acceleration=.4, jerk=4., yaw_rate=.325),
-                   racer_min_time=performance != "consistent")
+                   racer_planning_limits=dict(speed=.8, acceleration=.95, jerk=4., yaw_rate=.75),
+                   racer_min_time=performance != "consistent",
+                   racer_feasible_time=True)
     if performance == "bounded-fast":
         cfg.update(motion_limits=dict(speed=1.2, acceleration=1.5, jerk=4., yaw_rate=1.),
-                   racer_planning_limits=dict(speed=.45, acceleration=.6, jerk=4., yaw_rate=.4),
+                   racer_planning_limits=dict(speed=1., acceleration=1.2, jerk=4., yaw_rate=.85),
                    racer_min_time=False, racer_feasible_time=True)
     (out / "runtime.json").write_text(json.dumps(cfg, indent=2))
     return cfg

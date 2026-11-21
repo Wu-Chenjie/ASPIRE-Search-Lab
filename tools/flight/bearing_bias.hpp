@@ -56,8 +56,8 @@ public:
   bool allow_weak=false,weak_event=false;
   double weak_max_extra_cost=-1.,weak_max_extra_path_m=-1.;
   DiscoveryMemory discovery;
-  double ttl=20.,discount=.5,max_cost_ratio=1.5,active_budget_s=60.;
-  int per_cue_limit=2,mission_limit=4;
+  double ttl=20.,discount=.5,max_cost_ratio=1.5,active_budget_s=120.;
+  int per_cue_limit=4,mission_limit=12;
   int selections=0;double active_since=-1.;bool original_next=false;
   std::map<std::pair<int,int>,BearingCue> cues;
   bool receive(const std::vector<double>& d,double now,int own_source=0){
@@ -181,7 +181,7 @@ public:
     if(picked_priority)out.reason="fresh_review_priority";
     else if(out.changed)out.reason="bounded_bearing_cost_preferred";
     else out.reason=baseline_ready?"original_native_goal_kept":"baseline_not_reachable_no_override";
-    if(out.changed){if(persistent&&!event_driven_static)discovery.selected(out.cue_id);++selections;original_next=true;for(auto& kv:cues)if(kv.second.id==out.cue_id){++kv.second.uses;break;}}
+    if(out.changed){if(persistent&&!event_driven_static)discovery.selected(out.cue_id);++selections;for(auto& kv:cues)if(kv.second.id==out.cue_id){++kv.second.uses;break;}}
     return out;
   }
 };

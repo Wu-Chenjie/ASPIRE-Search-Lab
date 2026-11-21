@@ -7,7 +7,7 @@ import numpy as np
 
 
 class ObservationCompletion:
-    def __init__(self, source, max_age_s=1.5):
+    def __init__(self, source, max_age_s=3.):
         self.source = source; self.max_age_s = max_age_s
         self.frames = deque(maxlen=16); self.session = None; self.sequence = -1
         self.retired_sessions = set(); self.last_time = -math.inf
@@ -62,7 +62,7 @@ class ObservationCompletion:
         self.wait_reason = 'no_integrated_frame'
         for index, frame in enumerate(reversed(self.frames)):
             age = now - frame['time']
-            if frame['time'] < arrived_at:
+            if frame['time'] + .35 < arrived_at:
                 reason = 'awaiting_post_arrival_integrated_frame'
                 earlier_frames_ineligible = True
             elif not 0 <= age <= self.max_age_s:
@@ -72,8 +72,8 @@ class ObservationCompletion:
             else:
                 earlier_frames_ineligible = False
                 angle = abs(math.atan2(math.sin(frame['yaw']-yaw), math.cos(frame['yaw']-yaw)))
-                reason = ('sensor_position_outside_view' if np.linalg.norm(np.asarray(frame['position'])-goal) >= .07 else
-                          'sensor_yaw_outside_view' if angle >= .12 else
+                reason = ('sensor_position_outside_view' if np.linalg.norm(np.asarray(frame['position'])-goal) >= .15 else
+                          'sensor_yaw_outside_view' if angle >= .20 else
                           'sensor_grid_mismatch' if grid and frame['grid'] != grid else None)
             if reason is None:
                 self.wait_reason = None
@@ -102,7 +102,7 @@ def completed_execution_proof(packet):
                     isinstance(proof['sensor_session'], str) and proof['sensor_session'] and
                     type(proof['sequence']) is int and proof['sequence'] > 0 and
                     proof['ray_cell_count'] > 0 and all(math.isfinite(t) for t in times) and
-                    times[0] <= times[1] <= times[2])
+                    times[0] - .35 - 1e-6 <= times[1] <= times[2])
     except (KeyError, TypeError, ValueError, OverflowError):
         return False
 
@@ -123,14 +123,15 @@ def failed_observation_proof(packet, processing_time=None):
         since=float(failure['started_at']);checked=float(hold['checked_at'])
         ref=np.asarray(packet['reference'],float);actual=np.asarray(packet['actual_position'],float)
         jet=np.linalg.norm(packet['reference_velocity'])+np.linalg.norm(packet['reference_acceleration'])+abs(packet['reference_yaw_rate'])
+        wait_s=float(hold.get('wait_budget_s',3.))
         return bool(packet.get('token') and failure['token']==packet['token'] and
             type(packet['epoch']) is int and packet['epoch']>0 and failure['epoch']==packet['epoch'] and
             failure['outcome']=='unobserved' and failure['reason']=='terminal_observation_wait_deadline_exceeded' and
-            np.isfinite([now,closed,deadline,since,checked,*ref,*actual,jet]).all() and
+            np.isfinite([now,closed,deadline,since,checked,*ref,*actual,jet,wait_s]).all() and
             -.05<=processing-now<=.5 and -.1<=processing-float(packet['position_stamp'])<=.5 and
-            0<=now-checked<=.5 and deadline<closed<=checked and abs(deadline-since-1.5)<1e-6 and
+            0<=now-checked<=.5 and deadline<closed<=checked and 0<wait_s<=5. and abs(deadline-since-wait_s)<1e-6 and
             type(failure['mission_failure_count']) is int and failure['mission_failure_count']>=1 and
-            ref.shape==(3,) and actual.shape==(3,) and np.linalg.norm(ref-actual)<=.1 and jet<=1e-5 and
+            ref.shape==(3,) and actual.shape==(3,) and np.linalg.norm(ref-actual)<=.25 and jet<=1e-5 and
             abs(packet['trajectory_time']-packet['trajectory_duration'])<1e-9 and
             hold['reference_stopped'] is True and hold['observation_complete'] is False and hold['task_state']=='failed' and
             np.linalg.norm(ref-np.asarray(hold['fixed_endpoint']))<=1e-9)

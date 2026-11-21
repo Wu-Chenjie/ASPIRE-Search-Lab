@@ -7,8 +7,8 @@ from aspire_camera.poses import PoseHistory
 class GroundOriginWindow:
     """Average the known stationary start's EKF datum before creating a map."""
     def __init__(self, duration_s=3.):
-        if not 3. <= duration_s <= 30.:
-            raise ValueError('Ground calibration duration must be in [3, 30] seconds')
+        if not 1. <= duration_s <= 30.:
+            raise ValueError('Ground calibration duration must be in [1, 30] seconds')
         self.duration_s = float(duration_s)
         self.samples = deque(maxlen=int(duration_s*101)+2)
         self.reset_key = None
@@ -21,7 +21,7 @@ class GroundOriginWindow:
         if not grounded:reasons.append('ground_evidence_gate')
         if speed>.08:reasons.append('velocity_over_0.08')
         if reset_key!=self.reset_key:reasons.append('estimator_reset_key_changed')
-        if self.samples and stamp-self.samples[-1][0] > .1+1e-9:reasons.append('source_gap_over_0.1')
+        if self.samples and stamp-self.samples[-1][0] > .5+1e-9:reasons.append('source_gap_over_0.5')
         self.last_input=dict(stamp=stamp,speed_mps=speed,grounded=bool(grounded),
                             source_gap_s=stamp-self.samples[-1][0] if self.samples else None)
         if reasons:

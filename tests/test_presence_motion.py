@@ -39,16 +39,16 @@ def test_short_rgb_miss_recovers_unique_source_and_keeps_confirmed_history():
     assert t.tracks[0].visual_state=='visually_confirmed'
 
 def test_paired_depth_recovers_source_after_translation_and_rejects_conflicting_range():
-    first=view();second=view();second['origin'][0]=.18
+    first=view();second=view();second['origin'][0]=.55
     def masked(x):
         mask=np.zeros((240,320),bool);mask[80:150,x:x+42]=True
         return PersonMask((x,80,42,70),.9,mask)
-    for range_m,same in ((3.,True),(2.,False)):
+    for range_m,same in ((6.,True),(4.,False)):
         tracker=PresenceTracker()
         tracker.observe_rgb([masked(100)],10_000_000_000,320,240,10.01,view=first,
-                            paired=(np.full((240,320),3.),first))
+                            paired=(np.full((240,320),6.),first))
         tracker.observe_rgb([],10_250_000_000,320,240,10.26,view=first)
-        rows=tracker.observe_rgb([masked(88)],10_500_000_000,320,240,10.51,view=second,
+        rows=tracker.observe_rgb([masked(82)],10_500_000_000,320,240,10.51,view=second,
                                  paired=(np.full((240,320),range_m),second))
         assert rows[0]['id']==(1 if same else 2)
         assert rows[0]['visual_state']=='person_candidate'

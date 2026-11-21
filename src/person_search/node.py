@@ -155,7 +155,7 @@ def main():
             self.bearing_pub=self.create_publisher(Float64MultiArray,topics.BEARING_EVIDENCE,30)
             self.bearing_output=self.create_publisher(String,'/search/bearings',30)
             self.semantic_cache={};self.last_semantic_ns=-1;self.inference_rgb_ns=None
-            self.max_age=self.declare_parameter('max_frame_age_s',.75).value
+            self.max_age=self.declare_parameter('max_frame_age_s',1.5).value
             self.rgbd_registration_mode=self.declare_parameter('rgbd_registration_mode','strict').value
             self.rgbd_image_mode=self.declare_parameter('rgbd_image_mode','rectified').value
             self.rgbd_max_skew_s=self.declare_parameter('rgbd_max_skew_s',0.).value
@@ -301,13 +301,7 @@ def main():
                         del self.received_wall[oldest]
             if self.decoupled:self.input_event.set()
         def fresh_capture(self,ns):
-            if not capture_age_valid(ns,self.get_clock().now().nanoseconds,self.max_age):
-                return False
-            if self.max_age<=0:
-                return True
-            with self.input_lock:
-                received=self.received_wall.get(ns)
-            return received is not None and time.monotonic()-received<=self.max_age
+            return capture_age_valid(ns,self.get_clock().now().nanoseconds,self.max_age)
         def publish_semantics(self,ns,frame,rows):
             if self.active_confirmation:self.tracker.semantic_memory.update(rows,ns*1e-9)
             report=dict(stamp_ns=ns,rgb_frame=frame,position_frame='map',backend=self.backend,candidates=rows,

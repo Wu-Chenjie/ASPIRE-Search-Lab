@@ -105,7 +105,7 @@ def main():
     p.add_argument('--scene-spec', type=Path, help='D-owned indoor scene JSON')
     p.add_argument('--detector-manifest', type=Path,
                    help='Local JSON manifest for the YOLO segmentation weights and runtime')
-    p.add_argument('--output',type=Path,required=True);p.add_argument('--static-guidance-settings',type=Path,help='Validated common static settings JSON for both arms; --bearing-bias selects guided');p.add_argument('--px4-build',type=Path,help='Isolated verified PX4 SITL build directory');p.add_argument('--sim-real-time-factor',type=float,help='Diagnostic pacing only; physics timestep stays unchanged');p.add_argument('--wall-watchdog-seconds',type=float,help='Explicit harness wall budget for slow simulation; never changes flight guards');p.add_argument('--external',type=Path,default=Path('/planner/external'));p.add_argument('--seconds',type=float,default=240);p.add_argument('--budget-clock',choices=['wall','sim'],default='wall');p.add_argument('--negative',action='store_true');p.add_argument('--active-review',action='store_true');p.add_argument('--active-confirmation',action='store_true',help='Opt-in confirmation only after a measured RACER review and fresh RGB-D evidence');p.add_argument('--confirmation-mode',choices=['legacy','strict','hybrid','decoupled','registry'],default='',help='Explicit confirmation mode, independent of active review for fair comparisons');p.add_argument('--registry-cue-fixture',action='store_true',help='Explicit negative SITL-only target-observation ID churn/dropout fixture');p.add_argument('--bearing-bias',action='store_true',help='Opt-in bounded RGB bearing utility in native RACER candidate ranking');p.add_argument('--review-continuation',action='store_true',help='Opt-in bounded native continuation of the same review request');p.add_argument('--stop-and-plan',action='store_true',help='Wait for measured trajectory completion before replanning, independently of perception');p.add_argument('--recover-no-path',action='store_true');p.add_argument('--layout', default='original', help='Named start from the scene specification');p.add_argument('--performance',choices=['legacy','moderate','consistent','bounded-fast'],default='legacy');p.add_argument('--rviz',action='store_true');p.add_argument('--record-video',action='store_true');p.add_argument('--prepared',type=Path,help='Generated flyable scene; sensor truth files are not read by decision nodes');p.add_argument('--no-perception',action='store_true');p.add_argument('--vertical-samples',action='store_true',help='Opt-in native viewpoint altitude sampling');p.add_argument('--detector',choices=['hog','yolo11n-seg'],default='hog');p.add_argument('--segmentation-weights',default='');p.add_argument('--detector-python-path',default='');p.add_argument('--fault-injection',choices=['flags','position','dds'],help='Explicit SITL-only application/message or owned-agent interruption fixture');p.add_argument('--map-delay-fixture',action='store_true',help='Explicit SITL-only bounded interruption of the owned depth mapper');a=p.parse_args()
+    p.add_argument('--output',type=Path,required=True);p.add_argument('--static-guidance-settings',type=Path,help='Validated common static settings JSON for both arms; --bearing-bias selects guided');p.add_argument('--px4-build',type=Path,help='Isolated verified PX4 SITL build directory');p.add_argument('--sim-real-time-factor',type=float,help='Diagnostic pacing only; physics timestep stays unchanged');p.add_argument('--wall-watchdog-seconds',type=float,help='Explicit harness wall budget for slow simulation; never changes flight guards');p.add_argument('--external',type=Path,default=Path('/planner/external'));p.add_argument('--seconds',type=float,default=240);p.add_argument('--budget-clock',choices=['wall','sim'],default='wall');p.add_argument('--negative',action='store_true');p.add_argument('--active-review',action='store_true');p.add_argument('--active-confirmation',action='store_true',help='Opt-in confirmation only after a measured RACER review and fresh RGB-D evidence');p.add_argument('--confirmation-mode',choices=['legacy','strict','hybrid','decoupled','registry'],default='',help='Explicit confirmation mode, independent of active review for fair comparisons');p.add_argument('--registry-cue-fixture',action='store_true',help='Explicit negative SITL-only target-observation ID churn/dropout fixture');p.add_argument('--bearing-bias',action='store_true',help='Opt-in bounded RGB bearing utility in native RACER candidate ranking');p.add_argument('--review-continuation',action='store_true',help='Opt-in bounded native continuation of the same review request');p.add_argument('--stop-and-plan',action='store_true',help='Wait for measured trajectory completion before replanning, independently of perception');p.add_argument('--recover-no-path',action='store_true');p.add_argument('--layout', default='original', help='Named start from the scene specification');p.add_argument('--performance',choices=['legacy','moderate','consistent','bounded-fast'],default='legacy');p.add_argument('--rviz',action='store_true');p.add_argument('--record-video',action='store_true');p.add_argument('--record-debug-evidence',action='store_true');p.add_argument('--prepared',type=Path,help='Generated flyable scene; sensor truth files are not read by decision nodes');p.add_argument('--no-perception',action='store_true');p.add_argument('--vertical-samples',action='store_true',help='Opt-in native viewpoint altitude sampling');p.add_argument('--detector',choices=['hog','yolo11n-seg'],default='hog');p.add_argument('--segmentation-weights',default='');p.add_argument('--detector-python-path',default='');p.add_argument('--fault-injection',choices=['flags','position','dds'],help='Explicit SITL-only application/message or owned-agent interruption fixture');p.add_argument('--map-delay-fixture',action='store_true',help='Explicit SITL-only bounded interruption of the owned depth mapper');a=p.parse_args()
     if a.prepared and a.scene_spec:
         p.error("choose either --prepared or --scene-spec")
     if a.detector_manifest is not None and (a.no_perception or a.detector != 'yolo11n-seg' or not a.segmentation_weights):
@@ -293,19 +293,20 @@ def main():
     native_binary=Path(get_package_prefix('racer_core'))/'lib/racer_core/exploration_node'
     native_hash=evidence_hash(native_binary,'native_binary_hash')
     source_hashes={}
-    try:
-        with tarfile.open(out/'runtime-source.tar.gz','x:gz') as archive:
-            for folder in (ROOT/'tools',ROOT/'src'):
-                for path in folder.rglob('*'):
-                    if path.suffix not in ('.py','.cpp','.hpp','.sh') or not path.is_file():continue
-                    name=str(path.relative_to(ROOT));raw=path.read_bytes()
-                    info=archive.gettarinfo(str(path),arcname=name)
-                    if info.isfile():info.size=len(raw)
-                    archive.addfile(info,BytesIO(raw) if info.isfile() else None)
-                    source_hashes[name]=hashlib.sha256(raw).hexdigest()
-    except (OSError,tarfile.TarError) as error:
-        source_hashes.clear()
-        warn('runtime_source_archive',error)
+    if a.record_debug_evidence:
+        try:
+            with tarfile.open(out/'runtime-source.tar.gz','x:gz') as archive:
+                for folder in (ROOT/'tools',ROOT/'src'):
+                    for path in folder.rglob('*'):
+                        if path.suffix not in ('.py','.cpp','.hpp','.sh') or not path.is_file():continue
+                        name=str(path.relative_to(ROOT));raw=path.read_bytes()
+                        info=archive.gettarinfo(str(path),arcname=name)
+                        if info.isfile():info.size=len(raw)
+                        archive.addfile(info,BytesIO(raw) if info.isfile() else None)
+                        source_hashes[name]=hashlib.sha256(raw).hexdigest()
+        except (OSError,tarfile.TarError) as error:
+            source_hashes.clear()
+            warn('runtime_source_archive',error)
     children=[];child_names={};fault=None;map_delay=None;unexpected_exits=[]
     observed_exits=set()
     def start(name,args,env=None,cwd=None):
@@ -495,7 +496,7 @@ def main():
         startup=work/'startup.sh';startup.write_text(script.replace(needle,'param set UXRCE_DDS_SYNCT 0\n'+needle)+'\nparam set COM_RC_IN_MODE 4\nparam set NAV_DLL_ACT 0\nparam set COM_OF_LOSS_T 0.5\nparam set COM_OBL_RC_ACT 4\n')
         time.sleep(3)
         start('px4',[str(binary),'-i','1','-d','-w',str(work),'-s',str(startup),str(build/'etc')],dict(PX4_SYS_AUTOSTART='4002',PX4_SIM_MODEL='gz_x500_depth',PX4_GZ_MODEL_NAME=v['model'],PX4_PARAM_EKF2_GPS_DELAY='0',PX4_PARAM_SENS_EN_MAGSIM='1',PX4_PARAM_EKF2_MAG_TYPE='6'),str(work))
-        params=dict(use_sim_time=True,drone_id=0,px4_instance=1,bounds=json.dumps(cfg['bounds']),fleet_starts=json.dumps(cfg['fleet_starts']),start=json.dumps(v['start']),spawn=json.dumps(v['spawn']),initial_position=json.dumps(v['initial_position']),origin_calibration_s=3.,require_depth_odometry=False,sitl_auto_arm=True,publish_native_frames=True,bootstrap_altitudes=json.dumps(cfg['bootstrap_altitudes']),control_timing_dir=str(out/'timing'),safety_flight_limits=json.dumps(cfg.get('racer_flight_limits')),execution_safety_dir=str(out/'execution-safety'))
+        params=dict(use_sim_time=True,drone_id=0,px4_instance=1,bounds=json.dumps(cfg['bounds']),fleet_starts=json.dumps(cfg['fleet_starts']),start=json.dumps(v['start']),spawn=json.dumps(v['spawn']),initial_position=json.dumps(v['initial_position']),origin_calibration_s=1.5,require_depth_odometry=False,sitl_auto_arm=True,publish_native_frames=True,bootstrap_altitudes=json.dumps(cfg['bootstrap_altitudes']),control_timing_dir=str(out/'timing') if a.record_debug_evidence else '',safety_flight_limits=json.dumps(cfg.get('racer_flight_limits')),execution_safety_dir=str(out/'execution-safety') if a.record_debug_evidence else '')
         params['publish_native_dds']=cfg.get('native_frame_source')=='mapper_dds'
         paramfile=out/'nodes.yaml';paramfile.write_text(yaml.safe_dump({'/**':{'ros__parameters':params}}))
         remaps=[]
@@ -531,7 +532,7 @@ def main():
                     '-p', 'active_review:='+str(a.active_review).lower(),
                     '-p', 'active_confirmation:='+str(a.active_confirmation).lower(),
                     *(['-p', 'confirmation_mode:='+a.confirmation_mode] if a.confirmation_mode else []),
-                    *detector_args, '-p', 'evidence_dir:='+str(out/'perception'), *visibility_args,
+                    *detector_args, *(['-p', 'evidence_dir:='+str(out/'perception')] if a.record_debug_evidence else []), *visibility_args,
                 ], env={'PYTHONPATH': a.detector_python_path+os.pathsep+os.environ.get('PYTHONPATH','')}
                     if a.detector_python_path else None)
             if a.record_video:start('continuous_rgb',[sys.executable,'-m','tools.flight.video_recorder',str(out)])
@@ -580,7 +581,7 @@ def main():
             if a.prepared and 'execution' in last:
                 safety_error=bootstrap_watchdog.observe(last['execution'])
                 if safety_error:warn('bootstrap_tracking',safety_error)
-            if (cv2 is not None and time.monotonic()-last_frame>5. and
+            if (a.record_debug_evidence and cv2 is not None and time.monotonic()-last_frame>5. and
                     (common := frames['rgb'].keys() & frames['depth'].keys() & frames['ri'].keys() & frames['di'].keys())):
                 ns=max(common);pose=pose_history.at(ns*1e-9)
                 if pose is not None:
@@ -621,7 +622,10 @@ def main():
         unexpected_exits.extend(x for x in abnormal if x['pid'] not in observed_exits)
         critical=[x for x in abnormal if x['name'] not in OPTIONAL_PROCESSES]
         if critical and failure is None:
-            failure='Owned process abnormal exit during cleanup: '+json.dumps(critical)
+            if budget_exhausted:
+                warn('cleanup_abnormal_exit', json.dumps(critical))
+            else:
+                failure='Owned process abnormal exit during cleanup: '+json.dumps(critical)
         if budget_exhausted and a.seconds>0 and not startup_watchdog.ready:
             reason=('Run budget expired before measured flight readiness' if deferred_started
                     else 'Run budget expired before valid estimated odometry and search startup')

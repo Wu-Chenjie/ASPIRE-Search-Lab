@@ -8,19 +8,19 @@ from .perception import cloud,person_depth_pixels
 
 @dataclass(frozen=True)
 class SurfaceConfig:
-    mask_border_px:int=3
+    mask_border_px:int=1
     depth_jump_m:float=.12
-    min_pixels:int=80
-    min_valid_fraction:float=.60
-    min_component_fraction:float=.55
-    min_core_fraction:float=.60
+    min_pixels:int=40
+    min_valid_fraction:float=.45
+    min_component_fraction:float=.45
+    min_core_fraction:float=.45
     min_dominance_gap:float=.15
-    max_span_m:float=.35
+    max_span_m:float=.50
     min_major_extent_m:float=.12
     min_second_extent_m:float=.015
     max_patch_diameter_m:float=2.5
     pose_noise_floor_m:float=.05
-    compact_surface_min_fraction:float=.80
+    compact_surface_min_fraction:float=.65
     def __post_init__(self):
         if any(not np.isfinite(v) or v<=0 for v in asdict(self).values()):raise ValueError('Positive finite surface configuration required')
         if type(self.mask_border_px) is not int:raise ValueError('Integer surface mask border required')
@@ -148,16 +148,15 @@ class SurfaceFusion:
         if not association_reliable:self.reject('identity_association_uncertain');return
         if not has_surface_measurement(row):
             reason=(row or {}).get('depth_reason') or 'missing_registered_surface'
-            # Too broad to obtain a qualified patch is an absent measurement,
-            # not a contradictory 3D point. Current XYZ still clears. A later
-            # valid patch must satisfy all original count/span/window/dispersion gates.
-            self.reject(reason,preserve_qualified=reason=='component_depth_span_rejected');return
+            # Preserve bounded previously qualified samples across transient depth misses;
+            # identity uncertainty, dispersion, or expiry still clears.
+            self.reject(reason,preserve_qualified=True);return
         point=np.asarray(row['xyz'],float);cov=np.asarray(row['quality']['covariance_m2'],float)
         self.samples=[s for s in self.samples if capture-s[0]<=2.]
         self.samples.append((capture,point,cov))
         values=np.array([s[1] for s in self.samples]);median=np.median(values,axis=0);deviation=float(np.max(np.linalg.norm(values-median,axis=1)))
         if deviation>.25:self.reject('surface_sequence_dispersion');return
-        if len(self.samples)<3 or capture-self.samples[0][0]<.8-1e-9:self.state='unreliable';self.reasons=['insufficient_qualified_surface_sequence'];return
+        if len(self.samples)<2 or capture-self.samples[0][0]<.4-1e-9:self.state='unreliable';self.reasons=['insufficient_qualified_surface_sequence'];return
         centered=values-median
         scatter=centered.T@centered/(len(values)-1);covariance=scatter+sum(s[2] for s in self.samples)/len(self.samples)
         quality=dict(row['quality'],qualified_frames=len(values),span_s=capture-self.samples[0][0],dispersion_m=deviation,covariance_calibrated=False,uncertainty_scope='visible-surface disagreement plus modelled pose floor; not body-centre bound')

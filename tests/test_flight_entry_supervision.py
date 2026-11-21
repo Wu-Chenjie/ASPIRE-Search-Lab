@@ -174,7 +174,7 @@ def test_prepared_direct_dds_applies_launch_prerequisites(harness, monkeypatch, 
 def test_run_continues_after_diagnostics_and_optional_process_failures(harness):
     harness.snapshot_fails = True
     harness.png_fails = True
-    result = harness.launch('--segmentation-weights', '/missing/weights')
+    result = harness.launch('--record-debug-evidence', '--segmentation-weights', '/missing/weights')
     assert result['error'] is None
     assert result['budget_end_sim'] == 80.
     assert result['wall_s'] > 300.
@@ -242,7 +242,7 @@ def test_missing_evidence_hashes_do_not_stop_owned_processes(harness, monkeypatc
         return read_bytes(path)
 
     monkeypatch.setattr(Path, 'read_bytes', unavailable)
-    result = harness.launch()
+    result = harness.launch('--record-debug-evidence')
     assert result['error'] is None and result['budget_end_sim'] == 80.
     assert result['deferred_graph_started'] and result['startup']['ready']
     assert result['code_sha256'] == {}
@@ -411,3 +411,21 @@ def test_team_bundle_relocates_models_and_retains_negative_case(harness):
     config = json.loads((harness.output / "runtime.json").read_text())
     assert config["models"] == str(run.ROOT / "external/PX4-gazebo-models/models")
     assert json.loads((harness.output / "bundle.json").read_text()) == manifest
+
+
+def test_default_run_skips_debug_evidence_and_warns_only_on_post_budget_cleanup(harness, monkeypatch):
+    import yaml
+
+    def terminate_with_cleanup_crash(children, names, out, timeout):
+        return {'direct_returncodes': [
+            dict(pid=child.pid, returncode=134 if names[child.pid] == 'gazebo' else 0)
+            for child in children]}
+
+    monkeypatch.setattr(run, 'terminate_flight', terminate_with_cleanup_crash)
+    result = harness.launch()
+    assert result['error'] is None and 'cleanup_abnormal_exit' in result['diagnostics']
+    assert not (harness.output / 'runtime-source.tar.gz').exists()
+    assert harness.png_attempts == 0
+    nodes = yaml.safe_load((harness.output / 'nodes.yaml').read_text())['/**']['ros__parameters']
+    assert nodes['control_timing_dir'] == '' and nodes['execution_safety_dir'] == ''
+    assert all('evidence_dir:=' not in arg for arg in harness.children['person_search'].args)

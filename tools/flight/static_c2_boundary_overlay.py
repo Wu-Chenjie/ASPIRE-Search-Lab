@@ -1,4 +1,4 @@
-"""Opt-in native boundary constraints for fixed-knot moving C2 proposals."""
+"""Native fixed-knot boundary constraints for moving handoffs and return legs."""
 from .optimizer_overlay import replace_once
 
 
@@ -6,19 +6,27 @@ def apply(core):
     p=core/'include/bspline_opt/bspline_optimizer.h';s=p.read_text()
     s=replace_once(s,'  bool task_hard_rest_ = false;',
         '  bool task_hard_rest_ = false;\n  bool task_moving_c2_boundary_ = false;')
+    s=replace_once(s,'const int& max_num_id, const int& max_time_id);',
+                   'const int& max_num_id, const int& max_time_id, bool fixed_return = false);')
+    s=replace_once(s,'void optimize();','void optimize(bool fixed_return);')
     p.write_text(s)
     p=core/'src/bspline_opt/bspline_optimizer.cpp';s=p.read_text()
+    s=replace_once(s,'const int& max_num_id, const int& max_time_id) {',
+                   'const int& max_num_id, const int& max_time_id, bool fixed_return) {')
+    s=replace_once(s,'try { optimize(); }','try { optimize(fixed_return); }')
+    s=replace_once(s,'void BsplineOptimizer::optimize() {',
+                   'void BsplineOptimizer::optimize(bool fixed_return) {')
     s=replace_once(s,'  nh.param("search/hard_rest_boundary", task_hard_rest_, false);',
         '  nh.param("search/hard_rest_boundary", task_hard_rest_, false);\n  nh.param("search/static_moving_c2", task_moving_c2_boundary_, false);')
     anchor='  auto t1 = racer_ros::Time::now();'
-    s=replace_once(s,anchor,'''  if(task_moving_c2_boundary_) {
+    s=replace_once(s,anchor,'''  if(task_moving_c2_boundary_ || fixed_return) {
     // Soft START/END costs are not a continuity guarantee. These controls
     // encode the requested p/v/a jet exactly at the fixed cubic knot span.
     // Interior controls retain all native distance/feasibility/swarm costs.
     if(optimize_time_ || bspline_degree_!=3 || point_num_<6 ||
        start_state_.size()<3 || end_state_.empty() ||
        !std::isfinite(knot_span_) || knot_span_<=1e-6)
-      throw std::runtime_error("Moving C2 requires fixed cubic knot span and valid boundary states");
+      throw std::runtime_error("Fixed boundary requires a cubic spline with fixed knots and valid endpoint states");
     vector<double> lb(variable_num_,-HUGE_VAL),ub(variable_num_,HUGE_VAL);
     if(dim_!=1) for(int i=0;i<variable_num_;++i) {
       lb[i]=max(q[i]-10.,bmin[i%3]);ub[i]=min(q[i]+10.,bmax[i%3]);
@@ -34,13 +42,14 @@ def apply(core):
       for(int k=0;k<3;++k) {
         if(!std::isfinite(first[k]) || !std::isfinite(last[k]) ||
            (dim_!=1 && (first[k]<bmin[j] || first[k]>bmax[j] || last[k]<bmin[j] || last[k]>bmax[j])))
-          throw std::runtime_error("Moving C2 boundary controls outside native map bounds");
+          throw std::runtime_error("Fixed boundary controls outside native map bounds");
         const int i=dim_*k+j,e=dim_*(point_num_-3+k)+j;
         q[i]=lb[i]=ub[i]=first[k];q[e]=lb[e]=ub[e]=last[k];
       }
     }
     opt.set_lower_bounds(lb);opt.set_upper_bounds(ub);
-    ROS_INFO("TASK_MOVING_C2_BOUNDARY dim=%d",dim_);
+    if (fixed_return) ROS_INFO("TASK_RETURN_BOUNDARY dim=%d",dim_);
+    else ROS_INFO("TASK_MOVING_C2_BOUNDARY dim=%d",dim_);
   }
 
 '''+anchor)
@@ -55,8 +64,10 @@ def apply(core):
     anchor='  init.getBoundaryStates(2, 0, start, end);'
     s=replace_once(s,anchor,anchor+'''
   // Least-squares B-spline parameterization may move the requested initial
-  // jet. In moving C2 mode use the actual future handoff jet, not that fit.
-  if(task_moving_c2_boundary_) {
+  // jet. Fixed-boundary solves must use the requested initial state.
+  if(task_moving_c2_boundary_ || fixed_return) {
     start={start_pt,start_vel,start_acc};
-  }''')
+  }
+  // A horizon-limited Kino search ends short of home.
+  if (fixed_return) end = {point_set.back(), Vector3d::Zero(), Vector3d::Zero()};''')
     p.write_text(s)

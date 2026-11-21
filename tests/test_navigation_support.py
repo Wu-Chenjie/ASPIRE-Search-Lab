@@ -30,7 +30,7 @@ def test_weak_middle_frame_keeps_navigation_but_breaks_confirmation():
     assert row['support_policy']=='navigation_rgb_v1'
     assert row['visual_state']=='person_candidate'
     assert not row['has_position']
-    assert tracker.at(1).rgb_hits==[10.4]
+    assert tracker.at(1).rgb_hits==[10.,10.4]
     assert tracker.active_bearings(10.41)[0]['persistent']
     # Same score sequence never changes the established confirmation rule.
     for stamp in (10.6,10.8,11.,11.2):

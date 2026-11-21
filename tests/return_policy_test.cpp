@@ -32,9 +32,9 @@ int main() {
     assert(recovery.attempt(i,i%2));recovery.proposed(20+i);recovery.activated(20+i);
     assert(recovery.observe(20+i,true,away,true));
   }
-  assert(!recovery.mayPlan(11.99));
-  for(int i=0;i<100;++i){recovery.begin(away);assert(!recovery.attempt(11.+i*.005,true));}
-  assert(recovery.attempt(12.,false) && recovery.attempts()==9);
+  assert(!recovery.mayPlan(8.99));
+  for(int i=0;i<100;++i){recovery.begin(away);assert(!recovery.attempt(8.+i*.005,true));}
+  assert(recovery.attempt(9.,false) && recovery.attempts()==9);
   recovery.proposed(40);assert(recovery.activated(40));
   assert(recovery.observe(40,true,home,true) && recovery.state()==ReturnPolicy::State::returned);
 
@@ -55,8 +55,8 @@ int main() {
     assert(!rejected.rejected(i,i+1.));
   }
   assert(rejected.attempts()==8 && rejected.state()==ReturnPolicy::State::waiting_retry);
-  assert(!rejected.terminal() && !rejected.attempt(12.,false));
-  assert(rejected.attempt(12.1,false));
+  assert(!rejected.terminal() && !rejected.attempt(9.05,false));
+  assert(rejected.attempt(9.11,false));
   // Session/failsafe retirement is irreversible; fresh input cannot reflight.
   ReturnPolicy lost;lost.begin(home);lost.attempt(0,false);lost.proposed(42);lost.activated(42);lost.retire();
   lost.begin(away);assert(!lost.activated(42));assert(!lost.observe(42,true,home,true));assert(!lost.attempt(100,false));

@@ -17,8 +17,7 @@ def apply(core):
     anchor = '  expl_manager_->task_bearing_policy_.event_driven_static=task_static_replan_;'
     text = replace_once(text, anchor, anchor+'''
   const char* collision_stop=std::getenv("ASPIRE_NATIVE_COLLISION_STOP");
-  task_collision_stop_enabled_=collision_stop&&std::string(collision_stop)=="1"&&
-      task_static_replan_&&task_static_cancel_.enabled();
+  task_collision_stop_enabled_=collision_stop&&std::string(collision_stop)=="1";
   if(task_collision_stop_enabled_)
     task_collision_stop_pub_=nh.advertise<std_msgs::Float64MultiArray>(
         "/baseline/collision_stop_"+std::to_string(getId()-1),10);''')

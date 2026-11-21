@@ -36,17 +36,11 @@ from core.planning.bspline_trajectory import native_trajectory,safe_native_execu
 from core.planning.handoff import validate_handoff, curve_fingerprint, validate_safe_handoff, check_handoff_budget
 from core.planning.execution_safety import (
     NativeSafetyMap, ExecutionCorridor, stopping_reserve, MAX_MAP_AGE, REACTION_HORIZON,
-    relaxed_sitl_execution, frontier_sitl_execution, static_reference_jump_limit,
+    TRACKING_MARGIN, relaxed_sitl_execution, frontier_sitl_execution, static_reference_jump_limit,
     stopped_planning_reference,
 )
 from core.planning.motion_limits import motion_environment, motion_limits
 from core.exploration.voxel_config import voxel_environment
-if __package__:
-    from .execution_grid import execution_grid_array
-    from .grid_codec import pack_grid
-else:
-    from execution_grid import execution_grid_array
-    from grid_codec import pack_grid
 
 
 from annual_runtime.static_cancel_gateway import StaticCancelGateway, task_wire
@@ -81,7 +75,7 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
         self.static_moving_c2 = config['static_moving_c2']
         self.native_safety = NativeSafetyMap()
         self.collision_stop_enabled=(os.environ.get('ASPIRE_NATIVE_COLLISION_STOP')=='1' and
-                                     config.get('static_event_replan') and self.static_cancel_session)
+                                     self.safety_enabled)
         self.fresh_static_signing=bool(self.collision_stop_enabled and os.environ.get('ASPIRE_STATIC_FRESH_SIGNING')=='1')
         self.fast_stop_feedback=bool(self.collision_stop_enabled and os.environ.get('ASPIRE_FAST_STOP_HANDOFF')=='1')
         self.collision_stop_released=None
@@ -243,7 +237,7 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
             self.transport.send(dict(type='hello',bounds=self.config['bounds'],starts=self.seeds,intrinsics=list(m.k),
                                      flight_limits=list(self.replica.map.flight_limits), motion_limits=motion_limits().to_dict(),
                                      voxel_resolution=self.replica.map.resolution,body_clearance=self.replica.map.clearance,
-                                     planning_scale=self.config.get('racer_planning_scale',.5),planning_limits=self.config.get('racer_planning_limits'),min_time=self.config.get('racer_min_time',True),feasible_time=self.config.get('racer_feasible_time',False),
+                                     planning_scale=self.config.get('racer_planning_scale',.85),planning_limits=self.config.get('racer_planning_limits'),min_time=self.config.get('racer_min_time',True),feasible_time=self.config.get('racer_feasible_time',False),
                                      no_path_recovery=self.config.get('no_path_recovery',False),stop_and_plan=self.config.get('stop_and_plan',False),active_review=self.config.get('active_review',False),recover_frontiers=self.config.get('recover_frontiers',self.config.get('active_review',False)),
                                      confirmation_mode=self.config.get('confirmation_mode',''),bearing_bias=self.config.get('bearing_bias',False),
                                      static_event_replan=self.config.get('static_event_replan',False),static_event_audit=self.config.get('static_event_audit',False),
@@ -434,11 +428,9 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
                 checks.update(validate_stop=lambda c:stopping_reserve(c,0.,runtime),reserve_horizon=REACTION_HORIZON)
             curve,native_duration=safe_native_execution(curve,runtime,**checks)
             path=curve.path(.08)
-            # The frontier search and moving C2 admission check their own
-            # continuous corridor and stopping reserve.
+            # Frontier and moving C2 modes check continuous corridors themselves.
             if self.safety_enabled and not frontier and not moving:
                 if not runtime.safe_curve(curve): raise ValueError('continuous_native_corridor_invalid')
-                stopping_reserve(curve,0.,runtime)
             # Frontier mode checks the prefix and brake continuously. Certify
             # the composed sampled path here; other modes already did so.
             if frontier and not self.replica.map.safe_path(path):raise ValueError('native_curve_not_known_free')
@@ -460,7 +452,7 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
                     handoff['old_curve_sha256']=identity
                 else:
                     validate_handoff(old,curve,row['boundary_progress'],self.execution.get('trajectory_time',0.))
-            elif self.intent or np.linalg.norm(path[0]-self.pose)>(.10 if self.safety_enabled else .15):
+            elif self.intent or np.linalg.norm(path[0]-self.pose)>(TRACKING_MARGIN if self.safety_enabled else .25):
                 raise ValueError('native_static_root_stale')
             if self.safety_enabled and not handoff and np.linalg.norm(path[0]-np.asarray(self.execution.get('reference',self.pose)))>static_reference_jump_limit():
                 raise ValueError('native_static_reference_discontinuity')
@@ -490,7 +482,7 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
         intent=dict(token=f'racer:{self.id}:{self.session[:8]}:{self.epoch}',created=self.now(),epoch=self.epoch,
             region=-10000-self.id,native_id=row['traj_id'],committed=False,path=path.tolist(),yaw=terminal_yaw,duration=curve.duration,
             trajectory=curve.to_dict(),native_duration=native_duration,observation_grid=observation_grid(self.replica.map),voters=[i for i in range(len(self.seeds)) if i!=self.id],
-            target_cells=sorted(visible_cells(self.replica.map,path[-1],terminal_yaw)))
+            target_cells=sorted(visible_cells(self.replica.map,path[-1],terminal_yaw)),native_sequence=self.native_safety.sequence)
         if handoff:intent['handoff']=handoff
         self.curves[intent['token']]=curve;self.pending=intent
         self._static_attach_pending(row)
@@ -515,17 +507,6 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
         if not self.proposals.empty() and self.now()-self.last_sensor<.5:
             self.propose(self.proposals.get_nowait())
         t=self.now();self.sequence+=1
-        if t-self.last_grid>=.4 and t-self.last_sensor<.8:
-            if self.dirty:self.replica.map.rebuild();self.dirty=False
-            traffic=[]
-            for peer in self.ledger.states.values():
-                traffic.append([peer['position']])
-                traffic.extend(intent['path'] for intent in intent_records(peer))
-            grid=execution_grid_array(self.replica.map,t,traffic_paths=traffic)
-            self.transport.send(dict(type='execution_grid',drone=self.id,time=t,packed_grid=pack_grid(grid)))
-            self.event('execution_grid_published',map_version=self.replica.map.version,observed_cells=int(self.measured.sum()),
-                       safe_cells=int(self.replica.map.safe.sum()),known_free_cells=int((self.replica.map.state==0).sum()),traffic_paths=len(traffic))
-            self.last_grid=t
         if self.intent and self.intent.get('retiring') and self.execution.get('token') is None:self.intent=None
         self.acks=self.ledger.acknowledge(self.state(),t)
         pending=self.pending
@@ -552,14 +533,17 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
                 cells=(self.intent or {}).get('target_cells',[])
                 sensor_ready=not boundary or (len(cells)==0 or int(self.measured[cells].sum())>=.6*len(cells))
                 if sensor_ready:
-                    if self.dirty:self.replica.map.rebuild();self.dirty=False
-                    if (not self.replica.map.safe_path(pending['path']) or
-                            (self.safety_enabled and (not self.native_safety.fresh(t) or not self.corridor(at_rest=boundary is None).safe_curve(self.curves[pending['token']])))):
+                    maps_changed = self.dirty or (self.safety_enabled and self.native_safety.sequence != pending.get('native_sequence'))
+                    if self.dirty:
+                        self.replica.map.rebuild(); self.dirty=False
+                    geometry_ok = (not maps_changed or (self.replica.map.safe_path(pending['path']) and
+                        (not self.safety_enabled or self.corridor(at_rest=boundary is None).safe_curve(self.curves[pending['token']]))))
+                    if (not geometry_ok or (self.safety_enabled and not self.native_safety.fresh(t))):
                         self.reject(dict(traj_id=pending['native_id']),'latest_geometry_invalid');self.pending=None
                     else:
                         pending['committed']=True;pending['committed_at']=t
                         self.publish(self.state_pub,self.state())
-                        self.publish(self.command_pub,{k:v for k,v in pending.items() if k!='target_cells'})
+                        self.publish(self.command_pub,{k:v for k,v in pending.items() if k not in ('target_cells','native_sequence')})
                         self.event('path_committed',token=pending['token'],native_id=pending['native_id'],
                                    **({'static_source_frame':pending['static_source_frame']} if 'static_source_frame' in pending else {}))
                         if boundary:self.event('handoff_authorized',token=pending['token'],old_token=boundary['from_token'],

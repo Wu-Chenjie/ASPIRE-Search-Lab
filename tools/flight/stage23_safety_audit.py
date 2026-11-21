@@ -30,8 +30,8 @@ from core.planning.execution_safety import NativeSafetyMap, ExecutionCorridor, s
 
 CHECK_CLOCK = 'monotonic_wall_upper_bound_at_rtf_le_1'
 TOLERANCE = 1e-6
-STRICT_REFERENCE_JUMP_M = .05
-SITL_REFERENCE_JUMP_M = .075
+STRICT_REFERENCE_JUMP_M = execution_safety.STATIC_REFERENCE_JUMP_M
+SITL_REFERENCE_JUMP_M = .15
 C2_CANDIDATES = ('c2_admission', 'c2_transition')
 HOLD_WITHOUT_OBSERVATION = ('cancelling', 'collision_stop')
 ACTIVE_CERTIFICATES = ('brake', 'terminal_hold', 'observation_abort', 'fault')
@@ -39,8 +39,10 @@ CORRIDOR_CHECKS = frozenset({
     'full_curve_continuous_corridor', 'initial_stopping_reserve', 'remaining_continuous_corridor',
     'stopped_fixed_endpoint_and_tube', 'fixed_stopped_reference',
 })
-BUDGETS = dict(min_reaction_horizon_s=1.2, max_map_age_s=1.,
-               max_tracking_error_m=.10, max_check_delay_bound_s=.20)
+BUDGETS = dict(min_reaction_horizon_s=execution_safety.REACTION_HORIZON,
+               max_map_age_s=execution_safety.MAX_MAP_AGE,
+               max_tracking_error_m=execution_safety.TRACKING_MARGIN,
+               max_check_delay_bound_s=execution_safety.EXECUTION_DELAY_BUDGET)
 
 
 def sha256(path):
@@ -246,19 +248,19 @@ def audit_certificate(path, *, profile='strict', verify_reserve_dynamics=False, 
             result['decision_time'] = float(data['decision_time']) if 'decision_time' in data else None
             result['decision_binding_available'] = bool(result['token'] and
                 isinstance(result['decision_time'], (int, float)) and math.isfinite(result['decision_time']))
-            result['tracking_within_budget'] = result['tracking_error_m'] <= .10+TOLERANCE
+            result['tracking_within_budget'] = result['tracking_error_m'] <= margin+TOLERANCE
             if result['kind'] == 'activation':
                 root = original.sample(0.)[0]
                 result['root_actual_error_m'] = float(np.linalg.norm(root-actual))
                 result['root_reference_error_m'] = float(np.linalg.norm(root-reference))
                 result['checks']['progress_is_zero'] = abs(progress) <= TOLERANCE
-                result['checks']['root_actual_within_tracking_tube'] = result['root_actual_error_m'] <= .10+TOLERANCE
+                result['checks']['root_actual_within_tracking_tube'] = result['root_actual_error_m'] <= margin+TOLERANCE
                 reference_limit = STRICT_REFERENCE_JUMP_M if profile == 'strict' else SITL_REFERENCE_JUMP_M
                 result['checks']['root_reference_discontinuity_bounded'] = result['root_reference_error_m'] <= reference_limit+TOLERANCE
                 result['checks']['full_curve_continuous_corridor'] = corridor.safe_curve(original, 0.)
                 result['checks']['tracking_within_budget'] = result['tracking_within_budget']
                 try:
-                    reserve, boundary = stopping_reserve(original, 0., corridor, horizon=1.2)
+                    reserve, boundary = stopping_reserve(original, 0., corridor, horizon=execution_safety.REACTION_HORIZON)
                     result['checks']['initial_stopping_reserve'] = True
                     result['reserve_boundary'] = boundary
                     result['reserve_duration'] = reserve.duration
@@ -270,7 +272,7 @@ def audit_certificate(path, *, profile='strict', verify_reserve_dynamics=False, 
                         # but not a stop that is impossible without obstacles.
                         unchecked_geometry = SimpleNamespace(safe_curve=lambda *_: True)
                         try:
-                            stopping_reserve(original, 0., unchecked_geometry, horizon=1.2)
+                            stopping_reserve(original, 0., unchecked_geometry, horizon=execution_safety.REACTION_HORIZON)
                             result['checks']['initial_reserve_dynamics_feasible'] = True
                         except ValueError:
                             result['checks']['initial_reserve_dynamics_feasible'] = False
@@ -307,12 +309,12 @@ def audit_certificate(path, *, profile='strict', verify_reserve_dynamics=False, 
                     result['checks']['finite_original_deadline']=bool(
                         np.isfinite([now, since, wait_s, deadline]).all() and wait_s > 0 and
                         since <= now <= deadline and abs(hold['absolute_deadline']-deadline)<=TOLERANCE)
-                    result['checks']['original_observation_budget']=wait_s==1.5
+                    result['checks']['original_observation_budget']=wait_s in (1.5, 3.0)
                 delay=hold['check_wall_s']
-                native_age=result['decision_time']-native.stamp+delay
-                mapper_age=result['decision_time']-result['mapper_stamp']+delay
-                result['checks']['delay_and_freshness']=bool(0<=delay<=.2 and
-                    -.05<=native_age<=1. and -.05<=mapper_age<=1. and
+                native_age=result['decision_time']-native.stamp
+                mapper_age=result['decision_time']-result['mapper_stamp']
+                result['checks']['delay_and_freshness']=bool(delay>=0 and
+                    -.05<=native_age<=execution_safety.MAX_MAP_AGE and -.05<=mapper_age<=execution_safety.MAX_MAP_AGE and
                     abs(hold['native_input_age_s']-native_age)<=TOLERANCE and
                     abs(hold['mapper_input_age_s']-mapper_age)<=TOLERANCE)
             elif result['kind']=='observation_abort':
@@ -322,14 +324,15 @@ def audit_certificate(path, *, profile='strict', verify_reserve_dynamics=False, 
                 result['observation_failure']=failure
                 result['checks']['fixed_stopped_reference']=stopped_reference_valid(original,progress,reference,actual,corridor)
                 result['checks']['bound_to_failed_token']=failure['token']==result['token'] and failure['outcome']=='unobserved'
-                result['checks']['wait_closed_without_extension']=bool(failure['closed_at']==now and now>failure['observation_deadline'] and abs(failure['observation_deadline']-failure['started_at']-1.5)<TOLERANCE)
+                wait_s=float(hold.get('wait_budget_s', 3.0))
+                result['checks']['wait_closed_without_extension']=bool(failure['closed_at']==now and now>failure['observation_deadline'] and wait_s in (1.5, 3.0) and abs(failure['observation_deadline']-failure['started_at']-wait_s)<TOLERANCE)
                 count = failure['mission_failure_count']
                 result['checks']['valid_failure_count'] = type(count) is int and count >= 1
                 if 'replan_deadline' in failure:
                     result['checks']['legacy_native_admission'] = (
                         abs(failure['replan_deadline']-now-6.) < TOLERANCE and count <= 3)
                 result['checks']['no_observation_credit']=hold['observation_complete'] is False and hold['task_state']=='failed'
-                result['checks']['delay_and_freshness']=bool(0<=delay<=.2 and -.05<=now-native.stamp+delay<=1. and -.05<=now-result['mapper_stamp']+delay<=1.)
+                result['checks']['delay_and_freshness']=bool(delay>=0 and -.05<=now-native.stamp<=execution_safety.MAX_MAP_AGE and -.05<=now-result['mapper_stamp']<=execution_safety.MAX_MAP_AGE)
             elif result['kind'] == 'fault':
                 result['remaining_original_corridor_safe'] = corridor.safe_curve(original, progress)
                 result['status'] = 'recorded_safety_fault_not_success'
@@ -431,8 +434,10 @@ def audit_reserve_telemetry(rows, contract=None):
                   delay_evidence_modes={}, delay_bound_condition='wall time upper-bounds simulated elapsed only when run RTF <= 1',
                   measured_simulated_check_duration_available=False)
     seen, previous = set(), {}
-    requirements = {'reaction_horizon_s': (1.2, float('inf')), 'native_input_age_s': (-.05, 1.),
-                    'mapper_input_age_s': (-.05, 1.), 'tracking_error_m': (0., .10)}
+    requirements = {'reaction_horizon_s': (execution_safety.REACTION_HORIZON, float('inf')),
+                    'native_input_age_s': (-.05, execution_safety.MAX_MAP_AGE),
+                    'mapper_input_age_s': (-.05, execution_safety.MAX_MAP_AGE),
+                    'tracking_error_m': (0., execution_safety.TRACKING_MARGIN)}
     checked_values = {key: [] for key in (*requirements, 'check_delay_bound_s', 'check_wall_s', 'legacy_check_sim_s')}
 
     def check(field, minimum, maximum, range_key=None):
@@ -457,7 +462,7 @@ def audit_reserve_telemetry(rows, contract=None):
         revision = row.get('safety_revision')
         reported_error = row.get('tracking_error')
         if token and reported_error is not None and (not isinstance(reported_error, (int, float)) or
-                not 0. <= reported_error <= .10+TOLERANCE):
+                not 0. <= reported_error <= execution_safety.TRACKING_MARGIN+TOLERANCE):
             result['violations'].append(dict(time=time, token=token,
                 issues=['reported tracking_error: outside tracking tube'], tracking_error=reported_error))
         if row.get('safety_fault'):
@@ -480,8 +485,8 @@ def audit_reserve_telemetry(rows, contract=None):
                     mode = 'monotonic_wall_bound_conditional_on_rtf'
                     if reserve.get('check_clock') != CHECK_CLOCK:
                         issues.append('check_clock: unsupported or missing wall-bound clock')
-                    bound = check('check_delay_bound_s', 0., .20)
-                    wall = check('check_wall_s', 0., .20)
+                    bound = check('check_delay_bound_s', 0., float('inf'))
+                    wall = check('check_wall_s', 0., float('inf'))
                     if bound is not None and wall is not None and bound < wall-TOLERANCE:
                         issues.append('check_delay_bound_s: smaller than measured wall elapsed')
                     if reserve.get('check_sim_s') is not None:

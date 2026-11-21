@@ -23,7 +23,8 @@ def test_no_path_switch_keeps_original_safety_and_nominal_limits(tmp_path):
     assert not p['manager.min_time'] and not p['search.feasible_time']
 
 
-@pytest.mark.parametrize('case',['axis','recover','blocked','inputs','invalid','rollback','gap','bearing','registry','transit'])
+@pytest.mark.parametrize('case', ['axis', 'recover', 'blocked', 'inputs', 'invalid', 'rollback',
+                                 'gap', 'bearing', 'registry', 'transit', 'return-kino', 'return-waypoint'])
 def test_real_native_recovery_and_optimizer_failures(tmp_path,monkeypatch,case):
     pytest.importorskip('rclpy')
     from ament_index_python.packages import get_package_prefix
@@ -33,6 +34,10 @@ def test_real_native_recovery_and_optimizer_failures(tmp_path,monkeypatch,case):
     from core.exploration.voxel_mapping import VoxelMap
     from core.planning.motion_limits import motion_limits
     root=Path(__file__).resolve().parents[1]
+    binary=Path(get_package_prefix('racer_core'))/'lib/racer_core/task_recovery_probe'
+    fixed_return = case in ('return-kino', 'return-waypoint')
+    if fixed_return and not binary.with_name('task_authorization_recovery_probe').is_file():
+        pytest.skip('Fixed return requires an execution-safety RACER build')
     limits=dict(speed=1,acceleration=1.2,jerk=4,yaw_rate=.9)
     monkeypatch.setenv('ANNUAL_MOTION_LIMITS',json.dumps(limits))
     monkeypatch.setenv('ANNUAL_VOXEL_MAP',json.dumps(dict(resolution=.15,collision_profile='legacy')))
@@ -43,14 +48,19 @@ def test_real_native_recovery_and_optimizer_failures(tmp_path,monkeypatch,case):
     if case=='transit':
         monkeypatch.setenv('ASPIRE_KNOWN_TRANSIT','1')
         params['task_probe.end_yaw']=.25
+    if fixed_return:
+        monkeypatch.setenv('ASPIRE_KNOWN_TRANSIT', '0')
+        params['optimization.max_iteration_time2'] = .05
+    if case == 'return-kino':
+        params['search.horizon'] = 1.
     path=tmp_path/'probe.yaml';path.write_text(yaml.safe_dump({'/**':{'ros__parameters':params}}))
-    binary=Path(get_package_prefix('racer_core'))/'lib/racer_core/task_recovery_probe'
     result=subprocess.run([str(binary),'--case','axis' if case=='transit' else case,'--output',str(tmp_path/'probe'),'--ros-args','--params-file',str(path)],capture_output=True,text=True,timeout=45)
     (tmp_path/'native-recovery.log').write_text(result.stdout+'\n'+result.stderr)
     assert result.returncode==0,result.stdout+'\n'+result.stderr
     markers=dict(axis='PASS_AXIS',recover='PASS_NATIVE_RECOVERY',blocked='PASS_BLOCKED',inputs='PASS_INPUTS',invalid='PASS_INVALID',rollback='PASS_ROLLBACK',gap='PASS_GAP',bearing='PASS_NATIVE_BEARING',registry='PASS_NATIVE_REGISTRY',transit='KNOWN_TRANSIT length=')
+    markers.update({'return-kino': 'PASS_FIXED_RETURN_KINO', 'return-waypoint': 'PASS_FIXED_RETURN_WAYPOINT'})
     assert markers[case] in result.stdout+result.stderr
-    if case in ('axis','recover','rollback','bearing','registry','transit'):
+    if fixed_return or case in ('axis','recover','rollback','bearing','registry','transit'):
         packet=json.loads((tmp_path/'probe-curve.json').read_text())
         curve=native_trajectory(packet)  # Original C2, finite/domain and continuous dynamics checks.
         if case=='transit':

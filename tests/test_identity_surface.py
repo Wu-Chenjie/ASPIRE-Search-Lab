@@ -11,7 +11,7 @@ from test_registry_evidence import PresenceTracker,RegistryEvidence,sample,K,T,l
 def test_capture_identity_support_does_not_bypass_localization_or_visual_gates():
     t=PresenceTracker();w=RegistryEvidence(session='unit');d,depth=sample();depth[:]=2.
     rows,_=localize_surfaces([d],depth,K,T)
-    for s in (10.,10.264,10.528):
+    for s in (10.,10.264):
         ns=round(s*1e9);t.observe_rgb([d],ns,320,240,s+.01)
         w.capture(t,ns,rows,s+.02);p=w.batch(t,ns,s+.02)['observations'][0]
         assert p['identity_surface_policy']=='registered_surface_anchor_v1'
@@ -24,7 +24,7 @@ def test_capture_identity_support_does_not_bypass_localization_or_visual_gates()
     w.capture(t,ns,None,10.8)
     assert 'identity_surface_policy' not in w.batch(t,ns,10.8)['observations'][0]
     w.capture(t,ns,rows,10.82)
-    assert 'identity_surface_policy' not in w.batch(t,ns,11.6)['observations'][0]
+    assert 'identity_surface_policy' not in w.batch(t,ns,12.5)['observations'][0]
 
 
 CPP=r'''#include "static_execution_monitor.hpp"

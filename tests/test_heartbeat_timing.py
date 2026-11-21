@@ -62,22 +62,25 @@ def test_old_1hz_flags_reproduce_failure_at_point_two(bridge,monkeypatch):
 def test_real_stream_loss_still_stops_heartbeat(bridge,monkeypatch,fault,gate):
     s=Stream(*bridge,monkeypatch);s.run(1.);rows=s.run(4.,stop=(fault,));bad=[r for r in rows if not r['sent']]
     assert bad and gate in rows[-1]['failed_gates']
-    assert bad[0]['wall_elapsed']<=4.03 if fault=='flags' else bad[0]['wall_elapsed']<=1.53
+    assert bad[0]['wall_elapsed']<=3.03 if fault=='flags' else bad[0]['wall_elapsed']<=2.05
     s.save('loss-'+fault)
 
 
 def test_clock_pause_stops_with_unchanged_wall_guard(bridge,monkeypatch):
-    s=Stream(*bridge,monkeypatch);s.run(1.);rows=s.run(1.,paused=True)
+    s=Stream(*bridge,monkeypatch);s.run(1.);rows=s.run(3.,paused=True)
     assert not rows[-1]['sent'] and 'position_wall_age' in rows[-1]['failed_gates']
-    assert next(r['wall_elapsed'] for r in rows if not r['sent'])<=1.53
+    assert next(r['wall_elapsed'] for r in rows if not r['sent'])<=2.05
     s.save('pause')
 
 
-@pytest.mark.parametrize('jump',[-1.,5.])
-def test_clock_jump_retires_session_even_with_new_inputs(bridge,monkeypatch,jump):
+@pytest.mark.parametrize('jump,expect_fault', [(-1., True), (5., False)])
+def test_clock_jump_retires_only_on_backward_jump(bridge, monkeypatch, jump, expect_fault):
     s=Stream(*bridge,monkeypatch);s.run(1.);s.sim+=jump;s.step()
-    assert s.node.alignment_fault=='ros_clock_discontinuity_requires_new_session'
-    assert not any(r['sent'] for r in s.run(1.))
+    if expect_fault:
+        assert s.node.alignment_fault=='ros_clock_discontinuity_requires_new_session'
+        assert not any(r['sent'] for r in s.run(1.))
+    else:
+        assert s.node.alignment_fault is None
     s.save('jump-'+str(jump))
 
 

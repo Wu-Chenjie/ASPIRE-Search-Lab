@@ -544,9 +544,10 @@ public:
  bool groupConfirmed(const TargetKey&k)const{for(const auto&i:component(k))if(records.at(i).confirmed)return true;return false;}
  // A static person's qualified map position survives the live observation lease.
  // Resolve aliases on each update so an unrelated surface cannot finish the review.
- const TargetRecord* pendingDepthReview()const{
+ const TargetRecord* pendingDepthReview()const{return pendingDepthReview({});}
+ const TargetRecord* pendingDepthReview(const std::set<TargetKey>& ignored)const{
   for(const auto& [key,record]:records){
-   if(key.robot!=self||!record.confirmed||record.has_anchor)continue;
+   if(key.robot!=self||!record.confirmed||record.has_anchor||ignored.count(key))continue;
    const auto members=component(key);
    if(std::none_of(members.begin(),members.end(),[&](const TargetKey& member){
      return records.at(member).has_anchor;

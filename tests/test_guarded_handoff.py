@@ -63,7 +63,7 @@ def test_changes_since_planning_or_invalid_current_geometry_are_rejected(failure
     elif failure == 'unknown':
         runtime.state[tuple(runtime.indices(new.sample(0)[0]))] = -1
         runtime.rebuild()
-    elif failure == 'stale':kwargs['mapper_stamp'] = 88.
+    elif failure == 'stale':kwargs['mapper_stamp'] = 87.4
     elif failure == 'dynamics':
         # Change the interior while preserving the initial p/v/a jet.
         new.coefficients[0, 3, 0] += 100.

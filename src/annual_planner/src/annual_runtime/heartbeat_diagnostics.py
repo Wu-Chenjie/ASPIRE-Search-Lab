@@ -25,10 +25,7 @@ class HeartbeatDiagnostics:
         previous=self.previous_clock;self.previous_clock=(now,wall)
         if previous is None:return None
         ds,dw=now-previous[0],wall-previous[1]
-        # A backwards ROS clock invalidates map/sample epochs. A forward jump
-        # beyond the existing 0.5 s estimator age budget is also not continuous
-        # progress when it outpaces elapsed wall time by this margin.
-        if ds < -1e-6 or ds>max(.5,2*max(dw,0.)+.1):
+        if ds < -.05:
             return dict(sim_delta_s=ds,wall_delta_s=dw)
         return None
 

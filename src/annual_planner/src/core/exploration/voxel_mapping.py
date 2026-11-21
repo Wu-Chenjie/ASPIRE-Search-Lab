@@ -24,7 +24,6 @@ class VoxelMap:
         self.shape = tuple(np.ceil((self.bounds[1]-self.origin)/resolution).astype(int))
         self.state = np.full(self.shape, -1, np.int8); self.version = 0; self.field = self
         self.recovery_yaw = None
-        self._built_signature = None
         self.rebuild()
 
     def indices(self, points):
@@ -63,13 +62,6 @@ class VoxelMap:
         return indices, values
 
     def rebuild(self):
-        # Copies sent to the planner already contain a valid collision field.
-        # Compare bytes as well as configuration: tests/imports may edit state
-        # directly without incrementing the sensor version counter.
-        signature = (self.state.tobytes(), self.clearance, self.flight_limits, self.collision_profile)
-        if self._built_signature == signature:
-            return
-        self._built_signature = signature
         self.reserved_points = None
         # Locked X500 + OakD collision geometry, including swept propellers
         # and landing gear; share this metric with routing and path checks.
@@ -249,7 +241,6 @@ class VoxelMap:
             chunks.extend(np.linspace(a, b, max(2, int(np.linalg.norm(b-a)/.15)+1)) for a, b in zip(p[:-1], p[1:]))
         if not chunks:
             return
-        self._built_signature = None
         # Full 3D reservation distance, conservative isotropic downwash margin.
         self.reserved_points = cKDTree(np.vstack(chunks)); self.reserved_radius = radius
         self._navigation_reservations.append((self.reserved_points, radius))

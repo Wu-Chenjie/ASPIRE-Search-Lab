@@ -14,8 +14,8 @@ def test_bounded_profile_keeps_safety_and_explicit_fallback(tmp_path):
         assert p['exploration.drone_num']==1
         assert len(configs)==3
         assert not list(out.glob('resource_1_*'))
-        assert p['search.feasible_time']==(mode=='bounded-fast')
-        assert p['search.hard_rest_boundary']==(mode=='bounded-fast')
+        assert p['search.feasible_time'] is True
+        assert p['search.hard_rest_boundary'] is True
         assert p['search.executor_speed']==cfg['motion_limits']['speed']
         assert p['manager.min_time'] is False
     assert results[0]['motion_limits']==dict(speed=1.,acceleration=1.2,jerk=4.,yaw_rate=.9)

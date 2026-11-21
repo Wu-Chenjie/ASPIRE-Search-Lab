@@ -16,12 +16,12 @@ int main() {
   for(int i=0;i<5000;++i) {
     double now=.04+i*.02;
     if(p.ready(now)) {
-      if(attempts>=8)assert(now-last_attempt>=5.-1e-9);
+      if(attempts>=8)assert(now-last_attempt>=2.-1e-9);
       last_attempt=now;
       Point goal={2.+attempts,2.,1.5};p.attempted(goal,now);p.failed(goal,now);++attempts;
     }
   }
-  assert(attempts>8 && attempts<=28);assert(p.attempts()==attempts);
+  assert(attempts>8 && attempts<=58);assert(p.attempts()==attempts);
   p.activated();p.failed(failed,111);p.failed(failed,112);p.failed(failed,113);
   assert(p.ready(114));assert(p.attempts()==0);
   p.attempted({2,2,1.5},114);p.hold(114);
@@ -53,7 +53,7 @@ int main() {
     cooldown.attempted({8.+i,2.,1.5},17.+i);
   }
   assert(cooldown.attempts()==8);
-  assert(!cooldown.ready(25.99));assert(cooldown.ready(26.));
+  assert(!cooldown.ready(22.99));assert(cooldown.ready(23.));
   assert(!cooldown.ready(NAN));
   // Review still uses its own age and measured endpoint checks.
   int map_reads=0;

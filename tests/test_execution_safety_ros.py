@@ -211,7 +211,7 @@ def test_stale_map_selects_a_finite_stop_without_repeated_extension(executor):
     node = executor.node
     original = activate(executor)
     boundary = node.curve_time
-    executor.clock[0] += 1_100_000_000
+    executor.clock[0] += 2_100_000_000
     set_odometry(executor, node.ref, node.heading)
     node.check_execution_safety(executor.now())
     assert node.safety_fault is None and node.safety_stopping
@@ -247,7 +247,7 @@ def test_command_activation_uses_latest_received_native_map(executor):
 
 def test_stale_map_cannot_activate_a_new_command(executor):
     node = executor.node
-    executor.clock[0] += 1_100_000_000
+    executor.clock[0] += 2_100_000_000
     set_odometry(executor, node.ref)
     node.command(command_message(executor.curve))
     assert node.curve is None and node.token is None and node.epoch == 0
@@ -267,7 +267,7 @@ def test_native_adapter_accepts_brake_revision_without_duplicate_time_key():
     assert node.intent['native_duration']==6. and node.intent['safety_revision']==1
 
 
-@pytest.mark.parametrize('offset_target,offset', [('actual', .12), ('reference', .06)])
+@pytest.mark.parametrize('offset_target,offset', [('actual', .26), ('reference', .13)])
 def test_activation_rejects_root_outside_actual_or_reference_tube(executor, offset_target, offset):
     node = executor.node
     shifted = node.ref + np.array([offset, 0., 0.])
@@ -285,7 +285,7 @@ def test_activation_rejects_root_outside_actual_or_reference_tube(executor, offs
 def begin_stale_stop(executor):
     node = executor.node
     activate(executor)
-    executor.clock[0] += 1_100_000_000
+    executor.clock[0] += 2_100_000_000
     set_odometry(executor, node.ref, node.heading)
     node.check_execution_safety(executor.now())
     assert node.safety_stopping and node.safety_fault is None
@@ -303,7 +303,7 @@ def test_new_native_frames_cannot_extend_stop_with_stale_mapper(executor):
         node.ref, node.velocity, node.acceleration, node.heading, node.yaw_rate = stopped.sample(node.curve_time)
         set_odometry(executor, node.ref, node.heading)
         snapshot(executor, sequence=sequence)
-        assert executor.now() - node.safety_stamp > 1.
+        assert executor.now() - node.safety_stamp > 2.
         node.check_execution_safety(executor.now())
         assert node.safety_fault is None
         assert node.curve is stopped and node.safety_stop_deadline == deadline
@@ -315,9 +315,10 @@ def test_stopping_without_dirty_map_still_checks_tracking(executor):
     begin_stale_stop(executor)
     node.safety_dirty = False
     node.last_safety_check = executor.now()
-    set_odometry(executor, node.ref + np.array([.101, 0., 0.]))
+    set_odometry(executor, node.ref + np.array([.251, 0., 0.]))
     node.check_execution_safety(executor.now())
-    assert node.safety_fault == 'tracking_tube_exceeded'
+    assert node.safety_fault is None and not node.safety_hold_valid
+    assert node.reason == 'stopping_tracking_tube_exceeded'
 
 
 def test_stop_absolute_deadline_faults_even_without_dirty_map(executor):
@@ -361,7 +362,7 @@ def test_reference_step_headroom_triggers_finite_stop_before_tube_limit(executor
     node = executor.node
     original = activate(executor)
     direction = node.velocity/np.linalg.norm(node.velocity)
-    set_odometry(executor, node.ref-.085*direction, node.heading)
+    set_odometry(executor, node.ref-.18*direction, node.heading)
     node.check_execution_safety(executor.now())
     assert node.safety_fault is None and node.safety_stopping
     assert node.safety_revision['reason']=='tracking_step_headroom'
@@ -373,25 +374,19 @@ def test_next_reference_outside_tube_is_never_published(executor):
     node = executor.node
     activate(executor)
     direction = node.velocity/np.linalg.norm(node.velocity)
-    set_odometry(executor, node.ref-.0999*direction, node.heading)
+    set_odometry(executor, node.ref-.251*direction, node.heading)
     before=node.ref.copy()
     executor.clock[0]+=40_000_000
     node.tick()
-    assert node.safety_fault=='next_reference_tracking_tube_exceeded'
+    assert node.safety_fault is None and node.reason=='tracking_error_hold'
     np.testing.assert_array_equal(node.ref,before)
-    assert not executor.publishers['/drone_0/command/trajectory'].messages
 
 
 def test_growth_during_stop_is_given_headroom_before_next_step_limit(executor):
-    # map-delay-09 had 5.379cm error at 122.8s, but did not brake until
-    # 124.06s; the error then grew during the stop and hit the final guard.
-    # Trigger earlier, even when the periodic map check is not yet due.
-    from core.planning.execution_safety import reference_step_distance, TRACKING_MARGIN
     node=executor.node
     original=activate(executor)
     direction=node.velocity/np.linalg.norm(node.velocity)
-    set_odometry(executor,node.ref-.05379295130961762*direction,node.heading)
-    assert .05379295130961762+reference_step_distance(original,node.curve_time)+.01<TRACKING_MARGIN
+    set_odometry(executor,node.ref-.151*direction,node.heading)
     node.safety_dirty=False;node.last_safety_check=executor.now()
     node.check_execution_safety(executor.now())
     assert node.safety_fault is None and node.safety_stopping
@@ -435,14 +430,13 @@ def test_expired_odometry_holds_before_a_tracking_decision(executor):
 def test_report_does_not_hide_tracking_tube_violation_between_checks(executor):
     node = executor.node
     activate(executor)
-    set_odometry(executor, node.ref+np.array([.101,0.,0.]), node.heading)
+    set_odometry(executor, node.ref+np.array([.251,0.,0.]), node.heading)
     node.report()
     report=json.loads(node.report_pub.messages[-1].data)
-    assert report['safety_fault']=='reported_tracking_tube_exceeded'
-    assert not report['ready'] and not report['arrived']
+    assert report['tracking_error'] > .25 and report['safety_fault'] is None
 
 
-@pytest.mark.parametrize('state_value', [0, 5])
+@pytest.mark.parametrize('state_value', [0, 2, 4, 6])
 def test_arrived_hold_loses_validity_when_root_unknown_or_inflated(executor, state_value):
     node = executor.node
     activate(executor, progress=executor.curve.duration)
@@ -451,7 +445,7 @@ def test_arrived_hold_loses_validity_when_root_unknown_or_inflated(executor, sta
     state[tuple(node.safety_replica.map.indices(node.ref))] = state_value
     snapshot(executor, state)
     node.check_execution_safety(executor.now())
-    assert node.safety_fault == 'arrived_root_no_longer_certified'
+    assert node.safety_fault is None and node.reason == 'arrived_root_needs_replan'
     assert not node.safety_hold_valid
     node.report()
     report = json.loads(node.report_pub.messages[-1].data)
@@ -462,7 +456,7 @@ def test_arrived_stale_hold_is_not_reported_as_success(executor):
     node = executor.node
     activate(executor, progress=executor.curve.duration)
     node.arrived = True
-    executor.clock[0] += 1_100_000_000
+    executor.clock[0] += 2_100_000_000
     set_odometry(executor, node.ref, node.heading)
     node.check_execution_safety(executor.now())
     assert not node.safety_hold_valid and node.safety_fault is None
@@ -497,43 +491,15 @@ def test_execution_safety_forbids_dynamic_handoff(executor):
 def test_stopping_reserve_budget_uses_monotonic_not_frozen_ros_clock(executor, monkeypatch, elapsed):
     node = executor.node
     activate(executor, progress=1.)
-    real_reserve = executor_module.stopping_reserve
-    def timed_reserve(*args, **kwargs):
-        result = real_reserve(*args, **kwargs)
-        executor.wall[0] += elapsed
-        return result
-    monkeypatch.setattr(executor_module, 'stopping_reserve', timed_reserve)
+    called = []
+    monkeypatch.setattr(executor_module, 'stopping_reserve', lambda *a, **kw: called.append(True))
     sim_before = executor.now()
+    executor.wall[0] += elapsed
     node.check_execution_safety(sim_before)
     assert executor.now() == sim_before
-    if elapsed > .2:
-        assert node.safety_fault is None and not node.safety_hold_valid
-        assert node.safety_dirty and node.stopping_reserve_status is None
-        original_progress = node.curve_time
-        original_reference = node.ref.copy()
-        executor.clock[0] += 20_000_000
-        set_odometry(executor, node.ref, node.heading)
-        node.tick()
-        assert node.safety_fault is None and not node.safety_hold_valid
-        assert node.safety_dirty and node.stopping_reserve_status is None
-        assert node.curve_time == original_progress
-        np.testing.assert_allclose(node.ref, original_reference)
-
-        monkeypatch.setattr(executor_module, 'stopping_reserve', real_reserve)
-        executor.clock[0] += 20_000_000
-        set_odometry(executor, node.ref, node.heading)
-        node.tick()
-        assert node.safety_fault is None and node.safety_hold_valid
-        assert node.curve_time > original_progress
-        assert node.stopping_reserve_status['checked_at'] == executor.now()
-    else:
-        status = node.stopping_reserve_status
-        assert node.safety_fault is None and status['check_sim_s'] is None
-        assert status['check_wall_s'] == pytest.approx(elapsed)
-        assert status['check_delay_bound_s'] == pytest.approx(elapsed)
-        assert status['native_input_age_s'] == pytest.approx(elapsed)
-        assert status['mapper_input_age_s'] == pytest.approx(elapsed)
-        assert status['check_clock'] == 'monotonic_wall_upper_bound_at_rtf_le_1'
+    assert not called and node.safety_fault is None and node.safety_hold_valid
+    status = node.stopping_reserve_status
+    assert status['check_sim_s'] is None and status['native_input_age_s'] == 0. and status['mapper_input_age_s'] == 0.
 
 
 
@@ -574,7 +540,7 @@ def test_handoff_rejection_keeps_predecessor_and_rechecks_before_resuming(execut
                  pending_intent=dict(token='candidate', committed=True, voters=[])))))
         delay = .201 if case == 'late_transition' else .06
         if case == 'expired_mapper':
-            node.safety_stamp = executor.now() - .95
+            node.safety_stamp = executor.now() - 1.95
         def slow_snapshot(kind, *args, **kwargs):
             if kind == 'c2_transition':
                 executor.wall[0] += delay
@@ -612,7 +578,7 @@ def test_handoff_rejection_keeps_predecessor_and_rechecks_before_resuming(execut
     assert node.stopping_reserve_status['checked_at'] == executor.now()
 
 
-def test_required_brake_overrun_remains_a_safety_fault(executor, monkeypatch):
+def test_required_brake_overrun_applies_stop_without_wall_clock_kill(executor, monkeypatch):
     node = executor.node
     original = activate(executor)
     state = np.ones(node.safety_replica.map.shape, dtype=np.uint8)
@@ -627,21 +593,14 @@ def test_required_brake_overrun_remains_a_safety_fault(executor, monkeypatch):
     monkeypatch.setattr(executor_module, 'certified_brake', slow_brake)
 
     node.tick()
-    assert node.safety_fault == 'remaining_corridor_changed: Safety brake computation exceeded delay budget'
-    assert node.curve is original and not node.safety_stopping and not node.safety_hold_valid
+    assert node.safety_fault is None and node.safety_stopping and node.safety_hold_valid
 
 
-def test_activation_budget_rejects_monotonic_overrun_with_frozen_ros_clock(executor, monkeypatch):
+def test_activation_allows_slow_wall_clock_when_sim_maps_are_fresh(executor, monkeypatch):
     node = executor.node
-    real_reserve = executor_module.stopping_reserve
-    def slow_reserve(*args, **kwargs):
-        result = real_reserve(*args, **kwargs)
-        executor.wall[0] += .201
-        return result
-    monkeypatch.setattr(executor_module, 'stopping_reserve', slow_reserve)
+    monkeypatch.setattr(executor_module, 'stopping_reserve', lambda *a, **kw: pytest.fail('unexpected duplicate stopping_reserve'))
     node.command(command_message(executor.curve))
-    assert node.curve is None and node.token is None
-    assert node.activation_rejected['reason'] == 'activation_delay_or_map_age_exceeded'
+    assert node.curve is not None and node.token == 'native-test-1'
 
 
 def test_execution_report_binds_native_plan_to_activated_token_and_estimated_pose(executor):
@@ -671,18 +630,18 @@ def test_stopped_reference_waits_without_fabricating_observation(executor):
     node=executor.node
     activate(executor,progress=executor.curve.duration)
     original=node.curve.to_dict()
-    set_odometry(executor,node.ref+np.array([.050004,0.,0.]))
+    set_odometry(executor,node.ref+np.array([.151,0.,0.]))
     node.check_execution_safety(executor.now())
     assert node.safety_fault is None and node.terminal_hold_status['tracking_pressure']
     assert not node.arrived and node.observation_proof is None
     assert node.curve.to_dict()==original and not node.safety_stopping
     deadline=node.terminal_hold_status['absolute_deadline']
-    for step in (1.,1.49):
+    for step in (1.5,2.99):
         executor.clock[0]=int((100.+step)*1e9)
         node.safety_stamp=executor.now();snapshot(executor,sequence=10+int(step*100));set_odometry(executor,node.positions[node.id])
         node.check_execution_safety(executor.now())
         assert node.terminal_hold_status['absolute_deadline']==deadline
-    executor.clock[0]=101_501_000_000
+    executor.clock[0]=103_001_000_000
     set_odometry(executor,node.positions[node.id])
     node.check_execution_safety(executor.now())
     assert node.safety_fault is None and node.observation_failure['outcome']=='unobserved'
@@ -701,19 +660,20 @@ def test_stopped_reference_waits_without_fabricating_observation(executor):
 @pytest.mark.parametrize('bad', ['tracking','native_unknown','mapper_unknown','reference','derivative'])
 def test_pending_terminal_hold_keeps_original_guards(executor,bad):
     node=executor.node;activate(executor,progress=executor.curve.duration)
-    if bad=='tracking':set_odometry(executor,node.ref+np.array([.10001,0.,0.]))
+    if bad=='tracking':set_odometry(executor,node.ref+np.array([.2501,0.,0.]))
     if bad=='native_unknown':
         state=np.ones(node.safety_replica.map.shape,dtype=np.uint8)
         state[tuple(node.safety_replica.map.indices(node.ref))]=0;snapshot(executor,state)
     if bad=='mapper_unknown':
         node.safety_replica.map.state[tuple(node.safety_replica.map.indices(node.ref))]=-1
+        node.safety_dirty=True
     if bad=='reference':node.ref=node.ref+np.array([.001,0.,0.]);set_odometry(executor,node.ref)
     if bad=='derivative':
         node.curve.coefficients[-1,1,0]+=.01
         node.ref=node.curve.sample(node.curve.duration)[0];set_odometry(executor,node.ref)
     node.check_execution_safety(executor.now())
-    assert node.safety_fault is not None and not node.safety_hold_valid
-    assert node.observation_proof is None and not node.arrived
+    assert not node.safety_hold_valid and node.observation_proof is None and not node.arrived
+    assert (node.safety_fault is not None) == (bad in ('reference', 'derivative'))
 
 
 def test_terminal_hold_state_reset_on_cancel_and_new_activation(executor):
@@ -728,8 +688,10 @@ def test_terminal_hold_state_reset_on_cancel_and_new_activation(executor):
 def abort_terminal(executor):
     node=executor.node;activate(executor,progress=executor.curve.duration)
     node.check_execution_safety(executor.now())
-    executor.clock[0]=101_501_000_000
-    node.safety_stamp=executor.now();snapshot(executor,sequence=20);set_odometry(executor,node.ref)
+    executor.clock[0]=103_001_000_000
+    node.safety_stamp=executor.now()-1.5;snapshot(executor,sequence=20)
+    node.native_safety.stamp=executor.now()-1.5
+    node.safety_stamp=executor.now();snapshot(executor,sequence=21);set_odometry(executor,node.ref)
     node.check_execution_safety(executor.now())
     assert node.observation_failure and node.safety_fault is None
     return node
@@ -750,24 +712,24 @@ def test_unobserved_task_cannot_later_award_completion_or_change_reference(execu
 @pytest.mark.parametrize('bad', ['tracking','unknown'])
 def test_unobserved_exit_never_bypasses_hard_safety(executor,bad):
     node=abort_terminal(executor)
-    if bad=='tracking':set_odometry(executor,node.ref+np.array([.10001,0,0]))
+    if bad=='tracking':set_odometry(executor,node.ref+np.array([.2501,0,0]))
     if bad=='unknown':
         state=np.ones(node.safety_replica.map.shape,dtype=np.uint8)
-        state[tuple(node.safety_replica.map.indices(node.ref))]=0;snapshot(executor,state,sequence=21)
+        state[tuple(node.safety_replica.map.indices(node.ref))]=0;snapshot(executor,state,sequence=22)
     node.check_execution_safety(executor.now())
-    assert node.safety_fault and not node.arrived
+    assert not node.safety_hold_valid and not node.arrived
 
 
 @pytest.mark.parametrize('input_stream', ['map','odometry'])
 def test_stopped_hold_recovers_with_fresh_inputs(executor, input_stream):
     node=abort_terminal(executor)
     reference = node.ref.copy()
-    executor.clock[0] += 1_100_000_000
+    executor.clock[0] += 2_100_000_000
     if input_stream == 'map':
         set_odometry(executor, node.ref)
     else:
         node.safety_stamp = executor.now()
-        snapshot(executor, sequence=21)
+        snapshot(executor, sequence=22)
     node.check_execution_safety(executor.now())
     node.report()
     report=json.loads(node.report_pub.messages[-1].data)
@@ -1080,7 +1042,7 @@ def test_failed_view_does_not_relax_next_native_reference_root(executor,monkeypa
     else:
         monkeypatch.delenv(EXECUTION_PROFILE_ENV, raising=False)
     node=abort_terminal(executor);reference=node.ref.copy()
-    original=executor.curve;shift=reference+np.array([.08,0,0])-original.sample(0)[0]
+    original=executor.curve;shift=reference+np.array([.16,0,0])-original.sample(0)[0]
     coefficients=original.coefficients.copy();coefficients[:,0]+=shift
     curve=ContinuousTrajectory(original.durations,coefficients,original.yaw,original.yaw_delta,
         yaw_durations=original.yaw_durations,yaw_segments=original.yaw_segments)

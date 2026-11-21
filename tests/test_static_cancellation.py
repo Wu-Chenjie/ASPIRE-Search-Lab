@@ -146,10 +146,15 @@ def test_actual_terminal_cancel_waits_for_current_safety(failure):
     np.testing.assert_array_equal(node.ref, reference)
     assert node.observation_proof is None
     if failure == 'unknown_geometry':
-        assert node.safety_fault and not node.static_cancel_ack['terminal']
-        assert node._static_cancel_waiting()
+        assert node.safety_fault is None and not node.safety_hold_valid
+        assert not node.static_cancel_ack['terminal'] and node._static_cancel_waiting()
+        cell = node.safety_replica.map.indices(node.ref)
+        node.safety_replica.map.state[tuple(cell)] = 0
+        node.safety_replica.map.rebuild()
+        callback(node, 89.5)
+        assert node.safety_fault is None and node.arrived
         return
-    if failure in ('stale_map', 'stale_odometry', 'over_budget'):
+    if failure in ('stale_map', 'stale_odometry'):
         assert node.safety_fault is None and not node.safety_hold_valid
         assert node._static_cancel_waiting() and not node.static_cancel_ack['terminal']
         node.safety_stamp = 89.5

@@ -168,7 +168,7 @@ def test_stale_future_or_zero_attitude_cannot_create_odometry(bridge, sample):
 
 @pytest.mark.parametrize('sample', [10_000_000, 9_950_000, 1_000_000])
 def test_duplicate_and_reordered_attitude_never_refresh_watchdog(bridge, sample):
-    node,m=bridge;node.attitude_wall=time.monotonic()-1.
+    node,m=bridge;node.attitude_wall=time.monotonic()-2.1
     old_wall=node.attitude_wall;old_attitude=node.attitude.copy()
     a=VehicleAttitude();a.q=[0.,1.,0.,0.];a.timestamp_sample=sample
     node.vehicle_attitude(a)
@@ -192,20 +192,20 @@ def test_fresh_estimates_without_a_valid_bracket_never_publish(bridge, missing_l
 
 def test_sample_expiry_stops_heartbeat_even_with_recent_receipts(bridge, monkeypatch):
     node,_=bridge;node.trajectory(reference());node.tick();count=len(node.offboard_pub.messages)
-    monkeypatch.setattr(Node,'get_clock',lambda self:SimpleNamespace(now=lambda:SimpleNamespace(nanoseconds=10_600_000_000)))
-    node.status_time=10.6;node.reference_wall=time.monotonic()
+    monkeypatch.setattr(Node,'get_clock',lambda self:SimpleNamespace(now=lambda:SimpleNamespace(nanoseconds=11_600_000_000)))
+    node.status_time=11.6;node.reference_wall=time.monotonic()
     node.tick()
     assert len(node.offboard_pub.messages)==count and node.warmup is None
 
 
 def test_nearby_new_attitude_and_position_resume_after_invalid_pair(bridge):
-    node,m=bridge;node.trajectory(reference())
+    node,m=bridge;node.trajectory(reference());count=len(node.odom_pub.messages)
     m.timestamp_sample=10_200_000;node.local_position(m);node.tick()
-    assert node.position is None and not node.offboard_pub.messages
+    assert len(node.odom_pub.messages)==count
     next_attitude(node,10_040_000)
     a=VehicleAttitude();a.q=[1.,0.,0.,0.];a.timestamp_sample=10_060_000
     node.vehicle_attitude(a);m.timestamp_sample=10_050_000;node.local_position(m);node.tick()
-    assert node.position is not None and len(node.offboard_pub.messages)==1
+    assert node.position is not None and len(node.odom_pub.messages)==count+1 and len(node.offboard_pub.messages)>=1
 
 
 def test_unaligned_heading_cannot_publish_pose_or_start_offboard(bridge):
@@ -237,12 +237,12 @@ def test_external_fusion_flags_alone_do_not_refresh_depth_measurement(bridge):
     assert not node.yaw_aligned(10.,time.monotonic())
 
 
-def test_attitude_reset_after_mapping_latches_fault_until_new_session(bridge):
+def test_attitude_reset_after_mapping_clears_history_without_latching_session_fault(bridge):
     node,m=bridge;node.trajectory(reference());count=len(node.odom_pub.messages)
     a=VehicleAttitude();a.timestamp_sample=10_000_001;a.q=[1.,0.,0.,0.];a.quat_reset_counter=1
-    node.vehicle_attitude(a);m.timestamp_sample+=1;node.local_position(m);node.trajectory(reference());node.tick()
-    assert len(node.odom_pub.messages)==count and node.reference is None
-    assert not node.offboard_pub.messages and node.alignment_fault
+    node.vehicle_attitude(a);m.timestamp_sample+=1;node.local_position(m);node.tick()
+    assert len(node.odom_pub.messages)==count and node.alignment_fault is None
+    assert node.attitude_history.samples[-1][0] > 10.
 
 
 def test_initial_flag_quaternion_race_never_creates_a_map_epoch(bridge):

@@ -35,7 +35,7 @@ inline TargetObservation readTargetObservation(const TargetTree&t){
  };
  std::set<std::string> names;
  for(const auto&kv:t){
-  if(!names.insert(kv.first).second||!fields.count(kv.first)||!kv.second.empty())
+  if(!names.insert(kv.first).second||(fields.count(kv.first)&&!kv.second.empty()))
    throw std::runtime_error("unsupported_target_field");
  }
  // Optional for frozen legacy recordings; reject unknown navigation contracts.
@@ -138,7 +138,7 @@ inline TargetAlignment readTargetAlignment(const TargetTree&t){
 inline TargetVisibility readTargetVisibility(const TargetTree&t){
  const std::set<std::string> fields{"robot","session","counter","capture_s","anchor_capture_s","frame_version",
   "cx","cy","cz","ex","ey","ez","state","reason","scope","model_id","detected_source","checked_pixels"};
- std::set<std::string> seen;for(const auto&kv:t)if(!fields.count(kv.first)||!seen.insert(kv.first).second||!kv.second.empty())
+ std::set<std::string> seen;for(const auto&kv:t)if(!seen.insert(kv.first).second||(fields.count(kv.first)&&!kv.second.empty()))
   throw std::runtime_error("invalid_visibility_field");
  TargetVisibility v;v.key={t.get<std::string>("robot"),t.get<std::string>("session"),targetUnsigned(t,"counter")};
  v.capture=t.get<double>("capture_s");v.anchor_capture=t.get<double>("anchor_capture_s");

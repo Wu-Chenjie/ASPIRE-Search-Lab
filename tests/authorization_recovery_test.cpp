@@ -30,7 +30,7 @@ int main() {
     int proposal=4+i;
     assert(authorizationRejected(policy,true,proposal,proposal,-1,last,goal,now));last=proposal;
     assert(!policy.ready(now+.49));
-    if(i>=7)assert(!policy.ready(now+4.99));
+    if(i>=7){assert(!policy.ready(now+1.99));if(i==7)assert(policy.ready(now+2.));}
   }
   assert(attempts==9 && policy.attempts()==9 && policy.failures()==12);
   policy.activated();assert(!policy.active() && policy.attempts()==0 && policy.failures()==0);

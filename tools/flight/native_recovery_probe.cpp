@@ -10,6 +10,7 @@ using std::string;
 #include <pcl_conversions/pcl_conversions.h>
 #include <thread>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -123,6 +124,66 @@ static void optimizer_inputs(racer_ros::NodeHandle& nh,const FastExplorationMana
   opt.setWaypoints({},{});boundary();opt.optimize(controls,dt,costs,1,1);
   std::cout<<"PASS_INPUTS rejected="<<rejected<<" stale_solution_rejected=1 nonfinite_objective_rejected=1 waypoint_index_rejected=1 constant_yaw=1\n";
 }
+
+#if __has_include(<exploration_manager/task_authorization_recovery.hpp>)
+static void fixed_return_curve(const FastExplorationManager::Ptr& manager,
+                               bool kino, const string& output) {
+  const Eigen::Vector3d root = kino ? Eigen::Vector3d(1.25, -.25, 1.8) : Eigen::Vector3d(0., 0., 1.8);
+  const Eigen::Vector3d home = kino ? Eigen::Vector3d(-1.25, .10, 1.8) : Eigen::Vector3d(1.08, .13, 1.8);
+  const Eigen::Vector3d velocity = kino ? Eigen::Vector3d(0., 0., 0.) : Eigen::Vector3d(.035, .005, 0.);
+  const Eigen::Vector3d acceleration = kino ? Eigen::Vector3d(0., 0., 0.) : Eigen::Vector3d(.02, -.004, 0.);
+  const Eigen::Vector3d heading = kino ? Eigen::Vector3d(2.98, 0., 0.) : Eigen::Vector3d(.12, .04, .01);
+  const double target_yaw = kino ? -3.08 : .36;
+  require(measured(manager->sdf_map_, point(root)) && measured(manager->sdf_map_, point(home)),
+          "Return fixture endpoints are not observed free");
+  require(manager->planTrajToView(root, velocity, acceleration, heading, home, target_yaw, true) == SUCCEED,
+          "Fixed return trajectory failed");
+
+  Eigen::Vector3d expected_end = home;
+  const bool used_kino = !manager->ed_->kino_path_.empty();
+  require(used_kino == kino, "Fixed return did not use the expected native path");
+  if (kino) {
+    // The probe sets a 1 m search horizon for this 2.5 m request. Its native
+    // spline must stop at the actual Kino sample, even while home is farther.
+    double sample_interval = .25;
+    std::vector<Eigen::Vector3d> samples, derivatives;
+    manager->planner_manager_->kino_path_finder_->getSamples(sample_interval, samples, derivatives);
+    require(!samples.empty(), "Native Kino returned no samples");
+    expected_end = samples.back();
+    require((expected_end - root).norm() > .5 && (expected_end - home).norm() > .5,
+            "Kino fixture did not return a partial route");
+  }
+
+  auto& curve = manager->planner_manager_->local_data_;
+  const double duration = curve.duration_;
+  constexpr double tolerance = 1e-8;
+  require((curve.position_traj_.evaluateDeBoorT(0.) - root).norm() < tolerance,
+          "Fixed return position did not start at the requested root");
+  require((curve.velocity_traj_.evaluateDeBoorT(0.) - velocity).norm() < tolerance &&
+          (curve.acceleration_traj_.evaluateDeBoorT(0.) - acceleration).norm() < tolerance,
+          "Fixed return changed the requested start derivatives");
+  require((curve.position_traj_.evaluateDeBoorT(duration) - expected_end).norm() < tolerance &&
+          curve.velocity_traj_.evaluateDeBoorT(duration).norm() < tolerance &&
+          curve.acceleration_traj_.evaluateDeBoorT(duration).norm() < tolerance,
+          "Fixed return did not stop at the native segment endpoint");
+  require(std::abs(curve.yaw_traj_.getTimeSum() - duration) < tolerance,
+          "Fixed return position and yaw durations differ");
+  require(std::abs(curve.yaw_traj_.evaluateDeBoorT(0.)[0] - heading[0]) < tolerance &&
+          std::abs(curve.yawdot_traj_.evaluateDeBoorT(0.)[0] - heading[1]) < tolerance &&
+          std::abs(curve.yawdotdot_traj_.evaluateDeBoorT(0.)[0] - heading[2]) < tolerance,
+          "Fixed return changed the requested yaw boundary");
+  const double end_yaw = curve.yaw_traj_.evaluateDeBoorT(duration)[0];
+  const double turn = std::remainder(target_yaw - heading[0], 2. * M_PI);
+  require(std::abs(end_yaw - heading[0] - turn) < tolerance &&
+          std::abs(curve.yawdot_traj_.evaluateDeBoorT(duration)[0]) < tolerance &&
+          std::abs(curve.yawdotdot_traj_.evaluateDeBoorT(duration)[0]) < tolerance,
+          "Fixed return yaw did not stop at the equivalent heading in the expected direction");
+  check_curve(manager);
+  export_evidence(manager, output);
+  std::cout << (kino ? "PASS_FIXED_RETURN_KINO" : "PASS_FIXED_RETURN_WAYPOINT") << "\n";
+}
+#endif
+
 int main(int argc,char** argv) {
   string mode="recover",output="/tmp/native-recovery";
   for(int i=1;i+1<argc;++i){if(string(argv[i])=="--case")mode=argv[++i];else if(string(argv[i])=="--output")output=argv[++i];}
@@ -139,6 +200,13 @@ int main(int argc,char** argv) {
       std::cout<<"PASS_GAP same_target=1 withheld_observations=1 native_FAIL=1\n";rclcpp::shutdown();return 0;
     }
     if(mode=="inputs") {optimizer_inputs(nh,manager);rclcpp::shutdown();return 0;}
+#if __has_include(<exploration_manager/task_authorization_recovery.hpp>)
+    if (mode == "return-kino" || mode == "return-waypoint") {
+      fixed_return_curve(manager, mode == "return-kino", output);
+      rclcpp::shutdown();
+      return 0;
+    }
+#endif
     if(mode=="registry") {
       require(bool(manager->task_target_registry_),"registry manager not initialized");
       manager->task_bearing_policy_.enabled=true;

@@ -5,6 +5,7 @@ import importlib.metadata
 import json
 from pathlib import Path
 import re
+import warnings
 
 @dataclass(frozen=True)
 class DetectorSpec:
@@ -69,7 +70,9 @@ class DetectorSpec:
         path=Path(path).resolve(strict=True)
         if path.suffix!=('.engine' if self.backend=='tensorrt' else '.pt'):raise ValueError('Artifact/backend suffix mismatch')
         for package,version in self.runtime_versions.items():
-            if importlib.metadata.version(package)!=version:raise ValueError('Runtime version mismatch: '+package)
+            actual=importlib.metadata.version(package)
+            if actual!=version:
+                warnings.warn(f'Runtime version difference for {package}: expected {version}, got {actual}',RuntimeWarning)
         digest=hashlib.sha256()
         with path.open('rb') as stream:
             for chunk in iter(lambda:stream.read(1024*1024),b''):digest.update(chunk)

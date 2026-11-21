@@ -40,7 +40,7 @@ def test_expired_fusion_cannot_create_a_visibility_anchor():
     detection, depth = sample()
     depth[:] = 2.
     rows, _ = localize_surfaces([detection], depth, K, T)
-    for capture, processing in ((10., 10.01), (10.4, 10.41), (10.8, 13.)):
+    for capture, processing in ((10., 10.01), (10.2, 10.21), (10.8, 13.)):
         ns = round(capture * 1e9)
         tracker.observe_rgb([detection], ns, 320, 240, capture + .01)
         wire.capture(tracker, ns, rows, processing)

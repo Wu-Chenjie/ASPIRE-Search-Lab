@@ -9,7 +9,7 @@ def assets(tmp_path,monkeypatch):
     import tools.flight.gazebo_guard as g
     monkeypatch.setattr(g.sys,'platform','linux')
     plugin=tmp_path/'sensors.so';plugin.write_bytes(b'locked native plugin')
-    monkeypatch.setattr(g,'PLUGIN',plugin);monkeypatch.setattr(g,'PLUGIN_SHA',g.sha(plugin))
+    monkeypatch.setattr(g,'PLUGIN',plugin)
     binary=tmp_path/'guard.so';binary.write_bytes(b'\x7fELFtest')
     meta=dict(schema=1,source_sha256=g.sha(g.SOURCE),binary_sha256=g.sha(binary),sensors_plugin_sha256=g.sha(plugin))
     manifest=Path(str(binary)+'.json');manifest.write_text(json.dumps(meta))

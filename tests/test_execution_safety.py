@@ -29,8 +29,8 @@ def test_native_planning_reference_uses_fixed_hover_instead_of_odometry_drift():
     runtime.state[8, 8, 4] = 1
     runtime.rebuild()
     corridor = ExecutionCorridor(runtime, native)
-    fixed = [3.21, 3.21, 2.20]
-    actual = [3.21, 3.21, 2.19]
+    fixed = [3.21, 3.21, 1.99]
+    actual = [3.21, 3.21, 1.98]
     assert corridor.box_safe(fixed, fixed)
     assert not corridor.box_safe(actual, actual)
     report = dict(time=8., position_stamp=7.95, epoch=0, ready=True, arrived=True,
@@ -45,7 +45,7 @@ def test_native_planning_reference_uses_fixed_hover_instead_of_odometry_drift():
     assert stopped_planning_reference(completed, 5, False, 8.1) is None
 
     for invalid in (dict(ready=False), dict(arrived=False), dict(pending_token='pending'), dict(epoch=3),
-                    dict(time=7.5), dict(position_stamp=7.5), dict(actual_position=[3.21, 3.21, 2.]),
+                    dict(time=7.5), dict(position_stamp=7.5), dict(actual_position=[3.21, 3.21, 2.25]),
                     dict(reference_velocity=[0., 0., .01]), dict(reference_acceleration=[0., 0., .01]),
                     dict(reference_yaw_rate=.01)):
         assert stopped_planning_reference(dict(report, **invalid), -1, False, 8.1) is None
@@ -91,9 +91,12 @@ def test_capture_bearing_changes_only_brake_yaw_and_retains_original_c2_boundary
 def test_native_only_inflation_and_unknown_remain_blocking():
     runtime,native=maps(); curve=recorded_curve(); corridor=ExecutionCorridor(runtime,native)
     endpoint=runtime.indices(curve.sample(curve.duration)[0])
-    for value in (0,2,5,6):
+    for value in (0,2,4,6):
         native.state[tuple(endpoint)]=value
         assert not corridor.safe_curve(curve)
+    # Bit-4 inflation (5 = free + inflated) does not stack on physical tree clearance.
+    native.state[tuple(endpoint)]=5
+    assert corridor.safe_curve(curve)
     native.state[tuple(endpoint)]=1
     assert corridor.safe_curve(curve)
     runtime.state[tuple(endpoint)]=-1;runtime.rebuild()
@@ -109,7 +112,7 @@ def test_blocked_current_envelope_refuses_escape_or_unsafe_brake():
 
 def test_snapshot_age_order_and_geometry_validation():
     runtime,native=maps()
-    assert native.fresh(89.5) and not native.fresh(90.3) and not native.fresh(89.)
+    assert native.fresh(89.5) and native.fresh(90.3) and not native.fresh(91.3) and not native.fresh(89.)
     packet=[1,89.3,2,.3,0,0,0,*runtime.shape,*np.ones(runtime.state.size)]
     assert native.ingest(packet)
     assert not native.ingest(packet)
@@ -139,7 +142,7 @@ def test_bernstein_enclosure_catches_between_sample_excursion():
 def test_latency_reserve_checked_before_motion_and_new_hit_brakes_early():
     from core.planning.execution_safety import stopping_reserve, REACTION_HORIZON
     runtime,native=maps();curve=recorded_curve();corridor=ExecutionCorridor(runtime,native)
-    progress=7.46
+    progress=6.46
     reserve,boundary=stopping_reserve(curve,progress,corridor)
     assert boundary-progress>=REACTION_HORIZON-1e-10
     assert corridor.safe_curve(reserve,progress)
@@ -169,11 +172,11 @@ def test_sitl_corridor_relaxes_inflation_only_while_moving():
     assert middle != endpoint
 
     native.state[middle] = 5
-    assert not strict.safe_curve(curve)
+    assert strict.safe_curve(curve)
     assert relaxed.safe_curve(curve)
     for blocked in (0, 2, 4, 6):
         native.state[middle] = blocked
-        assert not relaxed.safe_curve(curve)
+        assert not strict.safe_curve(curve) and not relaxed.safe_curve(curve)
     native.state[middle] = 5
 
     runtime.state[middle] = 1
@@ -185,7 +188,9 @@ def test_sitl_corridor_relaxes_inflation_only_while_moving():
     native.state[endpoint] = 5
     final_position = curve.sample(curve.duration)[0]
     assert relaxed.box_safe(final_position, final_position)
-    assert not relaxed.safe_curve(curve)
+    assert strict.safe_curve(curve) and relaxed.safe_curve(curve)
+    native.state[endpoint] = 2
+    assert not strict.safe_curve(curve) and not relaxed.safe_curve(curve)
 
 
 @pytest.mark.parametrize('profile', ['relaxed', 'frontier'])
@@ -206,7 +211,9 @@ def test_observed_corridor_preserves_sitl_inflation_and_endpoint_policy(profile)
     assert traced.box_safe(middle, middle)
     endpoint = curve.sample(curve.duration)[0]
     native.state[tuple(runtime.indices(endpoint))] = 5
-    assert base.safe_curve(curve) == (profile == 'frontier')
+    assert base.safe_curve(curve) and traced.safe_curve(curve)
+    native.state[tuple(runtime.indices(endpoint))] = 2
+    assert not base.safe_curve(curve)
     assert traced.safe_curve(curve) == base.safe_curve(curve)
 
 
@@ -217,9 +224,9 @@ def test_sitl_tracking_and_static_handoff_thresholds_are_opt_in(monkeypatch):
     )
 
     monkeypatch.delenv(EXECUTION_PROFILE_ENV, raising=False)
-    assert static_reference_jump_limit() == tracking_brake_trigger() == .05
+    assert static_reference_jump_limit() == .12 and tracking_brake_trigger() == .15
     monkeypatch.setenv(EXECUTION_PROFILE_ENV, SITL_RELAXED_PROFILE)
-    assert static_reference_jump_limit() == tracking_brake_trigger() == .075
+    assert static_reference_jump_limit() == .15 and tracking_brake_trigger() == .18
 
 
 def test_reference_step_distance_checks_both_sides_at_inclusive_knots(monkeypatch):
@@ -246,7 +253,7 @@ def test_endpoint_proof_preserves_latest_reason_and_uses_older_eligible_frame():
 
     completion = ObservationCompletion(0)
     for sequence, (stamp, position) in enumerate(((1., [0., 0., 1.]), (1.5, [0., 0., 1.]),
-                                                  (2.25, [.1, 0., 1.]), (3., [0., 0., 1.])), 1):
+                                                  (2.25, [.2, 0., 1.]), (3., [0., 0., 1.])), 1):
         packet = dict(source=0, sensor='gz_depth', integration_completed=True,
                       sensor_session='mission', sequence=sequence, time=stamp, pose_time=stamp,
                       sensor_position=position, sensor_yaw=0., map_version=sequence,
@@ -260,7 +267,7 @@ def test_endpoint_proof_preserves_latest_reason_and_uses_older_eligible_frame():
     assert completion.proof(4.5, 3., goal, 0.)['sequence'] == 4
     assert completion.proof(3.25, 2.5, goal, 0., grid='wrong') is None
     assert completion.wait_reason == 'sensor_grid_mismatch'
-    assert completion.proof(5., 2.5, goal, 0.) is None
+    assert completion.proof(6.5, 2.5, goal, 0.) is None
     assert completion.wait_reason == 'integrated_frame_stale'
-    assert completion.proof(5., 4., goal, 0.) is None
+    assert completion.proof(6.5, 4., goal, 0.) is None
     assert completion.wait_reason == 'awaiting_post_arrival_integrated_frame'

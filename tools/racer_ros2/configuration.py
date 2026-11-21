@@ -168,7 +168,7 @@ def configuration(hello, output, template):
             raise ValueError('Invalid explicit planner envelope')
         limits=dict(supplied)
     else:
-        scale=hello.get('planning_scale',.5)
+        scale=hello.get('planning_scale',.85)
         if type(scale) not in (int,float) or not 0<scale<=1:
             raise ValueError('Native planning scale must be in (0,1]')
         limits={key:value*(scale if key in ('speed','acceleration','yaw_rate') else 1.)

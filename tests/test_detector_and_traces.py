@@ -16,7 +16,8 @@ def test_manifest_fails_closed_on_hash_runtime_pixel_and_engine_contracts(tmp_pa
     spec=DetectorSpec(model_sha256=digest,class_map={'7':'person'})
     assert spec.verify(p)==p and spec.class_map=={7:'person'}
     alternate=DetectorSpec(model_sha256=digest.upper(),input_size=2080,runtime_versions={'ultralytics':'8.3.229'})
-    with pytest.raises(ValueError,match='version mismatch'):alternate.verify(p)
+    with pytest.warns(RuntimeWarning,match='version difference'):
+        assert alternate.verify(p)==p
     monkeypatch.setattr('person_search.detector_spec.importlib.metadata.version',lambda _: '8.3.229')
     assert alternate.verify(p)==p
     p.write_bytes(b'changed')

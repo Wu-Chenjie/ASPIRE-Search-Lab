@@ -110,7 +110,7 @@ def apply(core):
     if(verified_stop) {
       if(task_return_.stopped(executed_id_,d[5]))taskReturnLog("verified_stop_resume_original_home");
     } else if(task_return_.executing() || !executed_done_) {
-      task_return_.retire();taskReturnLog("accepted_execution_lost");return;
+      if(task_return_.stopped(executed_id_,d[5]))taskReturnLog("execution_lost_retry_home");
     }
   }
   if (active >= 0 && active != executed_id_ && active == fd_->newest_traj_.traj_id &&

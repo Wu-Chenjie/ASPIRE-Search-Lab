@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation, Slerp
 
 
 class PoseHistory:
-    def __init__(self, capacity=300, max_gap=.04):
+    def __init__(self, capacity=300, max_gap=.15):
         self.samples = deque(maxlen=capacity)
         self.max_gap = max_gap
 

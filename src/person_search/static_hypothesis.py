@@ -1,12 +1,9 @@
-"""Conservative static-memory and registered-depth visibility components.
+"""Registered-depth visibility components for static surface checks.
 
-Depth visibility is source-connected through the optional registry adapter;
-the standalone StaticHypothesis remains a component. No time-based existence decay, identity
-association, confirmation, or navigation commands. Depth checks are intentionally
-narrow: only a wholly imaged hypothesis volume with valid depth behind it can
-produce CLEAR. A surface within the volume remains UNKNOWN.
+Depth Checks are intentionally narrow: only a wholly imaged hypothesis volume
+with valid depth behind it can produce CLEAR. A surface within the volume remains UNKNOWN.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import product
 import math
 import numpy as np
@@ -102,50 +99,3 @@ def projected_visibility(center,half_extent,prepared,capture_s,config,max_pixels
         return result('clear','observed_depth_behind_entire_hypothesis',count)
     except (TypeError,ValueError,IndexError,OverflowError):
         return result('unknown','geometry_invalid')
-
-
-@dataclass
-class StaticHypothesis:
-    entity: str
-    center: tuple
-    half_extent: tuple
-    first_seen_s: float
-    last_seen_s: float
-    confirmed: bool = False
-    effective_misses: int = 0
-    last_miss_s: float | None = None
-    _last_observation_s: float = field(default=-math.inf,repr=False)
-
-    def __post_init__(self):
-        hypothesis_bounds(self.center, self.half_extent)
-        if not (self.entity and 0 <= self.first_seen_s <= self.last_seen_s < math.inf):
-            raise ValueError('invalid static hypothesis')
-        self._last_observation_s=self.last_seen_s
-
-    def observe(self,capture_s,*,detected,visibility=None):
-        """Count qualified misses for audit, never infer nonexistence from one.
-
-        Repeated/late measurements are ignored. Negative observations are not
-        advertised as statistically independent or converted to probabilities.
-        The common upstream authority supplies positive detections/identity.
-        """
-        if not math.isfinite(capture_s) or capture_s<=self._last_observation_s:
-            return 'duplicate_or_old'
-        self._last_observation_s=capture_s
-        if detected:
-            self.last_seen_s=capture_s
-            self.effective_misses=0
-            self.last_miss_s=None
-            return 'positive'
-        if visibility is None or visibility.capture_s!=capture_s or visibility.state!='clear':
-            return 'uninformative_miss'
-        self.effective_misses+=1
-        self.last_miss_s=capture_s
-        return 'effective_miss'
-
-    def confirm(self):
-        self.confirmed=True
-
-    @property
-    def active_search_allowed(self):
-        return not self.confirmed

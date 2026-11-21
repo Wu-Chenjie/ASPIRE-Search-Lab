@@ -7,6 +7,7 @@
 - 在线规划和检测只用传感器观测与状态估计。场景真值供生成和独立评测。未知空间保持未知。
 - 大体积运行记录、构建产物、虚拟机镜像和权重放代码树外。
 - 修改后在现有依赖环境运行 PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider tests。ROS 接口变更另做已配置环境验证。
+- 每次改动完成并验证无误后，提交并推送到本仓库的 GitHub 远端。
 - 运行机配置和验收方式见 docs/REPRODUCIBILITY.md。修改接口时请交接双方共同查看测试结果。
 - 启动仿真时传入 `--rviz` 并开启可视化。使用仓库启动脚本时，确认 RViz 和显示链路已启动。
 

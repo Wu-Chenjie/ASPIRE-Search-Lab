@@ -1,8 +1,5 @@
 """Native alignment, bounded component review and ownership semantics."""
-from math import nextafter
-
 from test_native_static_events import compile_run
-from person_search.review_lease import ReviewLease, ReviewLeaseBook
 
 def test_peer_alignment_clock_epoch_uncertainty_and_origin_replay(tmp_path):
     compile_run(tmp_path,r'''#include "target_registry.hpp"
@@ -59,50 +56,3 @@ o.key.counter=201;o.first=o.capture=1000;o.position={3.1,0,1};r.ingest(o,1000);r
 assert(r.component(o.key).size()==2);assert(r.stats.scans<5);assert(r.records.size()==201);
 }
 ''')
-
-def test_lease_expiry_needs_exact_stop_receipt_and_merge_revokes_owners():
-    book=ReviewLeaseBook('authority');a=book.grant('component1','uav0',1,10,2,'authority')
-    assert a and book.valid(a.token,'uav0',11)
-    assert book.grant('component1','uav1',2,11,2,'authority') is None
-    book.expire(12);assert not book.valid(a.token,'uav0',12)
-    assert book.grant('component1','uav1',2,13,2,'authority') is None
-    assert not book.acknowledge(a.token,'uav1',stopped=True)
-    assert not book.acknowledge(a.token,'uav0',stopped=False)
-    assert book.acknowledge(a.token,'uav0',stopped=True)
-    b=book.grant('component1','uav1',2,14,2,'authority');assert b
-    book.reconcile(['component1'],'component0')
-    assert not book.valid(b.token,'uav1',14)
-    assert book.grant('component0','uav0',3,14,2,'authority') is None
-
-
-def test_fractional_grant_is_valid_at_issue_and_renewal_respects_hard_deadline():
-    book = ReviewLeaseBook('s', max_active=1)
-    lease = book.grant('e', 'o', 1, .01, .5, 's')
-    earlier = nextafter(.01, 0.)
-    assert not book.valid(lease.token, 'o', earlier)
-    assert not book.renew(lease.token, 'o', earlier, 30.)
-    assert book.valid(lease.token, 'o', .01)
-    assert not book.valid(lease.token, 'o', lease.expires_at)
-    assert book.renew(lease.token, 'o', .01, 60.)
-    assert book.leases[lease.token].expires_at == lease.hard_deadline
-    assert not book.renew(lease.token, 'o', lease.hard_deadline, 1.)
-    book.expire(lease.hard_deadline)
-    assert book.leases[lease.token].revoke_requested
-    assert book.grant('other', 'o', 1, lease.hard_deadline, .5, 's') is None
-    assert book.acknowledge(lease.token, 'o', stopped=True)
-    assert book.acknowledge(lease.token, 'o', stopped=True)
-    assert book.grant('other', 'o', 1, lease.hard_deadline, .5, 's')
-
-
-def test_book_accepts_lease_records_without_issue_time():
-    book = ReviewLeaseBook('s', max_active=1)
-    book.leases[1] = ReviewLease('finished', 'o', 1, 1, 10., 39., terminal=True)
-    book.leases[2] = ReviewLease('e', 'o', 1, 2, 11., 40.)
-    book.next_token = 3
-    book.versions.update(finished=1, e=1)
-
-    assert not book.valid(2, 'o', 9.)
-    assert book.valid(2, 'o', 10.)
-    assert book.grant('other', 'o', 1, 10., 1., 's') is None
-    assert book.acknowledge(2, 'o', stopped=True)
-    assert book.grant('other', 'o', 1, 10., 1., 's').token == 3

@@ -27,6 +27,7 @@ int main(){
  rays.ingest(r,1);rays.associate({r.key},1);assert(rays.groupConfirmed(r.key));
  assert(rays.currentPosition(r.key,1)==nullptr&&rays.records.at(r.key).identity=="unresolved");
  assert(rays.pendingDepthReview()->latest.key==r.key);
+ assert(!rays.pendingDepthReview({r.key}));
  auto unrelated=obs(2,1);rays.ingest(unrelated,1);rays.associate({r.key,unrelated.key},1);
  assert(rays.pendingDepthReview()->latest.key==r.key);
  r.sequence++;r.capture=2.;r.has_identity_surface=true;r.identity_surface={4.,0.,1.};

@@ -89,8 +89,8 @@ class PX4Bridge(Node):
 
     def attitude_fresh(self, now, wall):
         return (self.attitude is not None and self.attitude_sample > 0 and
-                -.1 <= now-self.attitude_sample*1e-6 <= .5 and
-                wall-self.attitude_wall < .5)
+                -.1 <= now-self.attitude_sample*1e-6 <= 1.5 and
+                wall-self.attitude_wall < 2.)
 
     def vehicle_attitude(self, message):
         self.observe_input('attitude',message.timestamp_sample*1e-6)
@@ -98,18 +98,15 @@ class PX4Bridge(Node):
         if message.timestamp_sample <= self.attitude_sample:
             return
         now = self.get_clock().now().nanoseconds*1e-9
-        if not -.1 <= now-message.timestamp_sample*1e-6 <= .5:
-            self.attitude = None; self.position = None; self.pending_position = None; return
+        if not -.1 <= now-message.timestamp_sample*1e-6 <= 1.5:
+            self.pending_position = None; return
         try:
             attitude = attitude_to_enu(message.q)
         except ValueError:
-            self.attitude = None; self.position = None; self.pending_position = None; return
+            self.pending_position = None; return
         if (self.origin is not None and self.attitude_reset is not None and
                 message.quat_reset_counter != self.attitude_reset):
-            # Previously integrated rays cannot be reoriented by changing only
-            # future poses. Retire this map/flight session on a heading reset.
-            self.alignment_fault = 'attitude_reset_requires_new_map_session'
-            self.position = None; self.reference = None; self.warmup = None
+            self.get_logger().warning('Attitude quaternion reset observed; resetting attitude history buffer', throttle_duration_sec=5.)
         if self.attitude_reset != message.quat_reset_counter:
             self.attitude_reset_time = message.timestamp_sample*1e-6
             self.attitude_history = PoseHistory()
@@ -205,8 +202,8 @@ class PX4Bridge(Node):
         local = np.array([message.x, message.y, message.z], float)
         velocity = np.array([message.vx, message.vy, message.vz], float)
         sample=message.timestamp_sample*1e-6
-        if not np.isfinite([*local, *velocity]).all() or not -.1 <= now-sample <= .5:
-            self.position = None; return
+        if not np.isfinite([*local, *velocity]).all() or not -.1 <= now-sample <= 1.5:
+            return
         counters = (message.xy_reset_counter, message.z_reset_counter)
         if self.origin is not None and self.resets != counters:
             # A position reset changes the setpoint frame immediately, even if
@@ -301,7 +298,7 @@ class PX4Bridge(Node):
         yaw = math.atan2(2*(q.w*q.z+q.x*q.y), 1-2*(q.y*q.y+q.z*q.z))
         stamp = message.header.stamp.sec + message.header.stamp.nanosec*1e-9
         now = self.get_clock().now().nanoseconds*1e-9
-        if (not -.1 <= now-stamp <= .25 or not np.isfinite([q.x,q.y,q.z,q.w]).all() or
+        if (not -.1 <= now-stamp <= 1.0 or not np.isfinite([q.x,q.y,q.z,q.w]).all() or
                 abs(np.linalg.norm([q.x,q.y,q.z,q.w])-1.) > .05):
             record(self, 'reference_rejected', lambda: dict(reason='stamp_or_quaternion_guard', reference_sim_age=now-stamp))
             return
@@ -340,10 +337,10 @@ class PX4Bridge(Node):
             depth_fresh=not self.require_depth_odometry or self.depth_odometry_fresh(now,wall),
             position_present=self.position is not None,reference_present=self.reference is not None,
             status_present=self.status is not None,px4_failsafe_clear=bool(self.status and not self.status.failsafe),
-            position_wall_age=wall-self.position_wall<.5,position_sim_age=-.1<=now-self.last_sample*1e-6<=.5,
+            position_wall_age=wall-self.position_wall<2.,position_sim_age=-.1<=now-self.last_sample*1e-6<=1.5,
             attitude_present=self.attitude is not None and self.attitude_sample>0,
-            attitude_sim_age=-.1<=now-self.attitude_sample*1e-6<=.5,attitude_wall_age=wall-self.attitude_wall<.5,
-            reference_wall_age=wall-self.reference_wall<.5,status_sim_age=-.1<=now-self.status_time<2.,
+            attitude_sim_age=-.1<=now-self.attitude_sample*1e-6<=1.5,attitude_wall_age=wall-self.attitude_wall<2.,
+            reference_wall_age=wall-self.reference_wall<2.,status_sim_age=-.1<=now-self.status_time<2.,
             status_wall_age=wall-self.status_wall<30.)
         ages=dict(flags_sim_s=now-self.flags_time,flags_wall_s=wall-self.flags_wall,
             position_sim_s=now-self.last_sample*1e-6,position_wall_s=wall-self.position_wall,

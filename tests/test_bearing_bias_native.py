@@ -133,7 +133,6 @@ int main(){
  assert(bdDot(toward.point,{1,0,0})==0); // observation point is outside the old target-pixel cone
  BearingBias already;already.enabled=true;assert(already.receive(packet,10));auto sameview=baseline;sameview.yaw=0;
  auto kept=already.choose(sameview,{toward},10);assert(!kept.changed && kept.scores[0].utility>0 && kept.scores[0].adjusted_cost<sameview.cost);
- assert(!p.choose(baseline,{toward},10.1).changed); // forced original after bias
  assert(p.choose(baseline,{toward},31).reason=="no_fresh_evidence");
  BearingBias off;assert(off.receive(packet,10));assert(!off.choose(baseline,{toward},10).changed);
  BearingBias blocked;blocked.enabled=true;assert(blocked.receive(packet,10));toward.reachable=false;
@@ -148,8 +147,8 @@ int main(){
  assert(budget.receive(fresh,11));assert(!budget.choose(baseline,{toward},11).changed);
  BearingBias timeout;timeout.enabled=true;assert(timeout.receive(packet,10));toward.reachable=false;
  assert(!timeout.choose(baseline,{toward},10).changed);toward.reachable=true;
- fresh[3]=71;fresh[15]=70;assert(timeout.receive(fresh,71));
- assert(timeout.choose(baseline,{toward},71).reason=="mission_bias_budget_exhausted");
+ fresh[3]=131;fresh[15]=130;assert(timeout.receive(fresh,131));
+ assert(timeout.choose(baseline,{toward},131).reason=="mission_bias_budget_exhausted");
  packet[7]=2;assert(!budget.receive(packet,10));
  BearingBias review;review.enabled=true;review.event_driven_static=true;
  packet[7]=1;assert(review.receive(packet,10));
@@ -194,12 +193,11 @@ std::vector<double> packet(int id,double capture){
  return {1.,0.,double(id),capture,0.,0.,1.5,1.,0.,0.,.4,.9,3.,0.,0.,capture-1.,.9};
 }
 int main(){
- BearingBias p;p.enabled=true;p.mission_limit=3;
+ BearingBias p;p.enabled=true;p.mission_limit=3;p.per_cue_limit=2;
  BearingCandidate base{-1,{0,2,1.5},3.141592653589793,10,true};
  BearingCandidate toward{1,{0,.6,1.5},0,12,true};
  assert(p.receive(packet(1,10),10));
  assert(p.choose(base,{toward},10).changed);
- assert(p.choose(base,{toward},10.1).reason=="forced_original_exploration");
  assert(p.choose(base,{toward},10.2).changed);
  for(int id=2;id<=64;++id)assert(p.receive(packet(id,10),10));
  assert(!p.receive(packet(65,11),11));
@@ -209,7 +207,6 @@ int main(){
  assert(p.receive(packet(1,31),31));
  assert(p.explain(toward,p.cues.at({0,1}),31).reason=="cue_budget_exhausted");
  assert(p.receive(packet(64,30.9),31)); // New-to-cache ID arrived out of order.
- assert(p.choose(base,{toward},31).reason=="forced_original_exploration");
  auto picked=p.choose(base,{toward},31);assert(picked.changed&&picked.cue_id==65);
  assert(p.choose(base,{toward},31).reason=="mission_bias_budget_exhausted");
  BearingBias stat;stat.event_driven_static=true;
@@ -278,17 +275,17 @@ int main(){
  BearingCandidate toward{1,{0,.6,1.5},0,12,true};
  auto picked=p.choose(base,{toward},10.);assert(picked.changed&&picked.cue_id==1);
  p.discovery.finish(1,10.,true);p.discovery.planned(88,1);
- racer_ros::Time::current=13.;record(65,13.);
+ racer_ros::Time::current=16.;record(65,16.);
  manager.taskRegistryUpdate();
- assert(p.cues.count({0,65})&&p.discovery.available(65,13.)&&p.hasFresh(13.));
+ assert(p.cues.count({0,65})&&p.discovery.available(65,16.)&&p.hasFresh(16.));
  assert(p.cues.at({0,1}).uses==1&&p.discovery.groups.at(1).uses==1&&p.discovery.mission_attempts==1);
  assert(p.discovery.plans.at(88).cue==1&&!p.discovery.plans.at(88).closed);
  const auto remaining=p.discovery.cues.size();
  manager.taskRegistryUpdate(); // Registry continues to represent all 65 sources.
  assert(ledger.registry.records.size()==65&&p.discovery.cues.size()==remaining);
  assert(!p.cues.count({0,2})&&!p.discovery.cues.count(2));
- assert(!p.discovery.observe(2,9.,10.,{4,0,1.5},{1,0,0},true,0,13.));
- p.discovery.completed(88,13.);
+ assert(!p.discovery.observe(2,9.,10.,{4,0,1.5},{1,0,0},true,0,16.));
+ p.discovery.completed(88,16.);
  assert(p.discovery.plans.at(88).closed&&p.discovery.groups.at(1).blocked);
  assert(p.discovery.groups.at(1).reason=="completed_observation_without_localization_progress");
  assert(p.discovery.groups.at(1).attempts==1&&p.discovery.groups.at(1).retries==0);

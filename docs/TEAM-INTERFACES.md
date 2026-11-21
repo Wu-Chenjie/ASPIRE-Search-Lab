@@ -10,9 +10,9 @@
 | B → A | /search/bearing_evidence，std_msgs/Float64MultiArray | 方位引导使用已有 v1 定长 17 项数值布局，包含采集时间、原点、方向、角范围及支持帧数。Python 编码位于 aspire_interfaces/bearing.py。 |
 | A → B | /drone_0/view_execution，std_msgs/String 中的 JSON | 执行节点报告活动任务、实际到达及观测证据；B 以捕获时间判断是否为到达后的新证据。历史复查模式另用 /search/review_goal、/search/review_status 和 /search/review_cancel。 |
 
-Depot 07 的 `registry` + `--bearing-bias` 联调中，局部人体通过现有 RGB 多帧确认后，B 立即发布 `visual_confirmed` 事件和人员观测。缺少可靠坐标时，A 暂停派发新的探索轨迹，让已授权航段完成；B 在观测位继续接收配准 RGB-D，并优先处理可用的配对帧。A 收到该静态人员或其已关联来源的可靠可见表面坐标后恢复探索。一次深度采样或另一个人的坐标都不能结束复查。后续帧过期时，已经测得的坐标保留为带采集时间的历史记录。若在该视角一直取不到有效深度，目标保持待定位，直至任务结束或安全流程接管。
+Depot 07 的 `registry` + `--bearing-bias` 联调中，局部人体通过现有 RGB 多帧确认后，B 立即发布 `visual_confirmed` 事件和人员观测。缺少可靠坐标时，A 暂停派发新的探索轨迹，让已授权航段完成（有界等待上限 4.0 秒）；B 在观测位继续接收配准 RGB-D，并优先处理可用的配对帧。A 收到该静态人员或其已关联来源的可靠可见表面坐标后恢复探索；若超过 4.0 秒仍未定位，A 释放该源的阻塞并恢复探索，目标本身保持待定位直至后续有效观测到达或任务结束。
 
-启用 `ASPIRE_FRONTIER_STEPS=1` 的单机停稳探索可在 `/baseline/feedback_0` 的普通授权反馈后收到一条 6 项参考位姿消息，顺序为原生航迹 ID、执行报告时间、x、y、z、yaw。首次起步用 ID `-1`。授权网关仅在执行器就绪、已到达、无待执行任务、参考导数为零且实际位姿处于跟踪管内时转发。RACER 核对航迹 ID、报告和里程计时效及当前跟踪误差后使用参考位姿起步。新轨迹仍通过原有双图和停车授权。旧接收方可继续使用普通授权反馈。
+启用 `ASPIRE_FRONTIER_STEPS=1` 的单机停稳探索可在 `/baseline/feedback_0` 的普通授权反馈后收到一条 6 项参考位姿消息，顺序为原生航迹 ID、执行报告时间、x、y、z、yaw。首次起步用 ID `-1`。授权网关仅在执行器就绪、已到达、无待执行任务、参考导数为零且实际位姿处于跟踪管（0.25 米）内时转发。RACER 核对航迹 ID、报告和里程计时效及当前跟踪误差后使用参考位姿起步。新轨迹仍通过原有双图和停车授权。重型逐帧源码归档、timing/certificate/perception/RGB-D 调试落盘需通过 `--record-debug-evidence` 显式开启。旧接收方可继续使用普通授权反馈。
 
 - **A** 负责现有原生规划集成、执行器和启动程序。准备好的 D 场景在本次运行目录内使用。对比方案时保留起点、预算和检测配置。
 - **B** 在 registry 模式发布识别和定位证据。Python 语义处理可以独立导入；运行 ROS 节点需 ROS 环境和检测依赖。单独修改识别时使用 tests/test_person_search.py 和 tests/test_registry_evidence.py。

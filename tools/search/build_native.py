@@ -85,6 +85,7 @@ for module, enabled in (
     ('flight.static_c2_boundary_overlay', a.execution_safety),
     ('flight.known_transit_overlay', a.execution_safety),
     ('flight.frontier_steps_overlay', a.execution_safety),
+    ('flight.return_spline_overlay', a.execution_safety),
     ('flight.collision_stop_overlay', a.execution_safety),
     ('flight.fresh_review_overlay', a.execution_safety),
 ):

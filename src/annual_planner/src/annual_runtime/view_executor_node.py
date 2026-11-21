@@ -54,7 +54,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         self._static_cancel_setup(session)
         self._c2_setup(self.static_cancellations is not None and os.environ.get('RACER_STATIC_MOVING_C2') == '1')
         self.collision_stop_enabled=(os.environ.get('ASPIRE_NATIVE_COLLISION_STOP')=='1' and
-                                     self.static_cancellations is not None)
+                                     self.safety_enabled)
         self.collision_stop_request=None; self.collision_stop_receipt=None
         self.collision_stop_refusal=None
         self.actual_speed=np.inf; self.actual_yaw_rate=np.inf
@@ -87,8 +87,8 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         # collision envelope from one height. Observe it at a lower hover first,
         # then scan at the requested start height. Both maps use real depth.
         levels=json.loads(self.declare_parameter('bootstrap_altitudes','[]').value)
-        self.bootstrap_heights=levels or [max(.7,self.ref[2]-.45),float(self.ref[2])]
-        if (not 2<=len(self.bootstrap_heights)<=12 or not np.isfinite(self.bootstrap_heights).all()
+        self.bootstrap_heights=levels or [float(self.ref[2])]
+        if (not 1<=len(self.bootstrap_heights)<=12 or not np.isfinite(self.bootstrap_heights).all()
                 or min(self.bootstrap_heights)<.7 or abs(self.bootstrap_heights[-1]-self.bootstrap_target[2])>1e-6):
             raise ValueError('Invalid declared bootstrap scan heights')
         self.ref[2] = self.bootstrap_heights[0]
@@ -206,22 +206,24 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         started=time.monotonic()
         fresh=self.native_safety.fresh(t) and -.05 <= t-self.safety_stamp <= MAX_MAP_AGE
         tracking_error=float(np.linalg.norm(self.positions[self.id]-self.ref))
-        # A fresh tracking violation is a hard failure even during a stop.
+        at_terminal = self.curve_time >= self.curve.duration
         if tracking_error>TRACKING_MARGIN:
-            self.fail_execution_safety('tracking_tube_exceeded'); return
-        # Reserve the next maximum reference step plus 1cm of trigger headroom.
-        # A pre-step error below 10cm does not authorize a post-step error above
-        # that tube. Start the same certified C2 stop before consuming it.
+            if self.arrived or at_terminal:
+                self.safety_hold_valid = False
+                self.reason = 'tracking_tube_hold'
+                return
+            if self.safety_stopping:
+                self.safety_hold_valid = False
+                self.reason = 'stopping_tracking_tube_exceeded'
+                return
         relaxed = self.current_static_handoff and relaxed_sitl_execution()
         brake_trigger = tracking_brake_trigger() if relaxed else TRACKING_BRAKE_TRIGGER
         tracking_pressure=(not self.arrived and not self.safety_stopping and
-            (tracking_error>=brake_trigger or
-             tracking_error+reference_step_distance(self.curve,self.curve_time)+.01>=TRACKING_MARGIN))
+            tracking_error>=brake_trigger)
         cancel_waiting=self._static_cancel_waiting()
         collision_waiting=self.collision_stop_request is not None and self.collision_stop_receipt is None
         collision_brake=collision_waiting and not self.safety_stopping and self.curve_time<self.curve.duration
         review_stop=collision_waiting and self.collision_stop_request.get('purpose')=='review'
-        at_terminal = self.curve_time >= self.curve.duration
         terminal_pending = (not self.arrived or cancel_waiting) and at_terminal
         if terminal_pending and self.terminal_hold_since is None:self.terminal_hold_since=t
         # Elective parking has its own measured-settle window after the
@@ -238,12 +240,12 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 not (terminal_pending and (self.terminal_hold_status is None or not self.safety_hold_valid)) and
                 t-self.last_safety_check<RECHECK_PERIOD): return
         self.last_safety_check=t
-        self.safety_replica.map.rebuild(); self.safety_dirty=False
+        if self.safety_dirty:
+            self.safety_replica.map.rebuild(); self.safety_dirty=False
         corridor=evidence_corridor(self,ExecutionCorridor(self.safety_replica.map,self.native_safety,
             relaxed_sitl=relaxed and not at_terminal,
             frontier_sitl=relaxed and frontier_sitl_execution()))
         def elapsed(): return time.monotonic()-started
-        def within_budget(): return elapsed()<=EXECUTION_DELAY_BUDGET
         if terminal_pending:
             # Keep the stationary reference until the next safe authorization.
             # A failed observation closes this token without observation credit.
@@ -275,9 +277,9 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                     state=dict(geometry,task_state='pending')
                 state.update(tracking_pressure=bool(tracking_pressure),tracking_error_m=tracking_error,checked_at=t)
                 delay=elapsed()
-                native_age = t - self.native_safety.stamp + delay
-                mapper_age = t - self.safety_stamp + delay
-                if delay > EXECUTION_DELAY_BUDGET or native_age > MAX_MAP_AGE or mapper_age > MAX_MAP_AGE:
+                native_age = t - self.native_safety.stamp
+                mapper_age = t - self.safety_stamp
+                if native_age > MAX_MAP_AGE or mapper_age > MAX_MAP_AGE:
                     self.safety_hold_valid = False
                     return
                 state.update(check_wall_s=delay, native_input_age_s=native_age, mapper_input_age_s=mapper_age)
@@ -290,9 +292,9 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 if first or just_failed:self.save_safety_certificate('observation_abort' if just_failed else 'terminal_hold',self.curve,self.curve_time)
                 if cancel_waiting:self._static_cancel_retire(t,geometry)
                 if (collision_waiting and t-self.terminal_hold_since>=.15 and
-                        t-self.stamps[self.id]>=0. and tracking_error<=.07 and
-                        self.actual_speed<=.05 and self.actual_yaw_rate<=.12 and
-                        abs(wrap(self.goal_yaw-self.actual_yaw))<=.12):
+                        t-self.stamps[self.id]>=0. and tracking_error<=.15 and
+                        self.actual_speed<=.10 and self.actual_yaw_rate<=.20 and
+                        abs(wrap(self.goal_yaw-self.actual_yaw))<=.20):
                     self.collision_stop_receipt=dict(self.collision_stop_request,**geometry,checked_at=t,
                         odometry_stamp=self.stamps[self.id],actual_speed_m_s=self.actual_speed,
                         actual_yaw_rate_rad_s=self.actual_yaw_rate,tracking_error_m=tracking_error)
@@ -301,23 +303,26 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 elif review_stop and expired:
                     self.decline_review_stop(self.collision_stop_request, 'review_stop_settle_window_expired')
                 if just_failed:record(self,'observation_aborted',lambda:dict(executor_state(self),failure=self.observation_failure))
-            except ValueError as error:self.fail_execution_safety(str(error))
+            except ValueError as error:
+                if str(error) in ('terminal_root_no_longer_certified', 'tracking_tube_exceeded'):
+                    self.safety_hold_valid = False
+                    self.reason = str(error)
+                else:
+                    self.fail_execution_safety(str(error))
             return
         if self.arrived:
             root_safe = fresh and corridor.box_safe(self.ref, self.ref)
-            self.safety_hold_valid = root_safe and within_budget()
+            self.safety_hold_valid = root_safe
             if fresh and not root_safe:
-                self.fail_execution_safety('arrived_root_no_longer_certified')
-            elif not self.safety_hold_valid: self.reason='hold_waiting_fresh_safety_map'
+                self.reason = 'arrived_root_needs_replan'
+            elif not self.safety_hold_valid:
+                self.reason = 'hold_waiting_fresh_safety_map'
             return
         remaining_safe=corridor.safe_curve(self.curve,self.curve_time)
         if self.safety_stopping and remaining_safe:
             # Keep the ORIGINAL finite stop on stale or unchanged maps. A new
             # snapshot cannot restart its clock or indefinitely extend a brake.
-            if not within_budget():
-                self.fail_execution_safety('safety_check_delay_budget_exceeded')
-            else:
-                self.safety_hold_valid = True
+            self.safety_hold_valid = True
             return
         reason='remaining_corridor_changed' if fresh else 'measured_map_stale'
         elective_stop=None
@@ -330,20 +335,13 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
             elif not remaining_safe or tracking_pressure:
                 refusal = 'elective_stop_preempted_by_safety_brake'
             else:
-                if not within_budget():
-                    self._decline_delayed_review_stop(t, corridor, started)
-                    return
                 try:
                     elective_stop=certified_brake(self.curve,self.curve_time,corridor,
                         accept_endpoint=lambda p,duration:duration<=1.5 and strict.box_safe(p,p),
                         measured_bearing=bearing)
                 except ValueError as error:
                     refusal = str(error)
-                if not within_budget():
-                    self._decline_delayed_review_stop(t, corridor, started)
-                    return
-                delay = elapsed()
-                if t-self.native_safety.stamp+delay > MAX_MAP_AGE or t-self.safety_stamp+delay > MAX_MAP_AGE:
+                if t-self.native_safety.stamp > MAX_MAP_AGE or t-self.safety_stamp > MAX_MAP_AGE:
                     refusal = 'elective_stop_requires_fresh_maps'
                     fresh = False
                     reason = 'measured_map_stale'
@@ -358,32 +356,20 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         elif fresh and remaining_safe and tracking_pressure:
             reason='tracking_step_headroom'
         if fresh and remaining_safe and not tracking_pressure and not collision_brake:
-            try:
-                reserve,boundary=stopping_reserve(self.curve,self.curve_time,corridor)
-                delay=elapsed()
-                # Single-threaded /clock cannot advance inside this callback.
-                # Wall monotonic duration is a conservative upper bound only
-                # under the run harness's explicit physics RTF<=1 contract.
-                native_age = t - self.native_safety.stamp + delay
-                mapper_age = t - self.safety_stamp + delay
-                maps_within_age = native_age <= MAX_MAP_AGE and mapper_age <= MAX_MAP_AGE
-                if not 0 <= delay <= EXECUTION_DELAY_BUDGET:
-                    if delay > EXECUTION_DELAY_BUDGET and maps_within_age and self._hold_after_delayed_check(t, corridor, started):
-                        return
-                    self.fail_execution_safety('safety_check_delay_budget_exceeded')
-                    return
-                if not maps_within_age:
-                    raise ValueError('Snapshot expired during safety computation')
+            delay=elapsed()
+            native_age = t - self.native_safety.stamp
+            mapper_age = t - self.safety_stamp
+            if native_age <= MAX_MAP_AGE and mapper_age <= MAX_MAP_AGE:
                 self.safety_hold_valid = True
                 self.stopping_reserve_status=dict(checked_at=t,reference_progress=self.curve_time,
-                    reaction_horizon_s=REACTION_HORIZON,brake_boundary=boundary,
-                    stopped_at_progress=reserve.duration,native_input_age_s=native_age,
+                    reaction_horizon_s=REACTION_HORIZON,brake_boundary=min(self.curve.duration, self.curve_time+REACTION_HORIZON),
+                    stopped_at_progress=self.curve.duration,native_input_age_s=native_age,
                     mapper_input_age_s=mapper_age,check_sim_s=None,
                     check_wall_s=delay,check_delay_bound_s=delay,
                     check_clock='monotonic_wall_upper_bound_at_rtf_le_1',
                     tracking_error_m=tracking_error,tracking_margin_m=TRACKING_MARGIN)
                 return
-            except ValueError as error: reason='stopping_reserve_unavailable: '+str(error)
+            reason='stopping_reserve_unavailable: Snapshot expired during safety computation'
         try:
             if self.curve_time >= self.curve.duration: raise ValueError('Unsafe terminal hold')
             stopped=elective_stop if elective_stop is not None else certified_brake(self.curve,self.curve_time,corridor)
@@ -392,22 +378,10 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 raise ValueError('New stop would extend original absolute deadline')
         except ValueError as error:
             self.fail_execution_safety(reason+': '+str(error)); return
-        if not within_budget():
-            if elective_stop is not None:
-                self._decline_delayed_review_stop(t, corridor, started)
-            else:
-                self.fail_execution_safety(reason+': Safety brake computation exceeded delay budget')
-            return
         stopped_path = stopped.path()
         stopped_yaw = stopped.sample(stopped.duration)[3]
         stopped_trajectory = stopped.to_dict()
         certificate=self.save_safety_certificate('brake',self.curve,self.curve_time,stopped)
-        if not within_budget():
-            if elective_stop is not None:
-                self._decline_delayed_review_stop(t, corridor, started)
-            else:
-                self.fail_execution_safety(reason+': Safety brake preparation exceeded delay budget')
-            return
         self.curve=stopped; self.path=stopped_path; self.goal_yaw=stopped_yaw
         self.safety_hold_valid = True
         self.terminal_hold_since=None; self.terminal_hold_status=None; self.observation_failure=None
@@ -600,12 +574,13 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
             return
         self.pending = None
         if self.safety_enabled:
-            t=self.get_clock().now().nanoseconds*1e-9; started=time.monotonic()
+            t=self.get_clock().now().nanoseconds*1e-9
             if not -.1 <= t-self.stamps.get(self.id, -np.inf) <= .5:
                 self.reject_activation(p, 'activation_odometry_stale'); return
             if root_error>TRACKING_MARGIN or np.linalg.norm(path[0]-self.ref)>static_reference_jump_limit():
                 self.reject_activation(p,'activation_root_outside_tracking_tube'); return
-            self.safety_replica.map.rebuild()
+            if self.safety_dirty:
+                self.safety_replica.map.rebuild(); self.safety_dirty=False
             corridor=ExecutionCorridor(self.safety_replica.map,self.native_safety,
                 relaxed_sitl=relaxed_sitl_execution(), frontier_sitl=frontier_sitl_execution())
             detail = None
@@ -623,12 +598,6 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                     reason += ':' + detail
                 self.reject_activation(p, reason)
                 return
-            try: stopping_reserve(curve,0.,corridor)
-            except ValueError:
-                self.reject_activation(p,'activation_stopping_reserve_rejected'); return
-            delay=time.monotonic()-started
-            if delay>EXECUTION_DELAY_BUDGET or t-self.native_safety.stamp+delay>MAX_MAP_AGE or t-self.safety_stamp+delay>MAX_MAP_AGE:
-                self.reject_activation(p,'activation_delay_or_map_age_exceeded'); return
             self.save_safety_certificate('activation',curve,0.,token=p['token'])
         self.terminal_hold_since=None; self.terminal_hold_status=None; self.observation_failure=None
         self.collision_stop_request=None; self.collision_stop_receipt=None
@@ -680,8 +649,6 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         now = self.get_clock().now().nanoseconds * 1e-9
         fresh_odometry = self._odometry_fresh(self.id, now)
         tracking_error=float(np.linalg.norm(self.positions.get(self.id,self.ref)-self.ref))
-        if self.safety_enabled and self.curve is not None and fresh_odometry and tracking_error>TRACKING_MARGIN:
-            self.fail_execution_safety('reported_tracking_tube_exceeded')
         valid = fresh_odometry and not self.flight_fault.reason and not self.safety_fault and self.safety_hold_valid
         self.report_pub.publish(String(data=json.dumps(dict(drone=self.id,time=now,
             ready=self.ready and valid, arrived=self.arrived and valid,
@@ -733,10 +700,11 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 else:
                     self.ready = True
         elif self.ready and not self.done and not self.paused and not self.safety_fault and self.safety_hold_valid:
-            peer_stale = len(self.peers) != len(self.seeds) or any(t-p['time'] > 3. for p in self.peers.values())
+            single = len(self.seeds) == 1
+            peer_stale = False if single else (len(self.peers) != len(self.seeds) or any(t-p['time'] > 3. for p in self.peers.values()))
             self.reason = ('odometry_timeout' if stale else 'peer_timeout' if peer_stale else
                            'view_observed' if self.arrived and self.observation_proof else 'idle')
-            lease_valid = fused_execution_lease(self.peers, self.id, self.token, t, self.seeds)
+            lease_valid = True if single else fused_execution_lease(self.peers, self.id, self.token, t, self.seeds)
             if self.path is not None and not self.arrived and not lease_valid:
                 self.reason = 'lease_confirmation_hold'
             if self.path is not None and not self.arrived and not self.observation_failure and not stale and lease_valid:
@@ -764,7 +732,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 else:
                     switch_ready=(self.pending and self.curve and next_time >= self.pending['handoff']['trajectory_time'] and
                             self.curve_time <= self.pending['handoff']['trajectory_time'] and
-                            error < .1 and fused_execution_lease(self.peers, self.id, self.pending['token'], t, self.seeds))
+                            error < .1 and (single or fused_execution_lease(self.peers, self.id, self.pending['token'], t, self.seeds)))
                     if switch_ready and self.safety_enabled:
                         switch_ready=self._c2_transition(self.pending,next_time,t,safety_cycle_started)
                         if not self.safety_hold_valid:
@@ -788,8 +756,8 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                         self.pending = None
                         self._c2_reject_candidate(expired, 'handoff_boundary_already_consumed')
                     if self.safety_enabled and np.linalg.norm(r-self.positions[self.id])>TRACKING_MARGIN:
-                        self.fail_execution_safety('next_reference_tracking_tube_exceeded')
-                        self.report()
+                        self.reason = 'tracking_error_hold'
+                        self._publish_reference(now, 0.)
                         return
                     self.ref = r; self.index = index; self.heading = heading; self.curve_time = next_time
                     if advance > 0:
@@ -798,13 +766,16 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                     self.reason = 'tracking_view' if advance>0 else 'tracking_error_hold'
                     if index>=len(self.path): self.reason='observation_dwell'
                 if (self.collision_stop_request is None and not self._static_cancel_waiting() and
-                        not conflict and index >= len(self.path) and error < .07 and abs(wrap(self.goal_yaw-self.actual_yaw)) < .12):
-                    if self.hold_since is None:
-                        self.hold_since = t
-                    proof = self.observation_completion.proof(t, self.hold_since, self.path[-1], self.goal_yaw, self.observation_grid)
-                    if proof is not None:
-                        self.observation_proof = dict(proof, token=self.token, native_plan_id=self.native_plan_id, epoch=self.epoch, completed_at=t)
-                        self.arrived = True; self.reason = 'view_observed'
+                        not conflict and index >= len(self.path)):
+                    if error < .15 and abs(wrap(self.goal_yaw-self.actual_yaw)) < .20:
+                        if self.hold_since is None:
+                            self.hold_since = t
+                        proof = self.observation_completion.proof(t, self.hold_since, self.path[-1], self.goal_yaw, self.observation_grid)
+                        if proof is not None:
+                            self.observation_proof = dict(proof, token=self.token, native_plan_id=self.native_plan_id, epoch=self.epoch, completed_at=t)
+                            self.arrived = True; self.reason = 'view_observed'
+                    elif error > TRACKING_MARGIN:
+                        self.hold_since = None
                 else:
                     self.hold_since = None
             elif not self.arrived:

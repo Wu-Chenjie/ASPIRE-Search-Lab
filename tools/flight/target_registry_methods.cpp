@@ -49,6 +49,32 @@ void FastExplorationManager::taskGuidanceFeedback(int active,bool done,int candi
  if(done)task_bearing_policy_.discovery.completed(active,now);
  if(rejected)task_bearing_policy_.discovery.rejected(candidate,now);
 }
+bool FastExplorationManager::taskDepthReviewPending(double now){
+ if(!task_bearing_policy_.enabled||!task_target_registry_){
+  task_depth_review_pending_=false;task_depth_review_has_key_=false;task_depth_review_since_=-1.;return false;
+ }
+ const auto*pending=task_target_registry_->registry.pendingDepthReview(task_depth_review_expired_);
+ while(pending){
+  if(!task_depth_review_has_key_||!(task_depth_review_key_==pending->latest.key)){
+   task_depth_review_key_=pending->latest.key;task_depth_review_has_key_=true;
+   task_depth_review_since_=now;task_depth_review_pending_=true;
+   ROS_INFO("DEPTH_REVIEW waiting for registered surface source=%s",racer_task::targetKeyString(pending->latest.key).c_str());
+   return true;
+  }
+  if(std::isfinite(now)&&task_depth_review_since_>=0.&&now-task_depth_review_since_>=4.0){
+   ROS_WARN("DEPTH_REVIEW timeout after %.1fs for source=%s; releasing exploration",
+            now-task_depth_review_since_,racer_task::targetKeyString(pending->latest.key).c_str());
+   task_depth_review_expired_.insert(task_depth_review_key_);
+   task_depth_review_has_key_=false;task_depth_review_since_=-1.;task_depth_review_pending_=false;
+   pending=task_target_registry_->registry.pendingDepthReview(task_depth_review_expired_);
+   continue;
+  }
+  task_depth_review_pending_=true;return true;
+ }
+ if(task_depth_review_pending_)ROS_INFO("DEPTH_REVIEW confirmed persons localized; exploration released");
+ task_depth_review_pending_=false;task_depth_review_has_key_=false;task_depth_review_since_=-1.;
+ return false;
+}
 void FastExplorationManager::taskGuidanceLog(){
  if(!task_bearing_policy_.persistent)return;
  if(task_static_event_audit_){

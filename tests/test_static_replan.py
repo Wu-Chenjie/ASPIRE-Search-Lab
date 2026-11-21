@@ -125,7 +125,7 @@ def test_generated_event_path_preserves_original_execution_gates(tmp_path):
     assert callback.index('feedback_stamp_ > 0.5')<callback.index('if(taskStaticEventTick())return;')
     assert callback.index('if(taskReturnTick())return;')<callback.index('if(taskStaticEventTick())return;')
     planning=callback.split('case PLAN_TRAJ:')[1].split('case PUB_TRAJ:')[0]
-    assert planning.index('task_depth_review_pending_') < planning.index('int res = callExplorationPlanner();')
+    assert planning.index('taskDepthReviewPending(') < planning.index('int res = callExplorationPlanner();')
     assert planning.index('if(task_stop_and_plan_ && live_execution_ && executed_id_>=0 && !executed_done_ && !task_c2_requested) return;')<planning.index('int res = callExplorationPlanner();')
     assert 'start(now,task_static_monitor_.reservedSources(),task_review_scheduling_priority_?' in fsm
     publishing=callback.split('case PUB_TRAJ:')[1].split('case EXEC_TRAJ:')[0]

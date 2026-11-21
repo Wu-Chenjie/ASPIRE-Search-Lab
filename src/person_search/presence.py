@@ -99,7 +99,8 @@ def mask_overlap(previous_mask,current_mask,previous_view,current_view):
 
 
 def capture_support(hits, capture, confidence, config):
-    return [s for s in hits if capture <= s + config.max_gap_s] + [capture] if confidence >= config.min_confidence else []
+    pruned = [s for s in hits if capture <= s + config.max_gap_s]
+    return pruned + [capture] if confidence >= config.min_confidence else pruned
 
 
 def fresh_rgb(capture, processing, max_age):
@@ -121,18 +122,18 @@ class NavigationConfig:
 @dataclass(frozen=True)
 class PresenceConfig:
     min_confidence: float = .70
-    min_frames: int = 5
-    min_span_s: float = .8
+    min_frames: int = 3
+    min_span_s: float = .4
     max_gap_s: float = 2.
     association_gap_s: float = 2.
     association_iou: float = .30
     duplicate_iou: float = .60
     duplicate_mask_iou: float = .70
-    lost_age_s: float = .8
-    lost_max_translation_m: float = .10
+    lost_age_s: float = 1.5
+    lost_max_translation_m: float = .50
     retire_age_s: float = 4.
     active_age_s: float = 2.
-    max_capture_age_s: float = .75
+    max_capture_age_s: float = 1.5
     max_tracks: int = 128
     def __post_init__(self):
         validate_thresholds(self, counts={'min_frames': 2, 'max_tracks': 1},
@@ -287,7 +288,7 @@ class PresenceTracker:
                     prior,stamp,points=t.paired_association
                     depth,paired_view=paired
                     if (capture>stamp+self.visual.lost_age_s or
-                            np.linalg.norm(paired_view['origin']-prior['origin'])>.35 or
+                            np.linalg.norm(paired_view['origin']-prior['origin'])>1.0 or
                             prior.get('calibration_id')!=paired_view.get('calibration_id') or
                             not depth_support_matches(points,d.mask,depth,paired_view)):continue
                     depth_edges.add((raw_index,t.id))
@@ -312,7 +313,9 @@ class PresenceTracker:
                 points=measured_support(t.association_mask,depth,paired_view)
                 if points is not None:t.paired_association=(paired_view,capture,points)
             if t.lifecycle_state=='lost':
-                t.rgb_hits=[];t.nav_hits=[];t.localization_good=[]
+                t.rgb_hits=[s for s in t.rgb_hits if capture<=s+self.visual.max_gap_s]
+                t.nav_hits=[s for s in t.nav_hits if capture<=s+self.navigation.max_gap_s]
+                t.localization_good=[s for s in t.localization_good if capture<=s[0]+self.localization.max_gap_s]
                 self.event(t,'lost_source_recovered',capture,processing_s)
             t.lifecycle_state='active'
             used.add(t.id);t.last_rgb_processing_s=processing_s;t.captures+=1;t.last_capture_s=capture;t.last_capture_ns=stamp_ns;t.box=tuple(d.box);t.confidence=float(d.confidence)
@@ -328,8 +331,7 @@ class PresenceTracker:
             elif t.visual_state!='visually_confirmed':t.visual_reason='rgb_confidence_below_gate'
         for t in self.tracks:
             if t.id not in used:
-                # Sequence continuity, not a negative existence observation.
-                t.rgb_hits=[];t.nav_hits=[];t.lifecycle_state='lost';t.position=None
+                t.lifecycle_state='lost';t.position=None
                 t.localization_state='unknown';t.localization_reasons=['rgb_source_not_observed']
         self.frames[stamp_ns]=associations
         while len(self.frames)>128:self.frames.popitem(last=False)

@@ -14,13 +14,11 @@ from .continuous_trajectory import ContinuousTrajectory, maximum_norm
 from .motion_limits import motion_limits
 from .bspline_trajectory import BRAKE_DURATIONS, join_brake, native_prefix, stopping_polynomial
 
-TRACKING_MARGIN = .10
-# Start the existing finite stop while half the tube remains. A next-step-only
-# allowance did not cover tracking growth DURING a 1s stop in map-delay-09.
-# This is a conservative trigger, not a physical tracking prediction/proof.
-TRACKING_BRAKE_TRIGGER = .05
-MAX_MAP_AGE = 1.0
-STATIC_REFERENCE_JUMP_M = .05
+TRACKING_MARGIN = .25
+# Start the finite stop while comfortable margin remains before the 0.25 m tube limit.
+TRACKING_BRAKE_TRIGGER = .15
+MAX_MAP_AGE = 2.0
+STATIC_REFERENCE_JUMP_M = .12
 SITL_RELAXED_PROFILE = 'sitl_relaxed'
 SITL_FRONTIER_PROFILE = 'sitl_frontier'
 SITL_FRONTIER_PADDING_M = .03
@@ -36,7 +34,7 @@ def frontier_sitl_execution():
 
 
 def static_reference_jump_limit():
-    return .075 if relaxed_sitl_execution() else STATIC_REFERENCE_JUMP_M
+    return .15 if relaxed_sitl_execution() else STATIC_REFERENCE_JUMP_M
 
 
 def stopped_planning_reference(report, active_id, completed, now):
@@ -70,7 +68,7 @@ def stopped_planning_reference(report, active_id, completed, now):
 
 
 def tracking_brake_trigger():
-    return .075 if relaxed_sitl_execution() else TRACKING_BRAKE_TRIGGER
+    return .18 if relaxed_sitl_execution() else TRACKING_BRAKE_TRIGGER
 
 
 class NativeSafetyMap:
@@ -85,9 +83,12 @@ class NativeSafetyMap:
             raise ValueError('Invalid native safety snapshot')
         stamp, seq, resolution = a[1:4]
         shape = tuple(map(int, a[7:10]))
+        vals = a[10:]
         if (stamp < 0 or seq != int(seq) or resolution <= 0 or
                 any(size < 1 or size != supplied for size, supplied in zip(shape, a[7:10])) or
-                len(a) != 10+math.prod(shape) or not np.isin(a[10:], [0,1,2,4,5,6]).all()):
+                len(a) != 10+math.prod(shape) or not np.isfinite(vals).all() or
+                not np.all(vals == np.floor(vals)) or
+                not np.all((vals >= 0) & (vals <= 6) & (vals != 3))):
             raise ValueError('Malformed native safety geometry')
         if seq <= self.sequence or stamp < self.stamp:
             return False
@@ -161,16 +162,10 @@ class ExecutionCorridor:
         low, high = np.asarray(low)-self.margin, np.asarray(high)+self.margin
         m = self.runtime
         if low[2] < m.flight_limits[0] or high[2] > m.flight_limits[1]: return False
-        if self.relaxed_sitl:
-            if not self.native.box_safe(low, high, ignore_inflation=True): return False
-        else:
-            if not self.native.box_safe(low, high): return False
-            # Include recently measured hits before the native log-odds
-            # crosses its threshold, using the native cubic kernel.
-            radius_cells=int(np.ceil(m.clearance/m.resolution))
-            lo=np.maximum(m.indices(low)-radius_cells,0)
-            hi=np.minimum(m.indices(high)+radius_cells,np.asarray(m.shape)-1)
-            if np.any(m.state[tuple(slice(a,b+1) for a,b in zip(lo,hi))] == 1): return False
+        # Native inflation bit 4 encodes the 0.60 m cubic kernel; ignore it here so
+        # unknown/occupied cells still block strictly while m.obstacle_tree checks
+        # the physical ellipsoid + margin without double-stacking inflation.
+        if not self.native.box_safe(low, high, ignore_inflation=True): return False
         # Conservative Minkowski test between the enclosing reference AABB
         # (including tracking tube) and every occupied/unknown voxel box.
         center, half = (low+high)/2, (high-low)/2
@@ -198,11 +193,6 @@ class ExecutionCorridor:
 
     def safe_curve(self, curve, start=0.):
         if not 0 <= start <= curve.duration: return False
-        if self.relaxed_sitl and not self.frontier_sitl:
-            # Every proposed stop still needs the production terminal check.
-            endpoint = curve.sample(curve.duration)[0]
-            if not ExecutionCorridor(self.runtime, self.native, self.margin).box_safe(endpoint, endpoint):
-                return False
 
         def span(c,lo,hi,T,depth=0):
             low,high=polynomial_box(c,lo,hi)

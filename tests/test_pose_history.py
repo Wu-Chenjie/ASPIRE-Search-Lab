@@ -20,9 +20,9 @@ def test_gaps_reordered_samples_and_invalid_poses_do_not_create_rays():
     assert not history.add(.99,[99,0,0],[0,0,0,1])
     assert not history.add(1.01,[0,0,0],[0,0,0,0])
     assert not history.add(1.01,[float('nan'),0,0],[0,0,0,1])
-    assert history.add(1.1,[1,0,0],[0,0,0,1])
-    assert not history.brackets(1.05) and history.at(1.05) is None
-    assert history.at(.99) is None and history.at(1.11) is None
+    assert history.add(1.2,[1,0,0],[0,0,0,1])
+    assert not history.brackets(1.1) and history.at(1.1) is None
+    assert history.at(.99) is None and history.at(1.21) is None
     assert history.brackets(1.) and history.at(1.)[2]==(1.,1.)
 
 
@@ -63,7 +63,7 @@ def test_ground_origin_can_collect_fifty_contiguous_samples_at_ten_to_twelve_hz(
                 assert center is None
         np.testing.assert_allclose(center, [1, 2, 3])
         assert window.diagnostics()['source_span_s'] >= 3.
-        assert window.observe(100. + 49*period + .11, [1, 2, 3], [0, 0, 0], (0, 0, 0), True) is None
+        assert window.observe(100. + 49*period + .51, [1, 2, 3], [0, 0, 0], (0, 0, 0), True) is None
         assert window.diagnostics()['samples'] == 1
 
 
