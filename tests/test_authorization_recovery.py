@@ -213,5 +213,5 @@ def test_real_ros_native_authorization_recovery_callback(tmp_path):
     assert 'PASS_NATIVE_SHORT_STOP progress=0.564 duration=5.69 stale_and_wrong_id_rejected=1 native_empty_map_idle=1' in result.stdout
 
     assert 'PASS_NATIVE_STOPPED_FEEDBACK original_saved_fields=1 plan_state_released=1 no_observation_credit=1 stale_rejected=1 native_empty_map_idle=1 no_flight=1' in result.stdout
-    assert 'PASS_NATIVE_RETURN_RETRY empty_trigger_waits=1 no_goal_retries=1 verified_stop_resumes=1 stale_and_wrong_id_rejected=1 loss_isolated=1 no_flight=1' in result.stdout
+    assert 'PASS_NATIVE_RETURN_RETRY empty_trigger_waits=1 no_goal_retries=1 verified_stop_resumes=1 stale_and_wrong_id_rejected=1 loss_retried=1 no_flight=1' in result.stdout
     assert 'PASS_NATIVE_COLLISION_FEEDBACK same_stamp_isolated=1 exact_release=1 duplicate_hold_only=1 current_denial=1 no_flight=1' in result.stdout

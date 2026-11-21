@@ -241,8 +241,9 @@ def test_attitude_reset_after_mapping_clears_history_without_latching_session_fa
     node,m=bridge;node.trajectory(reference());count=len(node.odom_pub.messages)
     a=VehicleAttitude();a.timestamp_sample=10_000_001;a.q=[1.,0.,0.,0.];a.quat_reset_counter=1
     node.vehicle_attitude(a);m.timestamp_sample+=1;node.local_position(m);node.tick()
-    assert len(node.odom_pub.messages)==count and node.alignment_fault is None
-    assert node.attitude_history.samples[-1][0] > 10.
+    assert node.alignment_fault is None and node.attitude_history.at(10.0) is None
+    assert len(node.attitude_history.samples) == 1 and node.attitude_history.samples[0][0] > 10.
+    assert len(node.odom_pub.messages) == count + 1 and len(node.offboard_pub.messages) == 1
 
 
 def test_initial_flag_quaternion_race_never_creates_a_map_epoch(bridge):

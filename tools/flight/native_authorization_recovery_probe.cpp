@@ -189,10 +189,12 @@ struct TaskAuthorizationRecoveryProbe {
     require(f.executed_id_==125 && f.task_return_.executing() && f.state_==EXEC_TRAJ,
             "A consumed collision receipt was replayed onto the next execution");
     completion(-1,false);
-    require(f.task_return_.state()==racer_task::ReturnPolicy::State::retired,
-            "Unverified in-flight loss opened a new return attempt");
+    require(f.task_return_.state()==racer_task::ReturnPolicy::State::waiting_retry &&
+            !f.task_return_.terminal() && !f.task_return_.executing() &&
+            f.executed_id_<0 && f.state_==PLAN_TRAJ,
+            "In-flight loss did not schedule a return retry");
     std::cout<<"PASS_NATIVE_COLLISION_FEEDBACK same_stamp_isolated=1 exact_release=1 duplicate_hold_only=1 current_denial=1 no_flight=1\n";
-    std::cout<<"PASS_NATIVE_RETURN_RETRY empty_trigger_waits=1 no_goal_retries=1 verified_stop_resumes=1 stale_and_wrong_id_rejected=1 loss_isolated=1 no_flight=1\n";
+    std::cout<<"PASS_NATIVE_RETURN_RETRY empty_trigger_waits=1 no_goal_retries=1 verified_stop_resumes=1 stale_and_wrong_id_rejected=1 loss_retried=1 no_flight=1\n";
     std::cout<<"PASS_NATIVE_AUTHORIZATION_RECOVERY trigger=3 recovery_attempts=9 real_ros_callback=1 no_flight=1\n";
   }
 };
