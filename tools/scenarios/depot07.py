@@ -3,6 +3,7 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
@@ -11,10 +12,20 @@ import xml.etree.ElementTree as ET
 from tools.flight.scene_bundle import scene
 from aspire_camera.gazebo import set_text
 from aspire_camera.mount import DEPTH_TRANSLATION
+from core.exploration.voxel_config import VoxelConfig
+from core.planning.execution_safety import TRACKING_MARGIN
 
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def south_map_bound(floor_edge, start_y, grid):
+    # Put a voxel face at the south edge of the protected hover volume. A
+    # measured wall outside it then cannot fill a cell extending inside it.
+    hover_edge = start_y - TRACKING_MARGIN - grid.clearance
+    full_cells = math.floor((hover_edge - floor_edge) / grid.resolution)
+    return hover_edge - full_cells * grid.resolution
 
 
 def prepare(assets, output):
@@ -74,7 +85,9 @@ def prepare(assets, output):
             ET.SubElement(contact, "collision").text = collision.get("name")
         base.append(sensor)
         set_text(drone, "name", "annual_x500_0")
-        runtime.update(bounds=[[-length / 2, -width / 2, 0], [length / 2, width / 2, 4.5]],
+        grid = VoxelConfig(**runtime.get("voxel_map", {}))
+        south = south_map_bound(-width / 2, start[1], grid)
+        runtime.update(bounds=[[-length / 2, south, 0], [length / 2, width / 2, 4.5]],
                        fleet_starts=[start], layout="depot07")
         runtime["vehicles"][0].update(model="annual_x500_0", start=start, spawn=spawn[:3],
                                      initial_position=[*spawn[:2], rest_z])

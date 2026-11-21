@@ -15,7 +15,7 @@
 
 在团队的 WSL 运行机上，从仓库根目录执行。资产使用 `/opt/aspire/assets/depot07-20261118`。该目录的 `start.sh` 用于单独查看 Gazebo 世界。联调入口读取同一套资产，保留仓库、人物、R-01 及原始摆位，把配准 RGB-D 和 PX4 所需的改动写入外部运行目录中的场景副本。原始资产仍由资产目录维护。
 
-运行机应已配置 ROS 2 Jazzy、Gazebo Harmonic 8.15、colcon、RViz、Xvfb、x11vnc 和 noVNC。脚本使用现有的 `/opt/aspire/build/ros-ws`、`/opt/aspire/build/px4-sitl`、`/planner/external/agent_install`、分析及分割 Python 环境、DDS 配置、YOLO 权重和已校验的 x86 Gazebo 退出保护。WSL 的 Windows I 盘启动时需有至少 6.4 GB 可用空间。[联调环境与验收](docs/REPRODUCIBILITY.md)
+运行机应已配置 ROS 2 Jazzy、Gazebo Harmonic 8.15、colcon、RViz、Xvfb、x11vnc 和 noVNC。脚本使用现有的 `/opt/aspire/build/ros-ws`、`/opt/aspire/build/px4-sitl`、`/planner/external/agent_install`、分析及分割 Python 环境、DDS 配置和 YOLO 权重。每轮启动时会用 g++ 在 `$run/gazebo-guard/` 构建退出保护，并校验本机 Gazebo Sim 与 Sensors 插件的哈希。WSL 的 Windows I 盘启动时需有至少 6.4 GB 可用空间。[联调环境与验收](docs/REPRODUCIBILITY.md)
 
 首次构建或原生代码变更后，在仓库外构建原生 RACER。再次运行可以复用同一提交的构建。
 

@@ -34,7 +34,6 @@ export LD_LIBRARY_PATH="/opt/aspire/build/agent-install/lib:${LD_LIBRARY_PATH:-}
 export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/aspire/engineering/dds-local.xml
 export GZ_IP=127.0.0.1 LP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 export RACER_CPU_PROFILE=render3-perception2-px4reserved RACER_EXECUTION_SAFETY=1
-export RACER_GZ_SHUTDOWN_GUARD=/opt/aspire/build/gazebo-guard-x86/libgz_sensor_stop_guard.so
 export RACER_PX4_LOGGER_TOPICS=/opt/aspire/engineering/logger-topics.txt
 export RACER_REFERENCE_NATIVE_PREFIX="$native/install/racer_core"
 export ASPIRE_SAFETY_MAP_TIMING=1 ASPIRE_NATIVE_MAP_DIRECT_DDS=1
@@ -46,6 +45,8 @@ ulimit -c 0
 mkdir -p "$(dirname "$out")"
 mkdir "$out"
 cd "$repo"
+python3 -B -m tools.flight.build_gazebo_guard "$out/gazebo-guard"
+export RACER_GZ_SHUTDOWN_GUARD="$out/gazebo-guard/libgz_sensor_stop_guard.so"
 python3 -B -m tools.scenarios.depot07 --assets "$assets" --output "$out/scene"
 
 printf 'RViz during the run: http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale\n'

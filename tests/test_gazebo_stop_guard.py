@@ -10,8 +10,10 @@ def assets(tmp_path,monkeypatch):
     monkeypatch.setattr(g.sys,'platform','linux')
     plugin=tmp_path/'sensors.so';plugin.write_bytes(b'locked native plugin')
     monkeypatch.setattr(g,'PLUGIN',plugin)
+    sim=tmp_path/'libgz-sim8.so.8';sim.write_bytes(b'locked Gazebo Sim')
+    monkeypatch.setattr(g,'SIM',sim)
     binary=tmp_path/'guard.so';binary.write_bytes(b'\x7fELFtest')
-    meta=dict(schema=1,source_sha256=g.sha(g.SOURCE),binary_sha256=g.sha(binary),sensors_plugin_sha256=g.sha(plugin))
+    meta=dict(schema=1,source_sha256=g.sha(g.SOURCE),binary_sha256=g.sha(binary),sensors_plugin_sha256=g.sha(plugin),sim_sha256=g.sha(sim))
     manifest=Path(str(binary)+'.json');manifest.write_text(json.dumps(meta))
     scene=tmp_path/'scene.sdf';scene.write_text('<sdf><world name="one"><plugin name="gz::sim::systems::Sensors" filename="gz-sim-sensors-system"/></world></sdf>')
     return g,binary,manifest,meta,scene
@@ -26,7 +28,7 @@ def test_verified_guard_applies_to_child_without_mutating_parent(assets):
     assert env=={'LD_PRELOAD':str(binary)} and report['enabled'] and report['binary_sha256']==meta['binary_sha256']
     assert parent=={'RACER_GZ_SHUTDOWN_GUARD':str(binary)}
 
-@pytest.mark.parametrize('field',['source_sha256','binary_sha256','sensors_plugin_sha256'])
+@pytest.mark.parametrize('field',['source_sha256','binary_sha256','sensors_plugin_sha256','sim_sha256'])
 def test_incompatible_source_binary_or_plugin_cannot_launch(assets,field):
     g,binary,manifest,meta,scene=assets;meta[field]='0'*64;manifest.write_text(json.dumps(meta))
     with pytest.raises(ValueError,match='hash|version'):
@@ -67,4 +69,5 @@ def test_actual_production_elf_contains_no_injection_or_join_override():
         assert marker not in data
     symbols=subprocess.check_output(['nm','-D','--defined-only',path],text=True)
     assert '_ZN2gz3sim2v87systems14SensorsPrivate4StopEv' in symbols
+    assert '_ZN2gz3sim2v816SimulationRunner4StopEv' in symbols
     assert not any(s.split()[-1]=='pthread_join' for s in symbols.splitlines() if s.split())
