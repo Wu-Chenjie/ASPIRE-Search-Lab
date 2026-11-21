@@ -122,8 +122,8 @@ class NavigationConfig:
 @dataclass(frozen=True)
 class PresenceConfig:
     min_confidence: float = .70
-    min_frames: int = 3
-    min_span_s: float = .4
+    min_frames: int = 4
+    min_span_s: float = .6
     max_gap_s: float = 2.
     association_gap_s: float = 2.
     association_iou: float = .30

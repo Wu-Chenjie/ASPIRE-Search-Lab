@@ -27,7 +27,7 @@ def scene(out, negative, layout="original", performance="legacy", *, spec_path=D
     cfg = json.loads((out / "runtime.json").read_text())
     cfg.update(research_planner="racer_ros2", native_frame_source="mapper_observation",
                racer_planning_scale=.85, racer_flight_limits=[.7, 3.], control_timing_diagnostics=True,
-               bootstrap_altitudes=[2.2], layout=layout, performance_profile=performance)
+               bootstrap_altitudes=[1.75, 2.65, 2.2], layout=layout, performance_profile=performance)
     if performance != "legacy":
         cfg.update(motion_limits=dict(speed=1., acceleration=1.2, jerk=4., yaw_rate=.9),
                    racer_planning_limits=dict(speed=.8, acceleration=.95, jerk=4., yaw_rate=.75),

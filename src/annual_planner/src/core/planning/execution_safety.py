@@ -159,13 +159,17 @@ class ExecutionCorridor:
         self.relaxed_sitl = relaxed_sitl or frontier_sitl
 
     def box_safe(self, low, high):
-        low, high = np.asarray(low)-self.margin, np.asarray(high)+self.margin
+        raw_low, raw_high = np.asarray(low), np.asarray(high)
+        low, high = raw_low - self.margin, raw_high + self.margin
         m = self.runtime
         if low[2] < m.flight_limits[0] or high[2] > m.flight_limits[1]: return False
-        # Native inflation bit 4 encodes the 0.60 m cubic kernel; ignore it here so
-        # unknown/occupied cells still block strictly while m.obstacle_tree checks
-        # the physical ellipsoid + margin without double-stacking inflation.
+        # Unknown and occupied cells block across the full tracking tube.
         if not self.native.box_safe(low, high, ignore_inflation=True): return False
+        # In strict mode, also enforce native obstacle inflation (bit 4) on the
+        # reference AABB so native-only obstacles block before VoxelMap updates
+        # without double-stacking margin onto native's 0.60 m cubic kernel.
+        if not self.relaxed_sitl and not self.native.box_safe(raw_low, raw_high, ignore_inflation=False):
+            return False
         # Conservative Minkowski test between the enclosing reference AABB
         # (including tracking tube) and every occupied/unknown voxel box.
         center, half = (low+high)/2, (high-low)/2
@@ -193,6 +197,10 @@ class ExecutionCorridor:
 
     def safe_curve(self, curve, start=0.):
         if not 0 <= start <= curve.duration: return False
+        if self.relaxed_sitl and not self.frontier_sitl:
+            endpoint = curve.sample(curve.duration)[0]
+            if not ExecutionCorridor(self.runtime, self.native, self.margin).box_safe(endpoint, endpoint):
+                return False
 
         def span(c,lo,hi,T,depth=0):
             low,high=polynomial_box(c,lo,hi)

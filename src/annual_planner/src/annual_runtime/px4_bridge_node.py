@@ -106,7 +106,8 @@ class PX4Bridge(Node):
             self.pending_position = None; return
         if (self.origin is not None and self.attitude_reset is not None and
                 message.quat_reset_counter != self.attitude_reset):
-            self.get_logger().warning('Attitude quaternion reset observed; resetting attitude history buffer', throttle_duration_sec=5.)
+            if getattr(self, '_logger', None) is not None:
+                self.get_logger().warning('Attitude quaternion reset observed; resetting attitude history buffer', throttle_duration_sec=5.)
         if self.attitude_reset != message.quat_reset_counter:
             self.attitude_reset_time = message.timestamp_sample*1e-6
             self.attitude_history = PoseHistory()

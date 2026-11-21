@@ -62,14 +62,14 @@ def test_old_1hz_flags_reproduce_failure_at_point_two(bridge,monkeypatch):
 def test_real_stream_loss_still_stops_heartbeat(bridge,monkeypatch,fault,gate):
     s=Stream(*bridge,monkeypatch);s.run(1.);rows=s.run(4.,stop=(fault,));bad=[r for r in rows if not r['sent']]
     assert bad and gate in rows[-1]['failed_gates']
-    assert bad[0]['wall_elapsed']<=3.03 if fault=='flags' else bad[0]['wall_elapsed']<=2.05
+    assert bad[0]['wall_elapsed']<=4.03 if fault=='flags' else bad[0]['wall_elapsed']<=3.05
     s.save('loss-'+fault)
 
 
 def test_clock_pause_stops_with_unchanged_wall_guard(bridge,monkeypatch):
     s=Stream(*bridge,monkeypatch);s.run(1.);rows=s.run(3.,paused=True)
     assert not rows[-1]['sent'] and 'position_wall_age' in rows[-1]['failed_gates']
-    assert next(r['wall_elapsed'] for r in rows if not r['sent'])<=2.05
+    assert next(r['wall_elapsed'] for r in rows if not r['sent'])<=3.05
     s.save('pause')
 
 

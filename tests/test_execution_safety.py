@@ -91,12 +91,9 @@ def test_capture_bearing_changes_only_brake_yaw_and_retains_original_c2_boundary
 def test_native_only_inflation_and_unknown_remain_blocking():
     runtime,native=maps(); curve=recorded_curve(); corridor=ExecutionCorridor(runtime,native)
     endpoint=runtime.indices(curve.sample(curve.duration)[0])
-    for value in (0,2,4,6):
+    for value in (0,2,4,5,6):
         native.state[tuple(endpoint)]=value
         assert not corridor.safe_curve(curve)
-    # Bit-4 inflation (5 = free + inflated) does not stack on physical tree clearance.
-    native.state[tuple(endpoint)]=5
-    assert corridor.safe_curve(curve)
     native.state[tuple(endpoint)]=1
     assert corridor.safe_curve(curve)
     runtime.state[tuple(endpoint)]=-1;runtime.rebuild()
@@ -172,7 +169,7 @@ def test_sitl_corridor_relaxes_inflation_only_while_moving():
     assert middle != endpoint
 
     native.state[middle] = 5
-    assert strict.safe_curve(curve)
+    assert not strict.safe_curve(curve)
     assert relaxed.safe_curve(curve)
     for blocked in (0, 2, 4, 6):
         native.state[middle] = blocked
@@ -188,7 +185,7 @@ def test_sitl_corridor_relaxes_inflation_only_while_moving():
     native.state[endpoint] = 5
     final_position = curve.sample(curve.duration)[0]
     assert relaxed.box_safe(final_position, final_position)
-    assert strict.safe_curve(curve) and relaxed.safe_curve(curve)
+    assert not strict.safe_curve(curve) and not relaxed.safe_curve(curve)
     native.state[endpoint] = 2
     assert not strict.safe_curve(curve) and not relaxed.safe_curve(curve)
 
@@ -211,7 +208,11 @@ def test_observed_corridor_preserves_sitl_inflation_and_endpoint_policy(profile)
     assert traced.box_safe(middle, middle)
     endpoint = curve.sample(curve.duration)[0]
     native.state[tuple(runtime.indices(endpoint))] = 5
-    assert base.safe_curve(curve) and traced.safe_curve(curve)
+    if profile == 'frontier':
+        assert base.safe_curve(curve) and traced.safe_curve(curve)
+    else:
+        assert not base.safe_curve(curve)
+        assert not traced.safe_curve(curve)
     native.state[tuple(runtime.indices(endpoint))] = 2
     assert not base.safe_curve(curve)
     assert traced.safe_curve(curve) == base.safe_curve(curve)

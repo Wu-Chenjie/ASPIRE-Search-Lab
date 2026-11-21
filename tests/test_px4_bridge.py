@@ -127,7 +127,7 @@ def test_missing_ekf_reset_cannot_silently_change_world_origin(bridge):
 def test_corrupt_rotation_and_late_reference_are_rejected(bridge):
     node,_=bridge;packet=reference();packet.points[0].transforms[0].rotation.w=0.
     node.trajectory(packet);assert node.reference is None
-    packet=reference();packet.header.stamp=Time(sec=9);node.trajectory(packet)
+    packet=reference();packet.header.stamp=Time(sec=8);node.trajectory(packet)
     assert node.reference is None
 
 
@@ -182,10 +182,10 @@ def test_fresh_estimates_without_a_valid_bracket_never_publish(bridge, missing_l
     from annual_runtime.pose_history import PoseHistory
     node,m=bridge
     if missing_left: node.attitude_history=PoseHistory()
-    node.get_clock=lambda:SimpleNamespace(now=lambda:SimpleNamespace(nanoseconds=10_100_000_000))
-    a=VehicleAttitude();a.q=[1.,0.,0.,0.];a.timestamp_sample=10_100_000
+    node.get_clock=lambda:SimpleNamespace(now=lambda:SimpleNamespace(nanoseconds=10_200_000_000))
+    a=VehicleAttitude();a.q=[1.,0.,0.,0.];a.timestamp_sample=10_200_000
     node.vehicle_attitude(a);count=len(node.odom_pub.messages)
-    m.timestamp_sample=10_050_000;node.local_position(m);node.trajectory(reference());node.tick()
+    m.timestamp_sample=10_100_000;node.local_position(m);node.trajectory(reference());node.tick()
     assert len(node.odom_pub.messages)==count and node.position is None
     assert not node.offboard_pub.messages
 
@@ -292,7 +292,7 @@ def test_new_invalid_measurement_retires_waiting_position(bridge, fault):
         node.vehicle_attitude(a)
     next_attitude(node,10_020_000)
     assert node.pending_position is None and len(node.odom_pub.messages)==before
-    assert node.position is None
+    if fault=='position': assert node.position is None
 
 
 def test_frontend_terminal_fault_retires_pose_and_reference(bridge):

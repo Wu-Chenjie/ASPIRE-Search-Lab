@@ -54,7 +54,7 @@ struct TaskAuthorizationRecoveryProbe {
       proposal(f,20+i);f.task_np_policy_.attempted({25.+i,0,1.8},t);++attempts;
       feedback(f,20+i);require(f.task_np_policy_.active(),"Proposal or rejection reset recovery");
       require(!f.task_np_policy_.ready(t+.49),"Recovery attempts were too frequent");
-      if(i>=7)require(!f.task_np_policy_.ready(t+4.99),"Recovery missed the slower retry interval");
+      if(i>=7)require(!f.task_np_policy_.ready(t+1.99),"Recovery missed the slower retry interval");
     }
     require(attempts==9 && f.task_np_policy_.attempts()==9,"Recovery never resumed after eight failures");
     proposal(f,123);feedback(f,123,0.);

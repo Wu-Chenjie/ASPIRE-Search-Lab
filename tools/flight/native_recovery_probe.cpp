@@ -272,8 +272,12 @@ int main(int argc,char** argv) {
       require(std::abs(goal.z()-root.z())<1e-9 && (goal-root).norm()<=.9001,"unbounded observation fixture goal");
       require(manager->planTrajToView(root,zero,zero,zero,goal,gy)==SUCCEED,"native bearing observation trajectory failed");
       check_curve(manager);export_evidence(manager,output);
+      for(int u=1;u<manager->task_bearing_policy_.per_cue_limit;++u){
+        goal=original;gy=original_yaw;
+        require(manager->taskBearingRerank(root,zero,zero,goal,gy),"per-cue bearing budget ended early");
+      }
       goal=original;gy=original_yaw;
-      require(!manager->taskBearingRerank(root,zero,zero,goal,gy) && goal.isApprox(original),"forced original exploration not preserved");
+      require(!manager->taskBearingRerank(root,zero,zero,goal,gy) && goal.isApprox(original),"exhausted cue budget did not fall back to original exploration");
       manager->task_bearing_policy_=racer_task::BearingBias();manager->task_bearing_policy_.enabled=true;
       packet[3]=now-21.;packet[15]=now-22.;require(!manager->task_bearing_policy_.receive(packet,now),"expired packet accepted");
       require(!manager->taskBearingRerank(root,zero,zero,goal,gy) && goal.isApprox(original),"expired evidence changed original goal");
@@ -360,7 +364,7 @@ int main(int argc,char** argv) {
       const double now=3.+i*.02;if(!policy.ready(now))continue;
       const int index=racer_task::selectGoal(policy,candidates,yaws,point(root),now,[&](const Point& p){return measured(map,p);});
       if(index<0){policy.hold(now);continue;}
-      require(attempts<8 || now-last_attempt>=5.-1e-9,"Native recovery bypassed the slower retry interval");
+      require(attempts<8 || now-last_attempt>=2.-1e-9,"Native recovery bypassed the slower retry interval");
       last_attempt=now;
       const auto goal=eigen(candidates[index]);policy.attempted(candidates[index],now);++attempts;
       int result=manager->planTrajToView(root,zero,zero,zero,goal,yaws[index]);
@@ -370,7 +374,7 @@ int main(int argc,char** argv) {
     }
     require(policy.active(),"Proposal falsely counted as activation");
     if(mode=="blocked") {
-      require(attempts>8 && attempts<=28 && successes==0 && manager->planner_manager_->local_data_.traj_id_==0,
+      require(attempts>8 && attempts<=58 && successes==0 && manager->planner_manager_->local_data_.traj_id_==0,
               "Unreachable pool did not retry at the expected rate without a trajectory");
       std::cout<<"PASS_BLOCKED initial_failures=3 attempts="<<attempts<<" callbacks=5000 curves=0 retry_backoff=1\n";
     } else {

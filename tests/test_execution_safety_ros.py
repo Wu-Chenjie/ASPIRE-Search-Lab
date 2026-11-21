@@ -650,7 +650,7 @@ def test_stopped_reference_waits_without_fabricating_observation(executor):
     assert 'replan_deadline' not in node.observation_failure
     failure = dict(node.observation_failure)
     executor.clock[0] += 8_000_000_000
-    set_odometry(executor,node.ref);node.safety_stamp=executor.now();snapshot(executor,sequence=200)
+    set_odometry(executor,node.ref);node.safety_stamp=executor.now();snapshot(executor,sequence=400)
     node.check_execution_safety(executor.now())
     assert node.safety_fault is None and node.safety_hold_valid
     assert node.observation_failure == failure and node.observation_proof is None

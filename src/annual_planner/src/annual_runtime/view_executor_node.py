@@ -87,7 +87,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         # collision envelope from one height. Observe it at a lower hover first,
         # then scan at the requested start height. Both maps use real depth.
         levels=json.loads(self.declare_parameter('bootstrap_altitudes','[]').value)
-        self.bootstrap_heights=levels or [float(self.ref[2])]
+        self.bootstrap_heights=levels or [max(.7,self.ref[2]-.45),float(self.ref[2])]
         if (not 1<=len(self.bootstrap_heights)<=12 or not np.isfinite(self.bootstrap_heights).all()
                 or min(self.bootstrap_heights)<.7 or abs(self.bootstrap_heights[-1]-self.bootstrap_target[2])>1e-6):
             raise ValueError('Invalid declared bootstrap scan heights')
@@ -293,7 +293,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 if cancel_waiting:self._static_cancel_retire(t,geometry)
                 if (collision_waiting and t-self.terminal_hold_since>=.15 and
                         t-self.stamps[self.id]>=0. and tracking_error<=.15 and
-                        self.actual_speed<=.10 and self.actual_yaw_rate<=.20 and
+                        self.actual_speed<=.05 and self.actual_yaw_rate<=.20 and
                         abs(wrap(self.goal_yaw-self.actual_yaw))<=.20):
                     self.collision_stop_receipt=dict(self.collision_stop_request,**geometry,checked_at=t,
                         odometry_stamp=self.stamps[self.id],actual_speed_m_s=self.actual_speed,
@@ -341,6 +341,9 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                         measured_bearing=bearing)
                 except ValueError as error:
                     refusal = str(error)
+                if elapsed() > EXECUTION_DELAY_BUDGET:
+                    self._decline_delayed_review_stop(t, corridor, started)
+                    return
                 if t-self.native_safety.stamp > MAX_MAP_AGE or t-self.safety_stamp > MAX_MAP_AGE:
                     refusal = 'elective_stop_requires_fresh_maps'
                     fresh = False
@@ -382,6 +385,9 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         stopped_yaw = stopped.sample(stopped.duration)[3]
         stopped_trajectory = stopped.to_dict()
         certificate=self.save_safety_certificate('brake',self.curve,self.curve_time,stopped)
+        if elective_stop is not None and elapsed() > EXECUTION_DELAY_BUDGET:
+            self._decline_delayed_review_stop(t, corridor, started)
+            return
         self.curve=stopped; self.path=stopped_path; self.goal_yaw=stopped_yaw
         self.safety_hold_valid = True
         self.terminal_hold_since=None; self.terminal_hold_status=None; self.observation_failure=None
@@ -732,7 +738,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 else:
                     switch_ready=(self.pending and self.curve and next_time >= self.pending['handoff']['trajectory_time'] and
                             self.curve_time <= self.pending['handoff']['trajectory_time'] and
-                            error < .1 and (single or fused_execution_lease(self.peers, self.id, self.pending['token'], t, self.seeds)))
+                            error < .1 and fused_execution_lease(self.peers, self.id, self.pending['token'], t, self.seeds))
                     if switch_ready and self.safety_enabled:
                         switch_ready=self._c2_transition(self.pending,next_time,t,safety_cycle_started)
                         if not self.safety_hold_valid:

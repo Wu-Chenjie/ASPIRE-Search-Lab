@@ -24,12 +24,12 @@ def test_disjoint_masks_survive_identical_boxes_and_localize_by_source_index():
 
 def test_lost_recovery_does_not_fill_confirmation_gap_or_force_ambiguity():
     t=PresenceTracker();d=detection()
-    for s in (1,1.2):put(t,s,[d])
+    for s in (1,1.2,1.4):put(t,s,[d])
     assert t.at(1).visual_state=='person_candidate'
-    put(t,1.4,[]);row=put(t,1.6,[d])[0]
-    assert row['id']==1 and row['visual_state']=='visually_confirmed' and row['rgb_support_captures']==3
-    before=t.at(1).captures;put(t,1.6,[d]);assert t.at(1).captures==before
-    put(t,1.8,[]);rows=put(t,2.0,[detection(25),detection(55)])
+    put(t,1.6,[]);row=put(t,1.8,[d])[0]
+    assert row['id']==1 and row['visual_state']=='visually_confirmed' and row['rgb_support_captures']==4
+    before=t.at(1).captures;put(t,1.8,[d]);assert t.at(1).captures==before
+    put(t,2.0,[]);rows=put(t,2.2,[detection(25),detection(55)])
     assert {r['id'] for r in rows}=={2,3}
 
 def test_retirement_keeps_facts_and_never_reuses_source_ids():
