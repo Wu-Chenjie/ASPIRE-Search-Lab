@@ -23,7 +23,7 @@ def join_brake(prefix, brake, method):
     duration = brake.duration
     end_yaw = float(sum(brake.yaw_coefficients))
     return ContinuousTrajectory(
-        np.r_[prefix.durations, duration], np.concatenate([prefix.coefficients, brake.coefficients]),
+        np.r_[prefix.durations, brake.durations], np.concatenate([prefix.coefficients, brake.coefficients]),
         prefix.yaw, end_yaw-prefix.yaw, method,
         yaw_durations=np.r_[prefix.yaw_durations, duration],
         yaw_segments=np.vstack([prefix.yaw_segments, brake.yaw_coefficients]))
@@ -115,7 +115,10 @@ def native_prefix(curve, end):
         result[-1]*=(last/durations[i])**np.arange(6).reshape((6,)+(1,)*(result.ndim-2))
         return np.r_[durations[:i],last],result
     durations,coefficients=cut(curve.durations,curve.coefficients)
-    yd,yc=cut(curve.yaw_durations,curve.yaw_segments)
+    if curve.yaw_durations is None:
+        yd,yc=cut(np.array([curve.duration]),curve.yaw_coefficients[None,:])
+    else:
+        yd,yc=cut(curve.yaw_durations,curve.yaw_segments)
     return ContinuousTrajectory(durations,coefficients,curve.yaw,float(curve.yaw_sample(end)-curve.yaw),
         'native_racer_bspline_prefix',yaw_durations=yd,yaw_segments=yc)
 

@@ -228,6 +228,33 @@ def _yaw_toward_capture(coefficients, duration, bearing, max_rate):
     return coefficients
 
 
+def _brake_shapes(position, velocity, acceleration, limits):
+    for duration in BRAKE_DURATIONS:
+        yield [duration], [stopping_polynomial(position, velocity, acceleration, duration)]
+
+    # Ramp acceleration to a plateau, hold it, then ramp it to zero.
+    # For three equal spans dt, integrating acceleration gives the plateau
+    # -v/(2*dt) - a/4. Bound its magnitude and both ramp jerks before
+    # subjecting the resulting curve to the usual exact admission checks.
+    speed = np.linalg.norm(velocity)
+    ramp_term = 1.25 * np.linalg.norm(acceleration)
+    dt = max(2 * speed / (3 * limits.acceleration),
+             (ramp_term + math.sqrt(ramp_term**2 + 2 * limits.jerk * speed)) / (2 * limits.jerk))
+    if not 0 < 3 * dt <= BRAKE_DURATIONS[-1]:
+        return
+    plateau = -velocity / (2 * dt) - acceleration / 4
+    spans = []
+    for end_acceleration in (plateau, plateau, np.zeros(3)):
+        coefficients = np.zeros((6, 3))
+        coefficients[:4] = (position, velocity * dt, acceleration * dt**2 / 2,
+                            (end_acceleration - acceleration) * dt**2 / 6)
+        spans.append(coefficients)
+        position = coefficients.sum(axis=0)
+        velocity = velocity + (acceleration + end_acceleration) * dt / 2
+        acceleration = end_acceleration
+    yield [dt, dt, dt], spans
+
+
 def certified_brake(curve, progress, corridor, *, accept_endpoint=None, measured_bearing=None):
     """Stop from the exact current reference jet, without a reference jump.
 
@@ -239,13 +266,13 @@ def certified_brake(curve, progress, corridor, *, accept_endpoint=None, measured
     p,v,a,h,r=curve.sample(progress); alpha=curve.yaw_acceleration(progress)
     limits=motion_limits()
     prefix = None
-    for T in BRAKE_DURATIONS:
-        c = stopping_polynomial(p, v, a, T)
+    for durations, coefficients in _brake_shapes(p, v, a, limits):
+        T = sum(durations)
         y = stopping_polynomial(h, r, alpha, T)
         if measured_bearing is not None:
             y=_yaw_toward_capture(y,T,measured_bearing,limits.yaw_rate)
         try:
-            brake=ContinuousTrajectory([T],[c],h,float(sum(y)-h),'measured_map_C2_brake',yaw_coefficients=y)
+            brake=ContinuousTrajectory(durations,coefficients,h,float(sum(y)-h),'measured_map_C2_brake',yaw_coefficients=y)
             # Constructor checks geometry/C2; retain the exact dynamics gate.
             # Packet statistics/serialization are not admission checks.
             if not limits.accepts(brake): continue

@@ -73,6 +73,51 @@ def test_actual_id9_new_hits_invalidate_brake_and_allow_early_c2_stop():
     assert stopped.duration<curve.duration
 
 
+def test_depot07_new_hit_can_stop_from_the_recorded_id22_jet(monkeypatch):
+    from core.planning.bspline_trajectory import BRAKE_DURATIONS, stopping_polynomial
+    from core.planning.motion_limits import motion_environment
+
+    monkeypatch.setenv('ANNUAL_MOTION_LIMITS', motion_environment(
+        {'motion_limits': dict(speed=1., acceleration=1.2, jerk=4., yaw_rate=.9)})['ANNUAL_MOTION_LIMITS'])
+    runtime = VoxelMap([[-1.84,-2.01,0.],[3.,3.,4.5]])
+    runtime.state[:] = 0
+    hit = runtime.indices([-.19,-.96,1.35])
+    runtime.state[tuple(hit)] = 1
+    runtime.rebuild()
+    native = NativeSafetyMap()
+    state = np.ones(runtime.shape, np.uint8)
+    state[tuple(slice(i-2,i+3) for i in hit)] = 5
+    state[tuple(hit)] = 6
+    native.ingest([1,132.752,1,.3,*runtime.origin,*runtime.shape,*state.ravel()])
+    corridor = ExecutionCorridor(runtime,native)
+
+    # Position, velocity and acceleration of the original spline at 2.90 s.
+    p = np.array([.48123153,.18497791,1.77934901])
+    v = np.array([.21480250,-.52434034,-.04247165])
+    a = np.array([.07456349,-.24901640,-.02528172])
+    progress = .2
+    c = np.zeros((6,3))
+    c[:3] = [p-v*progress+a*progress**2/2,v-a*progress,a/2]
+    original = ContinuousTrajectory([1.],[c],3.55,.02)
+    for duration in BRAKE_DURATIONS:
+        old = ContinuousTrajectory([duration],[stopping_polynomial(p,v,a,duration)],0.,0.)
+        assert not (motion_limits().accepts(old) and corridor.safe_curve(old))
+
+    stopped = certified_brake(original,progress,corridor)
+    assert len(stopped.durations) == 4 and motion_limits().accepts(stopped)
+    assert corridor.safe_curve(stopped,progress)
+    for before,after in zip(original.sample(progress),stopped.sample(progress)):
+        np.testing.assert_allclose(before,after,atol=1e-9)
+    assert abs(stopped.yaw_acceleration(progress)-original.yaw_acceleration(progress)) < 1e-9
+    rest = stopped.sample(stopped.duration)
+    np.testing.assert_allclose(rest[1:3],0.,atol=1e-9)
+    assert abs(rest[4])+abs(stopped.yaw_acceleration(stopped.duration)) < 1e-9
+    # A new occupied cell at the reference itself still blocks all stops.
+    native.state[tuple(runtime.indices(p))] = 6
+    with pytest.raises(ValueError,match='No certified C2 stop'):
+        certified_brake(original,progress,corridor)
+
+
 def test_capture_bearing_changes_only_brake_yaw_and_retains_original_c2_boundary():
     runtime,native=maps(); curve=recorded_curve(); corridor=ExecutionCorridor(runtime,native)
     progress=7.46

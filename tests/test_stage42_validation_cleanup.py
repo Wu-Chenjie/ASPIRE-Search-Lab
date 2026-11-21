@@ -20,10 +20,12 @@ def test_every_candidate_still_passes_dynamics_admission(monkeypatch):
     from test_execution_safety import recorded_curve,maps
     import core.planning.execution_safety as m
     curve=recorded_curve();runtime,native=maps();calls=[]
-    monkeypatch.setattr(m,'motion_limits',lambda:NS(accepts=lambda curve:calls.append(curve) or False))
+    limits = m.motion_limits()
+    monkeypatch.setattr(m,'motion_limits',lambda:NS(acceleration=limits.acceleration,jerk=limits.jerk,
+        accepts=lambda curve:calls.append(curve) or False))
     with pytest.raises(ValueError,match='No certified C2 stop'):
         m.certified_brake(curve,7.46,m.ExecutionCorridor(runtime,native))
-    assert len(calls)==10
+    assert len(calls)==11 and len(calls[-1].durations)==3
 
 def test_client_pre_stop_rejects_reused_pid_and_foreign_role(monkeypatch):
     import tools.flight.gazebo_shutdown as m
