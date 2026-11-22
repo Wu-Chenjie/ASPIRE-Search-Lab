@@ -253,6 +253,9 @@ def main():
             self.review_events=self.create_publisher(String,'/search/active_confirmation',10)
             self.presence_events=self.create_publisher(String,'/search/presence_events',30)
             self.last_ns=-1;self.processed=0;self.rejected=0
+            # Throughput accounting: frames refused at ingest (queue overflow) and
+            # frames skipped because a newer valid capture superseded them.
+            self.rgb_skipped_total=0;self.rgb_ingest_dropped_total=0
             self.output=self.create_publisher(String,'/search/tracks',10);self.markers=self.create_publisher(MarkerArray,'/search/targets',10)
             self.semantic_output=self.create_publisher(String,'/search/semantic_candidates',10)
             self.annotated_output=self.create_publisher(Image,'/search/detection_image',2)
@@ -299,13 +302,17 @@ def main():
                     del q[oldest]
                     if k == 'rgb':
                         del self.received_wall[oldest]
+                        self.rgb_ingest_dropped_total += 1
             if self.decoupled:self.input_event.set()
         def fresh_capture(self,ns):
             return capture_age_valid(ns,self.get_clock().now().nanoseconds,self.max_age)
         def publish_semantics(self,ns,frame,rows):
             if self.active_confirmation:self.tracker.semantic_memory.update(rows,ns*1e-9)
+            received_wall=self.received_wall.get(ns)
             report=dict(stamp_ns=ns,rgb_frame=frame,position_frame='map',backend=self.backend,candidates=rows,
-                        inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],published_sim_ns=self.get_clock().now().nanoseconds)
+                        inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],published_sim_ns=self.get_clock().now().nanoseconds,
+                        received_wall_s=received_wall,
+                        first_semantic_latency_wall_s=None if received_wall is None else time.monotonic()-received_wall)
             if self.active_confirmation:report['semantic_memory']=self.tracker.semantic_memory.candidates
             msg=String();msg.data=json.dumps(report)
             self.semantic_output.publish(msg)
@@ -337,6 +344,7 @@ def main():
                 rgb_received_total=self.rgb_received_total,rgb_consumed_total=self.rgb_consumed_total,
                 process_calls=self.process_calls,latest_rgb_received_stamp_ns=self.latest_rgb_received_ns,
                 last_rgb_consumed_stamp_ns=self.last_rgb_consumed_ns,rgb_queue_length=len(self.queues['rgb']),
+                rgb_skipped_total=self.rgb_skipped_total,rgb_ingest_dropped_total=self.rgb_ingest_dropped_total,
                 callback_started_sim_ns=self.callback_started_ns,callback_started_wall=self.callback_started_wall,
                 callback_elapsed_wall_s=time.monotonic()-self.callback_started_wall if self.callback_started_wall is not None else None,
                 previous_callback_sim_gap_s=self.previous_callback_sim_gap,previous_callback_wall_gap_s=self.previous_callback_wall_gap,

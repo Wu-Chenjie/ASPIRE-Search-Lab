@@ -20,6 +20,8 @@ def project_depth_message(message, intrinsics, stride=8, radius=4.5):
 
 
 def _project_depth(image, intrinsics, stride, radius, scale):
+    if not isinstance(stride, int) or stride < 1:
+        raise ValueError('Invalid depth projection stride')
     z = np.asarray(image)[::stride, ::stride].astype(float, copy=False)
     if scale != 1.:
         z *= scale

@@ -25,3 +25,6 @@ venv/
 *.onnx
 *.pax.tar
 *.jsonl
+
+# ultralytics settings fallback when HOME is not writable
+Ultralytics/

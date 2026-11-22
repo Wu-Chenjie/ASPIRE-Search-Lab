@@ -134,6 +134,27 @@ def select_presence_capture(node, queues, history, now_ns):
     return ns, None, max(paired, default=None)
 
 
+def discard_superseded_rgb(node,ns):
+    """Newest-first sampling: retire un-observed older frames instead of queueing them.
+
+    A capture older than the selected one can only be observed later, which the
+    tracker already rejects. Frames the tracker did observe stay while their depth
+    pass may still be pending, then retire silently once they leave the pairing
+    window so they are not counted twice.
+    """
+    frames=node.tracker.frames
+    horizon=ns-int(float(getattr(node,'max_age',1.5))*1e9)
+    with node.input_lock:
+        newer=[s for s in node.queues['rgb'] if s<ns]
+        dead=[s for s in newer if s not in frames]
+        expired=[s for s in newer if s in frames and s<horizon]
+        for stale in dead+expired:
+            del node.queues['rgb'][stale]
+            getattr(node,'received_wall',{}).pop(stale,None)
+        node.rgb_skipped_total=getattr(node,'rgb_skipped_total',0)+len(dead)
+    return len(dead)+len(expired)
+
+
 def process_presence(node,queues,history):
     from rclpy.time import Time
     from tf2_ros import TransformException
@@ -144,6 +165,8 @@ def process_presence(node,queues,history):
     tracker.expire(now)
     # Complete a paired capture first; otherwise RGB does not depend on depth/TF.
     ns, geo_ns, stale_pair_ns = select_presence_capture(node, queues, history, now_ns)
+    if ns is not None and discard_superseded_rgb(node,ns):
+        queues=snapshot_inputs(node)[0]
     geo_pair=None
     prepared=None
     preparation_error=None

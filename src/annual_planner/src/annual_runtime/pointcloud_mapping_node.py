@@ -33,6 +33,12 @@ class PointCloudMapper(Node):
         self.publish_native_dds=self.declare_parameter('publish_native_dds',False).value
         self.session = uuid.uuid4().hex
         self.id = int(self.declare_parameter('drone_id', 0).value)
+        # Depth sampling density: 8 keeps the legacy map rate, 4 resolves narrow obstacles.
+        stride = int(self.declare_parameter('projection_stride', 8).value)
+        if not 1 <= stride <= 16:
+            self.get_logger().warning('Invalid depth projection stride, using 8')
+            stride = 8
+        self.projection_stride = stride
         timing_dir=self.declare_parameter('control_timing_dir','').value
         self.map_timing=(ObservationLog(timing_dir,self.id,'depth-map') if timing_dir and
                          os.environ.get('ASPIRE_SAFETY_MAP_TIMING')=='1' else None)
@@ -114,7 +120,7 @@ class PointCloudMapper(Node):
         if self.calibration is None or (self.calibration.width, self.calibration.height) != (m.width, m.height):
             return
         try:
-            points, hits = project_depth_message(m, self.calibration.k)
+            points, hits = project_depth_message(m, self.calibration.k, self.projection_stride)
         except ValueError as error:
             self.get_logger().error(str(error)); return
         n = len(points)
