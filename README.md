@@ -46,6 +46,17 @@ ASPIRE_CAMERA_FPS=60 ASPIRE_MIN_RGB_PERIOD_S=0 ASPIRE_SIM_REAL_TIME_FACTOR=1 \
 
 启动日志在 `$run/launch.log`，生成的场景在 `$run/scene/`，退出码在 `$run/exit-code.txt`。验收查看 `$run/run/result.json`、`telemetry.jsonl` 和 `flight/0/events.jsonl`，核对场景加载、RGB-D 配对、人员观测进入原生注册表，以及轨迹激活和到达后的新观测。
 
+### Depot 07 人员掩膜评测场景
+
+可从原始 Depot 07 资产生成独立的相机评测场景。南北两区各布置一名倒地人员和一名箱体后的站立人员。相机路径含 25 段扫拍，每段 125 个位姿，前五段用于校准，后 20 段用于测试。
+
+```sh
+PYTHONPATH=src python3 -m tools.scenarios.depot07_labelled \
+  --assets /opt/aspire/assets/depot07-20261118 --output /tmp/depot07-labelled-scene
+```
+
+在配置好的 Gazebo 环境中设置 `GZ_SIM_RESOURCE_PATH` 为资产包的 `models` 目录。`scene.sdf` 内的相机提供 `/labelled/rgbd/image` 和 `/labelled/rgbd/depth_image`。评测器按相同时间戳读取 `/labelled/truth/labels_map`。该图的标签 11、21 对应倒地人员，12、22 对应站立人员，0 对应背景。`scene-truth.json` 提供模型摆位和用于采集的相机轨迹。使用遮挡比例分组时需要结合当帧可见面积及人物独立投影面积。
+
 ## D 准备场景
 
 在仓库根目录使用已安装 [Python 依赖](requirements.txt) 的环境运行。复制房间 JSON 即可修改地图边界、命名起点、遮挡物、墙体和单个人物的初始姿态。下面三条命令只生成场景，各需一个新的输出目录。
