@@ -64,7 +64,7 @@ python3 -m tools.flight.scene_bundle --spec "$batch/market/scene-spec.json" --pe
 
 如果 Blender 和 Gazebo 分在两台机器，可将 `market/scene-spec.json` 与同级 `models/` 复制到 Linux 联调机，再在那里执行最后一条打包命令。这使相机内参和运行机使用同一数学库生成，满足现有评分器的逐位一致检查。把 `$batch/hidden` 交给下方飞行入口的 `--prepared`，运行时传入 `--vertical-samples --rviz`。使用同一地图和新的输出目录，增加 `--layout visible` 可从加工间启动做可见对照，增加 `--negative` 可生成同场无人对照。联调机加载准备好的包无需安装 Blender。
 
-Blender 打开完整建筑，默认相机位于拍卖厅内 1.85 米高处。切换到同一工程的 `A–A / building section` 场景可查看阶梯剖切：切面经过南门滑槽出口和北装卸井，保留远侧屋架。Gazebo 使用完整建筑。几何验收读取导出的碰撞网格，按 0.50 米网格追踪坡道、竖井、桥面、楼梯与滑槽，沿途保留至少 0.60 米净空。离线报告 `offline-views.json` 含路线、入口值班灯视线及逐人的遮挡与观察位。验收检查人物、衣物与胶靴的落地支撑及穿模。可见比例按人物外表面的三角形面积采样，表示能避开建筑遮挡并落入相机视野的点占比；入口遮挡检查包含所有朝向。建筑和道具由脚本生成，人物使用仓库固定的 Marina Kollmitz / MakeHuman 模型。[Blender 场景源文件](tools/scenarios/quay_market) · [资产来源](licenses/NOTICE.md)
+Blender 打开完整建筑，默认相机位于拍卖厅内 1.85 米高处。相机 05 至 08 分别展示制冰间坐姿、摊台下侧卧、摊台旁护头和楼梯口单膝支撑。切换到同一工程的 `A–A / building section` 场景可查看阶梯剖切：切面经过南门滑槽出口和北装卸井，保留远侧屋架。Gazebo 使用完整建筑。几何验收读取导出的碰撞网格，按 0.50 米网格追踪坡道、竖井、桥面、楼梯与滑槽，沿途保留至少 0.60 米净空。离线报告 `offline-views.json` 含路线、入口值班灯视线及逐人的遮挡与观察位。验收检查人物、衣物与胶靴的落地支撑及穿模。可见比例按人物外表面的三角形面积采样，表示能避开建筑遮挡并落入相机视野的点占比。入口遮挡检查也计算视野以外的点。建筑和道具由脚本生成，人物使用仓库固定的 Marina Kollmitz / MakeHuman 模型。[Blender 场景源文件](tools/scenarios/quay_market) · [资产来源](licenses/NOTICE.md)
 
 ## A 加载并运行
 
