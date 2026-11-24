@@ -30,6 +30,7 @@ class Node:
         self.queues={k:{} for k in ('rgb','depth','ri','di')}
         self.tracker=Tracker();self.input_lock=threading.RLock();self.received_wall={}
         self.min_rgb_period_ns=period_ns;self.rgb_skipped_total=0;self.rgb_ingest_dropped_total=0
+        self.frame_of={}
 
 def quantiles(values):
     return dict(zip(('p50','p95','p99'),np.quantile(values,[.5,.95,.99]).tolist())) if values else {}
@@ -95,7 +96,6 @@ def main():
             next_at+=period
             if next_at<now:next_at=now+period
             wake.set()
-    node.frame_of={}
     samples=[]
     def consume():
         while not stop.is_set():

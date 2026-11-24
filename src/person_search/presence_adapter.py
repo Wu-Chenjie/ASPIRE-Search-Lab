@@ -141,13 +141,16 @@ def discard_superseded_rgb(node,ns):
     tracker already rejects. Frames the tracker did observe stay while their depth
     pass may still be pending, then retire silently once they leave the pairing
     window so they are not counted twice.
+
+    The caller must be the single inference thread: only then can a just
+    selected capture not be retired while it is being inferred.
     """
     frames=node.tracker.frames
     horizon=ns-int(float(getattr(node,'max_age',1.5))*1e9)
     with node.input_lock:
-        newer=[s for s in node.queues['rgb'] if s<ns]
-        dead=[s for s in newer if s not in frames]
-        expired=[s for s in newer if s in frames and s<horizon]
+        older=[s for s in node.queues['rgb'] if s<ns]
+        dead=[s for s in older if s not in frames]
+        expired=[s for s in older if s in frames and s<horizon]
         for stale in dead+expired:
             del node.queues['rgb'][stale]
             getattr(node,'received_wall',{}).pop(stale,None)
