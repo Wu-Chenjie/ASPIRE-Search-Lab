@@ -10,6 +10,7 @@ from geometry_msgs.msg import TransformStamped
 from tf2_msgs.msg import TFMessage
 from rosgraph_msgs.msg import Clock
 from std_msgs.msg import String,Float64MultiArray
+from aspire_interfaces import topics
 from visualization_msgs.msg import Marker,MarkerArray
 
 @pytest.mark.parametrize('pace',['original_fast','semantic'])
@@ -34,6 +35,8 @@ main()
     pubs={k:node.create_publisher(c,t,qos_profile_sensor_data) for k,c,t in [('rgb',Image,'/drone_0/rgb/image'),('depth',Image,'/drone_0/depth/image'),('ri',CameraInfo,'/drone_0/rgb/camera_info'),('di',CameraInfo,'/drone_0/depth/camera_info')]}
     clockpub=node.create_publisher(Clock,'/clock',10);tfpub=node.create_publisher(TFMessage,'/tf_static',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
     reports=[];packets=[];markers=[];events=[];registry=[];timings=[];semantics=[]
+    masks=[]
+    node.create_subscription(String,topics.PERSON_MASKS,lambda m:masks.append(json.loads(m.data)),100)
     node.create_subscription(String,'/search/semantic_candidates',lambda m:semantics.append(json.loads(m.data)),100)
     node.create_subscription(String,'/search/perception_timing',lambda m:timings.append(json.loads(m.data)),100)
     node.create_subscription(String,'/search/tracks',lambda m:reports.append(json.loads(m.data)),30)
@@ -122,6 +125,13 @@ main()
             assert timing[0] > 0 and timing[1] >= 0
             assert first_by_stamp.setdefault(msg['stamp_ns'], timing) == timing
         assert 0 < len(first_by_stamp) < len(semantics)
+        mask_stamps = [row['stamp_ns'] for row in masks]
+        assert len(mask_stamps) == len(set(mask_stamps)) > 0
+        publications = [r for r in timings if r['status'] == 'person_masks_published']
+        assert {r['stamp_ns'] for r in publications} == set(mask_stamps)
+        assert all(r['mask_publish_latency_wall_s'] == r['mask_published_wall_s'] - r['received_wall_s']
+                   and r['mask_publish_latency_wall_s'] >= 0 for r in publications)
+        assert all(len(row['instances']) == 1 and row['instances'][0]['track_id'] is not None for row in masks)
     finally:
         proc.terminate()
         try:proc.wait(timeout=5)

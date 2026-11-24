@@ -15,7 +15,7 @@ from .perception import PeopleDetector,candidates_from_cloud,cloud
 from .tracking import Tracker
 from .active_confirmation import review_execution_ready, review_pose
 from aspire_interfaces import topics
-from .segmentation import localize_masks
+from .segmentation import localize_masks, person_mask_packet
 from aspire_camera.rgbd_alignment import camera_uses_full_resolution,require_registered_pair,stamp_ns
 
 
@@ -292,6 +292,7 @@ def main():
             # frames skipped because a newer valid capture superseded them.
             self.rgb_skipped_total=0;self.rgb_ingest_dropped_total=0
             self.output=self.create_publisher(String,'/search/tracks',10);self.markers=self.create_publisher(MarkerArray,'/search/targets',10)
+            self.mask_output=self.create_publisher(String,topics.PERSON_MASKS,10)
             self.semantic_output=self.create_publisher(String,'/search/semantic_candidates',10)
             self.annotated_output=self.create_publisher(Image,'/search/detection_image',2)
             for key, kind, stream, channel in [('rgb', Image, 'rgb', 'image'), ('depth', Image, 'depth', 'image'),
@@ -374,7 +375,16 @@ def main():
                 np.savez_compressed(self.evidence_dir/name, **arrays)
             except (OSError, ValueError, TypeError) as error:
                 self.get_logger().warning(f'Perception snapshot write failed: {error}', throttle_duration_sec=5.)
-        def timing(self,ns,status,reason=None):
+        def publish_person_masks(self, ns, rgb, detections, associations):
+            packet = person_mask_packet(ns, rgb, detections, associations)
+            receipt = self.semantic_cache[ns][2]
+            self.mask_output.publish(String(data=json.dumps(packet)))
+            published = time.monotonic()
+            self.timing(ns, 'person_masks_published', received_wall_s=receipt.received_wall_s,
+                        mask_published_wall_s=published, mask_publish_latency_wall_s=published-receipt.received_wall_s,
+                        instance_count=len(packet['instances']))
+
+        def timing(self,ns,status,reason=None,**details):
             now=self.get_clock().now().nanoseconds
             receipt = self.rgb_receipts.get(ns)
             row=dict(stamp_ns=ns,now_ns=now,age_s=(now-ns)*1e-9,received_age_wall_s=time.monotonic()-receipt.received_wall_s if receipt else 0.,inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],status=status,reason=reason)
@@ -392,6 +402,7 @@ def main():
                     pose_latest_s=self.pose_history.samples[-1][0] if self.pose_history.samples else None,
                     selected_capture_pose_bracket_available=self.pose_history.brackets(ns*1e-9),
                     last_bearing_capture_ns=self.bearings.last_ns)
+            row.update(details)
             msg=String();msg.data=json.dumps(row);self.diagnostic_output.publish(msg)
             if self.evidence_dir:self.record_evidence(dict(kind='timing',**row))
         def detect_semantics(self,ns,rgb):
@@ -413,6 +424,8 @@ def main():
             finally:
                 with self.input_lock:self.inference_rgb_ns=None
             self.timing(ns,'inference_complete')
+            if not self.decoupled:
+                self.publish_person_masks(ns, rgb, detections, ((i, None) for i in range(len(detections))))
             if self.evidence_dir:
                 self.save_evidence(str(ns)+'-rgb-masks.npz',stamp_ns=ns,rgb=pixels,
                     masks=np.array([d.mask for d in detections],bool),boxes=np.array([d.box for d in detections]),scores=np.array([d.confidence for d in detections]))

@@ -230,6 +230,8 @@ def process_presence(node,queues,history):
                         publish_registry_observations(node,ns,processing)
                 if tracker.last_rgb_ns>previous_rgb:
                     node.rgb_consumed_total+=1;node.last_rgb_consumed_ns=tracker.last_rgb_ns
+                    node.publish_person_masks(ns, rgb, detections,
+                        ((row['raw_index'], row['track_id']) for row in tracker.frames[ns]))
                     node.timing(ns,'rgb_presence_consumed')
                 else:node.timing(ns,'rgb_presence_rejected','outside_original_capture_age_gate')
             node.last_semantic_ns=max(node.last_semantic_ns,ns)

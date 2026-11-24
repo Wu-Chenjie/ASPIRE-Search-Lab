@@ -12,6 +12,10 @@
 
 B 在 `/search/semantic_candidates` 中随每个采集时间戳发布 `received_wall_s`（节点接收该 RGB 帧时的单调墙钟秒数）和 `first_semantic_latency_wall_s`（接收到首次发布语义的墙钟耗时）。同一帧补发深度或状态时保留首发值。吞吐诊断中的 `rgb_ingest_dropped_total` 只计开始处理前因队列满而被挤出的 RGB 帧。
 
+B 在 `/search/person_masks`（`std_msgs/msg/String`，reliable，深度 10）上为分割节点接受的每张新图发布一次 JSON。消息含 `schema_version=1`、原始 RGB 的 `stamp_ns`、光学坐标系 `frame_id`、`width`、`height` 和 `instances`。每个实例有帧内唯一的 `instance_id`、置信度 `confidence`、局部跟踪编号 `track_id`（仅 registry / decoupled 有值），以及 `mask_png_base64`。Base64 解码后是原 RGB 尺寸的单通道 8 位 PNG，前景为 255，背景为 0。不同实例可以重叠。无人员时发布空数组，深度补发和跟踪定时器均不重发掩膜。
+
+在 `/search/perception_timing` 中按 `status=person_masks_published` 选择发布记录。`mask_publish_latency_wall_s` 从节点接收 RGB 入队计到掩膜 ROS `publish()` 返回，包含等待、推理、实例关联、编码和发布调用。`mask_published_wall_s` 与 `received_wall_s` 使用同一单调墙钟。按 RGB 采集时间戳去重，可用相邻首末发布之间的帧间隔数除以墙钟跨度计算吞吐。
+
 Depot 07 的 `registry` + `--bearing-bias` 联调中，局部人体通过现有 RGB 多帧确认后，B 立即发布 `visual_confirmed` 事件和人员观测。缺少可靠坐标时，A 暂停派发新的探索轨迹，让已授权航段完成（有界等待上限 4.0 秒）；B 在观测位继续接收配准 RGB-D，并优先处理可用的配对帧。A 收到该静态人员或其已关联来源的可靠可见表面坐标后恢复探索；若超过 4.0 秒仍未定位，A 释放该源的阻塞并恢复探索，目标本身保持待定位直至后续有效观测到达或任务结束。
 
 启用 `ASPIRE_FRONTIER_STEPS=1` 的单机停稳探索可在 `/baseline/feedback_0` 的普通授权反馈后收到一条 6 项参考位姿消息，顺序为原生航迹 ID、执行报告时间、x、y、z、yaw。首次起步用 ID `-1`。授权网关仅在执行器就绪、已到达、无待执行任务、参考导数为零且实际位姿处于跟踪管（0.25 米）内时转发。RACER 核对航迹 ID、报告和里程计时效及当前跟踪误差后使用参考位姿起步。新轨迹仍通过原有双图和停车授权。重型逐帧源码归档、timing/certificate/perception/RGB-D 调试落盘需通过 `--record-debug-evidence` 显式开启。旧接收方可继续使用普通授权反馈。

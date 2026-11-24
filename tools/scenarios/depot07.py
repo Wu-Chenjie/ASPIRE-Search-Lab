@@ -3,6 +3,7 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
@@ -17,7 +18,9 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(assets, output):
+def prepare(assets, output, camera_fps=8.):
+    if not math.isfinite(camera_fps) or camera_fps <= 0:
+        raise ValueError("camera_fps must be finite and positive")
     assets = assets.resolve()
     output = output.resolve()
     repo = Path(__file__).resolve().parents[2]
@@ -63,7 +66,8 @@ def prepare(assets, output):
                 base.remove(sensor)
         for sensor in camera.findall("./model/link/sensor"):
             set_text(sensor, "pose", " ".join(map(str, (*DEPTH_TRANSLATION, 0, 0, 0))))
-            set_text(sensor, "update_rate", 8)
+            rate = camera_fps if sensor.get("type") in ("camera", "depth_camera", "rgbd_camera") else 8
+            set_text(sensor, "update_rate", f"{rate:g}")
             base.append(sensor)
 
         stock_base = ET.parse(stock / "models/annual_base_0/model.sdf")
@@ -99,8 +103,9 @@ def prepare(assets, output):
             "r01_sha256": digest(vehicle_src),
             "derived_world_sha256": digest(world_target),
             "derived_r01_sha256": digest(vehicle_target),
+            "camera_fps": camera_fps,
             "changes": ["runner world and vehicle instance names", "SITL earth and magnetic fields",
-                        "isolated contact recorder", "co-located 8 Hz RGB-D pair and PX4 magnetometer"],
+                        "isolated contact recorder", f"co-located {camera_fps:g} Hz RGB-D pair and PX4 magnetometer"],
         }
         (staged / "scene-audit.json").write_text(json.dumps(audit, indent=2) + "\n")
         staged.rename(output)
@@ -110,8 +115,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--camera-fps", type=float, default=8.)
     args = parser.parse_args()
-    prepare(args.assets, args.output)
+    prepare(args.assets, args.output, args.camera_fps)
 
 
 if __name__ == "__main__":

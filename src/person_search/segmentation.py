@@ -1,5 +1,6 @@
 """Separate RGB person evidence from conservative mask-supported 3-D positions."""
 from dataclasses import dataclass
+from base64 import b64encode
 import numpy as np
 from scipy.ndimage import binary_erosion, binary_dilation, distance_transform_edt
 from .perception import Candidate,cloud,person_depth_pixels
@@ -15,6 +16,25 @@ class PersonMask:
     semantic_class: str = 'person'
     posture: str = 'unknown'
     visibility: str = 'unknown'
+
+
+def person_mask_packet(ns, rgb, detections, associations):
+    """Serialize each accepted instance in the original RGB pixel coordinates."""
+    import cv2
+
+    instances = []
+    for index, track_id in associations:
+        detection = detections[index]
+        mask = np.asarray(detection.mask, dtype=bool)
+        if mask.shape != (rgb.height, rgb.width):
+            raise ValueError("Person mask dimensions differ from the RGB capture")
+        ok, png = cv2.imencode(".png", mask.astype(np.uint8) * 255, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+        if not ok:
+            raise ValueError("Failed to encode person mask as PNG")
+        instances.append(dict(instance_id=index, track_id=track_id, confidence=float(detection.confidence),
+                              mask_png_base64=b64encode(png).decode("ascii")))
+    return dict(schema_version=1, stamp_ns=ns, frame_id=rgb.header.frame_id,
+                width=rgb.width, height=rgb.height, instances=instances)
 
 
 class LocalizedPerson(Candidate):

@@ -66,6 +66,8 @@ def test_process_uses_only_already_delivered_registered_capture_without_waiting(
             node.queues['depth'][stamp2]=dm;node.queues['ri'][stamp2]=info;node.queues['di'][stamp2]=info
             if delivery!='no_pose':node.pose_history.add(1.01,[0,0,0],[0,0,0,1])
         return [duplicate,d]
+    masks=[]
+    node.publish_person_masks=lambda stamp,image,dets,associations:masks.append((stamp,list(associations)))
     node.detect_semantics=detect
     def capture_world(node,frame,stamp,hist,Time):
         if hist.at(stamp*1e-9) is None:raise ValueError('missing_capture_pose_bracket')
@@ -114,6 +116,7 @@ def test_process_uses_only_already_delivered_registered_capture_without_waiting(
     assert bool(old_queues['depth'])==(delivery=='evicted_capture')
     assert (old_history.at(1.) is None)==(delivery!='evicted_capture')
     assert calls == [ns]
+    assert masks == [(ns, [(1, node.tracker.frames[ns][0]['track_id'])])]
 
 
 def test_depth_review_uses_extra_paired_frame_only_until_first_fix():

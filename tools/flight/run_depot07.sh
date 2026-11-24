@@ -46,7 +46,7 @@ ulimit -c 0
 mkdir -p "$(dirname "$out")"
 mkdir "$out"
 cd "$repo"
-python3 -B -m tools.scenarios.depot07 --assets "$assets" --output "$out/scene"
+python3 -B -m tools.scenarios.depot07 --assets "$assets" --output "$out/scene" --camera-fps "${ASPIRE_CAMERA_FPS:-8}"
 
 printf 'RViz during the run: http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale\n'
 printf 'Launch log: %s\n' "$out/launch.log"
@@ -56,7 +56,8 @@ timeout -s INT -k 45s 770s python3 -B -m tools.flight.run \
     --confirmation-mode registry --detector yolo11n-seg \
     "${detector_args[@]}" \
     --detector-python-path /opt/aspire/venvs/seg/lib/python3.12/site-packages \
-    --stop-and-plan --recover-no-path --bearing-bias --rviz --sim-real-time-factor 0.42 \
+    --stop-and-plan --recover-no-path --bearing-bias --rviz --sim-real-time-factor "${ASPIRE_SIM_REAL_TIME_FACTOR:-0.42}" \
+    --min-rgb-period-s "${ASPIRE_MIN_RGB_PERIOD_S:-0.2}" --map-projection-stride "${ASPIRE_MAP_PROJECTION_STRIDE:-8}" \
     --budget-clock sim --seconds 180 --wall-watchdog-seconds 700 \
     > "$out/launch.log" 2>&1 &
 run_pid=$!

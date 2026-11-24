@@ -31,6 +31,15 @@ run="/opt/aspire/evidence/depot07-$(date +%Y%m%d-%H%M%S)"
 bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
 ```
 
+默认 RGB 和深度均以 8 Hz 生成，识别采样间隔为 0.2 仿真秒。要把配准相机设为 60 Hz、关闭识别采样间隔并请求实时仿真，可运行：
+
+```sh
+ASPIRE_CAMERA_FPS=60 ASPIRE_MIN_RGB_PERIOD_S=0 ASPIRE_SIM_REAL_TIME_FACTOR=1 \
+  bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
+```
+
+参数 `ASPIRE_MAP_PROJECTION_STRIDE` 可调整深度建图的像素步长（默认 8）。相机频率写入 `scene/scene-audit.json`。逐人掩膜话题以及计算实际吞吐与延迟的字段见[联调接口](docs/TEAM-INTERFACES.md)。
+
 更换 Depot 07 的 YOLO 分割模型时，运行前设置 `ASPIRE_SEG_WEIGHTS` 为新权重路径，`ASPIRE_DETECTOR_MANIFEST` 为配套的 JSON 清单路径。
 
 默认传入 `--rviz`，运行 180 仿真秒。运行期间在运行机上打开 [RViz 浏览器视图](http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale)。远程观看时通过已有 SSH 连接将本机端口转发到运行机的 `127.0.0.1:18680`。

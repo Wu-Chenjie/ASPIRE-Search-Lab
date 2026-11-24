@@ -1,5 +1,6 @@
 """ROS names on the C → A/B and B ↔ A boundaries. No ROS imports."""
 
+PERSON_MASKS = "/search/person_masks"
 BEARING_EVIDENCE = "/search/bearing_evidence"
 REVIEW_GOAL = "/search/review_goal"
 REVIEW_CANCEL = "/search/review_cancel"
