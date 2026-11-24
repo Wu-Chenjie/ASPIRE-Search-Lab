@@ -49,7 +49,7 @@ source /opt/aspire/build/ros-ws/install/setup.bash
 source "$native/install/local_setup.bash"
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="$repo:$repo/src:$repo/src/annual_planner/src:/opt/aspire/venvs/analysis/lib/python3.12/site-packages:${PYTHONPATH:-}"
-export LD_LIBRARY_PATH="/opt/aspire/build/agent-install/lib:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="/opt/aspire/build/gz-sensors8-clock/lib:/opt/aspire/build/agent-install/lib:${LD_LIBRARY_PATH:-}"
 export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/aspire/engineering/dds-local.xml
 export GZ_IP=127.0.0.1 LP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 export RACER_CPU_PROFILE=render3-perception2-px4reserved RACER_EXECUTION_SAFETY=1
@@ -65,17 +65,18 @@ ulimit -c 0
 mkdir -p "$(dirname "$out")"
 mkdir "$out"
 cd "$repo"
-python3 -B -m tools.scenarios.depot07 --assets "$assets" --output "$out/scene" --camera-fps "${ASPIRE_CAMERA_FPS:-8}"
+python3 -B -m tools.scenarios.depot07 --assets "$assets" --output "$out/scene" --camera-fps "${ASPIRE_CAMERA_FPS:-60}"
 
 printf 'RViz during the run: http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale\n'
 printf 'Launch log: %s\n' "$out/launch.log"
+# Floor 1/60 s to whole nanoseconds so both 16,666,666 and 16,666,667 ns frames qualify.
 timeout -s INT -k 45s 770s python3 -B -m tools.flight.run \
     --prepared "$out/scene" --output "$out/run" \
     --external /planner/external --px4-build /opt/aspire/build/px4-sitl \
     --confirmation-mode registry \
     "${detector_args[@]}" \
     --stop-and-plan --recover-no-path --bearing-bias --rviz --sim-real-time-factor "${ASPIRE_SIM_REAL_TIME_FACTOR:-0.42}" \
-    --min-rgb-period-s "${ASPIRE_MIN_RGB_PERIOD_S:-0.2}" --map-projection-stride "${ASPIRE_MAP_PROJECTION_STRIDE:-8}" \
+    --min-rgb-period-s "${ASPIRE_MIN_RGB_PERIOD_S:-0.016666666}" --map-projection-stride "${ASPIRE_MAP_PROJECTION_STRIDE:-8}" \
     --budget-clock sim --seconds 180 --wall-watchdog-seconds 700 \
     > "$out/launch.log" 2>&1 &
 run_pid=$!

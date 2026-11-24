@@ -31,10 +31,12 @@ run="/opt/aspire/evidence/depot07-$(date +%Y%m%d-%H%M%S)"
 bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
 ```
 
-默认 RGB 和深度均以 8 Hz 生成，识别采样间隔为 0.2 仿真秒。要把配准相机设为 60 Hz、关闭识别采样间隔并请求实时仿真，可运行：
+常规启动以 60 Hz 生成配准的 RGB 和深度图像，识别节点默认按 60 Hz 采样新图，最小间隔约为 16.67 毫秒。两者均按仿真时钟计算。60 Hz 场景副本将五个物理步对齐到一个相机周期。默认仿真实时因子为 0.42，实际墙钟吞吐取决于仿真速度和识别负载。[运行机的 Gazebo 时钟修复](docs/REPRODUCIBILITY.md)
+
+可分别用 `ASPIRE_CAMERA_FPS` 和 `ASPIRE_MIN_RGB_PERIOD_S` 覆盖相机频率和最小采样间隔。复现此前关闭采样限速的仿真配置时，可以使用以下启动参数。
 
 ```sh
-ASPIRE_CAMERA_FPS=60 ASPIRE_MIN_RGB_PERIOD_S=0 ASPIRE_SIM_REAL_TIME_FACTOR=1 \
+ASPIRE_MIN_RGB_PERIOD_S=0 ASPIRE_SIM_REAL_TIME_FACTOR=1 \
   bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
 ```
 

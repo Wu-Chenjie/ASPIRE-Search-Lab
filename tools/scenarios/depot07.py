@@ -14,11 +14,14 @@ from aspire_camera.gazebo import set_text
 from aspire_camera.mount import DEPTH_TRANSLATION
 
 
+DEFAULT_CAMERA_FPS = 60.0
+
+
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(assets, output, camera_fps=8.):
+def prepare(assets, output, camera_fps=DEFAULT_CAMERA_FPS):
     if not math.isfinite(camera_fps) or camera_fps <= 0:
         raise ValueError("camera_fps must be finite and positive")
     assets = assets.resolve()
@@ -34,6 +37,10 @@ def prepare(assets, output, camera_fps=8.):
     world_doc = ET.parse(world_src)
     world = world_doc.find("world")
     world.set("name", "annual")
+    if camera_fps == 60:
+        # Align Harmonic's high-resolution sensor clock with Depot 07 physics.
+        # Five integer-nanosecond steps give a camera period of 16,666,670 ns.
+        set_text(world, "physics/max_step_size", "0.003333334")
     drone = world.find('./include[uri="model://aspire_r01"]')
     person = world.find('./include[uri="model://aspire_person_p01"]')
     spawn = list(map(float, drone.findtext("pose").split()))
@@ -104,6 +111,7 @@ def prepare(assets, output, camera_fps=8.):
             "derived_world_sha256": digest(world_target),
             "derived_r01_sha256": digest(vehicle_target),
             "camera_fps": camera_fps,
+            "physics_step_s": float(world.findtext("physics/max_step_size", "0.001")),
             "changes": ["runner world and vehicle instance names", "SITL earth and magnetic fields",
                         "isolated contact recorder", f"co-located {camera_fps:g} Hz RGB-D pair and PX4 magnetometer"],
         }
@@ -115,7 +123,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--camera-fps", type=float, default=8.)
+    parser.add_argument("--camera-fps", type=float, default=DEFAULT_CAMERA_FPS)
     args = parser.parse_args()
     prepare(args.assets, args.output, args.camera_fps)
 
