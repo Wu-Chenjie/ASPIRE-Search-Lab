@@ -2,6 +2,7 @@
 
 import json
 import math
+import random
 import struct
 import xml.etree.ElementTree as ET
 from itertools import product
@@ -50,16 +51,35 @@ def check_gazebo_axes(directory, anchor):
                 raise ValueError(f"{directory.name}: Gazebo visual and authoring axes disagree")
 
 
+def support_heights(instance):
+    """Lowest point of each load-bearing part in metres above the local floor."""
+    parts = {
+        obj.data.name.split(".")[0]: [v.co for v in obj.data.vertices]
+        for obj in instance.instance_collection.objects
+    }
+    pose = instance.instance_collection.name.removeprefix("quay_")
+    boots, jeans = parts["Work boots"], parts["jeans01"]
+    if pose.startswith("seated"):
+        # In the occupant frame, +Y points towards the back of the pelvis.
+        back = max(p.y for p in jeans)
+        supports = {"seat": [p for p in jeans if p.y >= back - 0.26], "heel": boots}
+    elif pose.startswith("side_"):
+        supports = {"shoulder": parts["tshirt02"], "leg": jeans}
+    elif pose == "cradled_arm":
+        middle = len(boots) // 2
+        supports = {"left_boot": boots[:middle], "right_boot": boots[middle:]}
+    else:
+        supports = {"knee": jeans, "boot": boots}
+    return {name: min(p.z for p in coords) for name, coords in supports.items()}
+
+
 def check():
     root = Path(bpy.data.filepath).parent
     spec = json.loads((root / "scene-spec.json").read_text())
     actors = [bpy.data.objects[f"survivor_{i + 1:02}"] for i in range(len(spec["people"]))]
     building = [(ob, ob.matrix_world) for ob in bpy.context.scene.objects if ob.type == "MESH"]
     visual = surface(building)
-    bodies = []
-    for instance in actors:
-        body = next(o for o in instance.instance_collection.objects if o.name.startswith("Body"))
-        bodies.append((body, instance.matrix_world))
+    people_meshes = [[(o, actor.matrix_world) for o in actor.instance_collection.objects] for actor in actors]
     slab = next(ob for ob, _ in building if ob.name.startswith("Raft slab"))
     check_gazebo_axes(root / "models/quay_market", slab)
     for model in {p["model"] for p in spec["people"]}:
@@ -72,7 +92,7 @@ def check():
     occupied = BVHTree.FromPolygons(
         corners, [(i, i + 1, i + 2) for i in range(0, len(corners), 3)], all_triangles=True
     )
-    occupants = surface(bodies)
+    occupants = surface([pair for meshes in people_meshes for pair in meshes])
     # A 0.50 m step between samples that are both 0.85 m clear leaves at
     # least 0.60 m clearance everywhere along that edge (distance is Lipschitz).
     step = 0.5
@@ -215,19 +235,37 @@ def check():
         raise ValueError(f"Entrance overlook cannot see duty lamp: first hit {material}")
     partial = None
     report = []
-    for instance, (body, transform) in zip(actors, bodies):
-        foot = instance.location + Vector((0, 0, 0.065))
-        support = occupied.ray_cast(foot, Vector((0, 0, -1)), 0.12)[0]
-        if support is None or abs(support.z - instance.location.z) > 0.04:
-            raise ValueError(f"{instance.name} has no supporting floor")
-        body_surface = surface([(body, transform)])
-        if any(
-            max(body.data.vertices[j].co.z for j in body.data.polygons[index].vertices) > 0.10
-            for _, index in visual.overlap(body_surface)
-        ):
+    for instance, meshes in zip(actors, people_meshes):
+        body_surface = surface(meshes)
+        coords = [matrix @ v.co for obj, matrix in meshes for v in obj.data.vertices]
+        lowest = min(p.z for p in coords)
+        supports = support_heights(instance)
+        if any(z > 0.04 for z in supports.values()):
+            raise ValueError(f"{instance.name} has a floating support: {supports}")
+        contacts = [p for p in coords if p.z < lowest + 0.012]
+        for point in contacts:
+            floor = occupied.ray_cast(point + Vector((0, 0, 0.03)), Vector((0, 0, -1)), 0.07)[0]
+            if floor is None or abs(floor.z - point.z) > 0.03:
+                raise ValueError(f"{instance.name} lacks support below a contact point")
+        if visual.overlap(body_surface):
             raise ValueError(f"{instance.name} intersects the market mesh")
-        # Sample across actual torso, head and limb vertices in the posed mesh.
-        points = [transform @ v.co for v in body.data.vertices[:][::113] if v.co.z > 0.18]
+        # Sample the exterior by triangle area. A skin-only sampler misses the
+        # torso, thighs and shins because the source removes skin under clothing.
+        triangles, areas = [], []
+        for obj, matrix in meshes:
+            if obj.name.startswith(("Teeth", "Eyebrow", "Low-Poly")):
+                continue
+            obj.data.calc_loop_triangles()
+            for tri in obj.data.loop_triangles:
+                triangles.append([matrix @ obj.data.vertices[j].co for j in tri.vertices])
+                areas.append(tri.area)
+        rng = random.Random(85)
+        points = []
+        for a, b, c in rng.choices(triangles, weights=areas, k=180):
+            u, v = rng.random(), rng.random()
+            if u + v > 1:
+                u, v = 1 - u, 1 - v
+            points.append(a + u * (b - a) + v * (c - a))
         center = instance.location
 
         def fraction(base, yaw, frustum=True):
@@ -264,18 +302,34 @@ def check():
             if score > 0.9:
                 break
         if instance.name in ("survivor_03", "survivor_04") and partial is None:
-            for i in range(21):
-                t = i / 20
-                view = Vector(nearest((7 * t, -5.3 + 13.82 * t, 4.7)))
-                if not 3 < (view - center).length < 10:
+            bridge_axis = Vector((7.0, 13.82, 0))
+            for view in reachable:
+                offset = view - Vector((0, -5.3, view.z))
+                along = offset.dot(bridge_axis) / bridge_axis.length_squared
+                if not (
+                    0 <= along <= 1
+                    and (offset - along * bridge_axis).length < 1.2
+                    and 4.45 < view.z < 5.75
+                    and 3 < (view - center).length < 13
+                ):
                     continue
                 score = fraction(view, yaw_to(view))
-                if 0.15 <= score <= 0.65:
-                    partial = dict(id=instance.name, view=list(view), visible_fraction=round(score, 4))
+                unobstructed = fraction(view, yaw_to(view), False)
+                if 0.15 <= score <= 0.65 and unobstructed <= 0.8:
+                    partial = dict(
+                        id=instance.name,
+                        view=list(view),
+                        visible_fraction=round(score, 4),
+                        clear_sightline_fraction=round(unobstructed, 4),
+                    )
                     break
         report.append(
             dict(
                 id=instance.name,
+                pose=instance.instance_collection.name,
+                floor_gap_m=round(lowest - instance.location.z, 4),
+                support_height_m={part: round(z, 3) for part, z in supports.items()},
+                height_m=round(max(p.z for p in coords) - instance.location.z, 3),
                 entrance_fraction=round(entrance, 4),
                 visible_start_fraction=round(visible_start, 4),
                 reachable_fraction=round(best, 4),

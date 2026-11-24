@@ -21,14 +21,14 @@ from section import make_section  # noqa: E402
 REPO = HERE.parents[2]
 # XYZ in metres, yaw in degrees. The raised floor is 3.60 m above the auction hall.
 PLACEMENTS = [
-    ("crouched", -15.1, -7.72, 0, 142),
-    ("standing", -14.7, 3.43, -3.6, -75),
-    ("crouched", -4.60, -1.77, 0, 38),
-    ("standing", 5.70, 5.25, 0, 145),
-    ("crouched", 14.88, -6.43, 0, -96),
-    ("standing", -13.28, 10.38, -3.6, -122),
-    ("standing", -13.22, 10.24, 3.60, -62),
-    ("crouched", 14.44, 2.45, 3.60, 145),
+    ("seated_braced", -16.05, -8.58, 0, 180, "西冷库 · 制冷机背面，屈膝坐地，一手在身侧撑地"),
+    ("seated_leg_extended", -12.19, 4.18, -3.6, -90, "制冰间 · 坡脚外的挡墙边，坐地伸出一腿"),
+    ("side_curled", -4.72, -2.69, 0, 179, "西拍卖台 · 台面下方，侧卧收膝，前臂护头"),
+    ("kneeling_guard", -5.60, 5.49, 0, 92, "西北拍卖台 · 远离坍落屋架的一侧，屈膝低头，两臂抬起"),
+    ("cradled_arm", 15.20, -6.72, 0, -94, "东加工间 · 工作台旁，身体前倾，一手托住另一前臂"),
+    ("side_resting", -11.94, 9.32, -3.6, 89, "北管廊 · 冰槽的侧后方，侧卧，一条腿略收"),
+    ("seated_tucked", -11.95, 9.76, 3.60, 180, "北检验廊 · 柜排背后，收腿坐地，前臂放在膝前"),
+    ("half_kneeling", 14.22, 2.44, 3.60, 134, "东上廊 · 制冷机背面，单膝着地，抬头朝向楼梯口"),
 ]
 
 
@@ -134,6 +134,14 @@ def setup_render():
         camera(col, "03 • Upper gallery", (7.26, 8.36, 5.13), (0.1, -5.3, 4.9), 20),
     ]
     cameras.append(camera(col, "04 • Brine gallery", (-10.3, 9.85, -2.0), (5.6, 10.65, -1.7), 22))
+    cameras.extend(
+        [
+            camera(col, "05 • Ice works / retaining wall", (-15.45, 2.55, -2.38), (-12.19, 4.18, -3.04), 37),
+            camera(col, "06 • West auction / below stall", (-6.1, 0.58, 0.84), (-4.72, -2.69, 0.52), 35),
+            camera(col, "07 • Auction / sheltering by counter", (-2.98, 6.95, 1.48), (-5.6, 5.49, 0.67), 35),
+            camera(col, "08 • East gallery / stair landing", (12.97, 5.83, 5.00), (14.22, 2.44, 4.32), 34),
+        ]
+    )
     for i, (xyz, colour, watts) in enumerate(PRACTICALS):
         light = bpy.data.lights.new(f"Service practical {i + 1:02}", "POINT")
         light.energy, light.color, light.shadow_soft_size = watts, colour, 0.20
@@ -198,15 +206,16 @@ def main():
     people_col = geo.collection("11  /  occupants")
     templates = {}
     heights = {}
-    for pose in ("standing", "crouched"):
+    for pose, *_ in PLACEMENTS:
         name = "quay_" + pose
         collection = geo.collection(name)
-        objects = actor(REPO, pose == "crouched", collection)
-        body = next(obj for obj in objects if obj.name.startswith("Body"))
-        body.data.calc_loop_triangles()
-        triangles = [
-            tuple(body.data.vertices[j].co for j in tri.vertices) for tri in body.data.loop_triangles
-        ]
+        objects = actor(REPO, pose, collection)
+        triangles = []
+        for obj in objects:
+            obj.data.calc_loop_triangles()
+            triangles.extend(
+                tuple(obj.data.vertices[j].co for j in tri.vertices) for tri in obj.data.loop_triangles
+            )
         export_model(root, name, objects, triangles)
         credits = (REPO / "external/rgbd_scene_assets/person_standing/model.config").read_bytes()
         (root / "models" / name / "source-model.config").write_bytes(credits)
@@ -222,9 +231,10 @@ def main():
         boxes=[],
         people=[],
     )
-    for i, (pose, x, y, z, yaw) in enumerate(PLACEMENTS, 1):
+    for i, (pose, x, y, z, yaw, context) in enumerate(PLACEMENTS, 1):
         instance = bpy.data.objects.new(f"survivor_{i:02}", None)
         people_col.objects.link(instance)
+        instance["现场处境"] = context
         instance.instance_type = "COLLECTION"
         instance.instance_collection = templates[pose]
         instance.location = (x, y, z)
@@ -246,10 +256,24 @@ def main():
     bpy.ops.object.select_all(action="DESELECT")
     bpy.ops.wm.save_as_mainfile(filepath=str(root / "North Quay 08.blend"), compress=True)
     for i, (cam, filename) in enumerate(
-        zip(cameras, ["01-section", "02-auction-floor", "03-gallery", "04-brine-gallery"])
+        zip(
+            cameras,
+            [
+                "01-section",
+                "02-auction-floor",
+                "03-gallery",
+                "04-brine-gallery",
+                "05-ice-works-seat",
+                "06-under-auction-stall",
+                "07-cover-at-counter",
+                "08-east-landing",
+            ],
+        )
     ):
         scene = section if i == 0 else full
         scene.camera = cam
+        if i >= 4:
+            scene.view_settings.exposure = 0.65
         scene.render.filepath = str(root / (filename + ".png"))
         bpy.ops.render.render(scene=scene.name, write_still=True)
 
