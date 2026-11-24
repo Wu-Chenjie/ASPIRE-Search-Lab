@@ -134,6 +134,31 @@ def select_presence_capture(node, queues, history, now_ns):
     return ns, None, max(paired, default=None)
 
 
+def discard_superseded_rgb(node,ns):
+    """Newest-first sampling: retire un-observed older frames instead of queueing them.
+
+    A capture older than the selected one can only be observed later, which the
+    tracker already rejects. Frames the tracker did observe stay while their depth
+    pass may still be pending, then retire silently once they leave the pairing
+    window so they are not counted twice.
+
+    The caller must be the single inference thread: only then can a just
+    selected capture not be retired while it is being inferred.
+    """
+    frames=node.tracker.frames
+    horizon=ns-int(float(getattr(node,'max_age',1.5))*1e9)
+    with node.input_lock:
+        older=[s for s in node.queues['rgb'] if s<ns]
+        dead=[s for s in older if s not in frames]
+        expired=[s for s in older if s in frames and s<horizon]
+        for stale in dead+expired:
+            del node.queues['rgb'][stale]
+            receipt = node.rgb_receipts.pop(stale)
+            if stale not in frames and not receipt.processing_started:
+                node.rgb_skipped_total += 1
+    return len(dead)+len(expired)
+
+
 def process_presence(node,queues,history):
     from rclpy.time import Time
     from tf2_ros import TransformException
@@ -144,6 +169,8 @@ def process_presence(node,queues,history):
     tracker.expire(now)
     # Complete a paired capture first; otherwise RGB does not depend on depth/TF.
     ns, geo_ns, stale_pair_ns = select_presence_capture(node, queues, history, now_ns)
+    if ns is not None:
+        discard_superseded_rgb(node,ns)
     geo_pair=None
     prepared=None
     preparation_error=None
@@ -321,8 +348,7 @@ def publish_presence(node):
     if ns>=0:
         rows=node.tracker.frame_rows(ns,processing)
         semantic=dict(schema_version=2,stamp_ns=ns,processing_time_s=processing,published_sim_ns=now.nanoseconds,backend=node.backend,counts=report['counts'],candidates=rows)
-        node.semantic_output.publish(String(data=json.dumps(semantic)))
-        if node.evidence_dir:node.record_evidence(dict(kind='semantic',**semantic))
+        node.publish_candidate_report(semantic)
         with node.input_lock:rgb=node.queues['rgb'].get(ns)
         if rgb is not None:
             import cv2
