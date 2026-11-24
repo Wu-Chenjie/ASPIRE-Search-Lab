@@ -1,0 +1,18 @@
+2026-11-24　Depot 07 人员分割与 60 Hz 常规启动
+
+变更
+519ec48 将常规启动的人员分割后端切换为 RF-DETR-Seg Nano，启用 CUDA Graph、FP32 和 batch 1。识别节点沿用 registry 解耦模式，逐人可见掩膜仍通过 /search/person_masks 发布。
+978439c 将配准的 RGB 和深度相机从 8 Hz 调到 60 Hz，将识别采样最小间隔从 0.2 仿真秒调到 0.016666666 仿真秒。默认实时因子为 0.42。
+团队运行机的 gz-sensors 8.2.2 将相机周期截成 16 ms。Depot 07 单独加载带上游高精度时钟修复的核心库，派生场景使用 3,333,334 ns 物理步长，五步对应一帧。复现步骤见 docs/REPRODUCIBILITY.md。
+
+选型依据
+在 RTX 5060 Laptop GPU 上按墙钟 60 FPS 回放同一批 3,125 张带真值的 RGB-D 图像。前 625 张用于校准，在其余 2,500 张上按可见掩膜 IoU ≥ 0.50 匹配，并从两条评分曲线各取 250 个误报的工作点。
+倒地组共 1,775 人帧，YOLO11n-seg 漏检 1,475，接入正式节点的 RF-DETR 漏检 606。部分遮挡组共 2,111 人帧，两者分别漏检 1,891 和 1,012。RF-DETR 回放吞吐为每墙钟秒 59.84 张新图，收帧到掩膜发布的 P95 为 11.95 ms。
+
+常规启动验收
+使用默认参数启动 Depot 07，确认 RViz 和 noVNC 显示链路已启动。从首个掩膜起计 20 个仿真秒，观测到 1,200 对时间戳一致的 RGB-D 图像，其中 1,199 帧发布了掩膜结果。相机实测 60.00 仿真 Hz，掩膜输出 59.95 仿真 Hz，墙钟吞吐为 23.03 帧/秒。
+本次为启动与采样验证。采样窗口结束后主动中断 SITL，运行器记录 KeyboardInterrupt，退出码 1，子进程意外退出数为 0。主机回归 645 项通过，39 项跳过。
+
+仓外证据（团队工作区的 output 目录）
+depot07-rf-integration.vy5HnC/integration-results.json
+depot07-default60.ooDkBg/verification.json
