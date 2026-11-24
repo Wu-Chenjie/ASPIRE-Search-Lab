@@ -2,6 +2,7 @@
 import json
 import math
 from pathlib import Path
+import shutil
 import xml.etree.ElementTree as ET
 
 from tools.prepare_sim import model, prepare
@@ -25,20 +26,45 @@ def build_room(out, spec_path, layout, negative):
     start = vector(spec["starts"][layout], 3)
     if any(not lo < p < hi for lo, p, hi in zip(lower, start, upper)):
         raise ValueError("Start must lie inside the room bounds")
-    person = None if negative else vector(spec["person_pose"], 6)
     map_path = out / "map.json"
     map_path.write_text(json.dumps(dict(bounds=[lower, upper], search_starts=[start], obstacles=[])))
     prepare(map_path, out, motion_profile="legacy")
     path = out / "scene.sdf"
     tree = ET.parse(path)
     world = tree.find("world")
-    if person is not None:
+    if "ground_plane_z" in spec:
+        z = spec["ground_plane_z"]
+        world.find('model[@name="ground"]/pose').text = f"0 0 {z - .1} 0 0 0"
+
+    def include(model_name, instance, pose):
         included = ET.SubElement(world, "include")
-        for key, value in (("uri", "model://person_standing"), ("name", "stationary_person"),
-                           ("static", "true"), ("pose", " ".join(map(str, person)))):
+        for key, value in (("uri", "model://" + model_name), ("name", instance),
+                           ("static", "true"), ("pose", " ".join(map(str, pose)))):
             ET.SubElement(included, key).text = value
 
-    truth = {"person": person[:3] if person else None, "use": "independent evaluation only"}
+    truth = {"use": "independent evaluation only"}
+    asset_models = set()
+    if "environment_model" in spec:
+        building = spec["environment_model"]
+        asset_models.add(building)
+        include(building, building, [0] * 6)
+    if "people" in spec:
+        truth["people"] = []
+        for index, actor in enumerate([] if negative else spec["people"], 1):
+            pose = vector(actor["pose"], 6)
+            name = f"survivor_{index:02}"
+            asset_models.add(actor["model"])
+            include(actor["model"], name, pose)
+            truth["people"].append(dict(id=name, position=pose[:3], height=actor["height"]))
+    else:
+        person = None if negative else vector(spec["person_pose"], 6)
+        if person:
+            include("person_standing", "stationary_person", person)
+        truth["person"] = person[:3] if person else None
+    for asset in sorted(asset_models):
+        if not asset.isidentifier():
+            raise ValueError(f"Invalid scene model directory: {asset!r}")
+        shutil.copytree(Path(spec_path).parent / "models" / asset, out / "models" / asset)
     names = {obj.get("name") for obj in world.findall("model")}
     names.update(obj.findtext("name") for obj in world.findall("include"))
     for box in spec["boxes"]:
@@ -54,3 +80,4 @@ def build_room(out, spec_path, layout, negative):
     tree.write(path)
     (out / "evaluation-truth.json").write_text(json.dumps(truth))
     (out / "scene-spec.json").write_bytes(source)
+    return vector(spec.get("flight_limits", [.7, 3.]), 2)

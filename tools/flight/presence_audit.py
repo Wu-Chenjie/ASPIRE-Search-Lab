@@ -6,7 +6,7 @@ def audit_presence(telemetry,truth):
     events=[r['data'] for r in telemetry if r['kind']=='presence_event']
     confirmed={t['id'] for r in reports for t in r['tracks'] if t['visual_state']=='visually_confirmed'}
     state_counts=Counter(t['localization_state'] for r in reports for t in r['tracks'])
-    total=0 if truth.get('person') is None else 1
+    total = len(truth['people']) if 'people' in truth else int(truth.get('person') is not None)
     return dict(confirmation_policy='decoupled',confirmed_people=None,matched_person_tracks=None,duplicate_confirmed_tracks=None,
         false_confirmed_tracks=len(confirmed) if total==0 else None,first_true_confirmation_wall_s=None,confirmed_tracks=[],
         evaluator_ground_truth_people_total=total,visually_confirmed_local_track_records=len(confirmed),

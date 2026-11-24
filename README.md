@@ -49,6 +49,23 @@ python3 -m tools.flight.scene_bundle --output /tmp/aspire-lab-empty --negative
 
 自定义地图加 `--spec path/to/room.json --layout 自定义起点名`。场景包内包含世界 SDF、无人机和相机模型、ROS 桥配置、运行配置、地图原稿和独立评测真值。提交地图原稿即可；生成物放到代码树外。HM3D 场景导入另需本地数据集文件以及 `trimesh`、`rtree`。
 
+### 北岸鱼市场 · 三层震后搜索场景
+
+市场占地 36 × 26 米。中央拍卖厅屋架最高约 12 米，两侧服务翼屋顶约 7.6 米。以拍卖厅地坪为 0 米，半地下制冰间在 −3.60 米，二层检验廊在 +3.60 米。主路线从南门经西冷库坡道下降，横穿管廊，在北装卸井升至二层，再过跨厅桥到亮灯的检验室。东侧支路从同一装卸井的地面出口分岔，经加工间和独立楼梯井上行，在二层桥头汇合。检验室旁的送冰滑槽通回南门票亭。8 名受困者分布在三个高度层，有站姿和低姿，部分目标在平面上重叠。
+
+在仓库根目录用 Blender 5.3 生成可编辑工程、四张渲染、Gazebo 模型和地图原稿。下列命令会创建新的外部目录。macOS 可将 `blender` 替换为 Blender 应用内可执行文件的绝对路径。
+
+```sh
+batch="$(mktemp -d "${TMPDIR:-/tmp}/north-quay.XXXXXX")"
+blender -b --python-exit-code 1 --python tools/scenarios/quay_market/build.py -- --output "$batch/market"
+blender -b "$batch/market/North Quay 08.blend" --python-exit-code 1 --python tools/scenarios/quay_market/check_views.py
+python3 -m tools.flight.scene_bundle --spec "$batch/market/scene-spec.json" --performance consistent --output "$batch/hidden"
+```
+
+如果 Blender 和 Gazebo 分在两台机器，可将 `market/scene-spec.json` 与同级 `models/` 复制到 Linux 联调机，再在那里执行最后一条打包命令。这使相机内参和运行机使用同一数学库生成，满足现有评分器的逐位一致检查。把 `$batch/hidden` 交给下方飞行入口的 `--prepared`，运行时传入 `--vertical-samples --rviz`。使用同一地图和新的输出目录，增加 `--layout visible` 可从加工间启动做可见对照，增加 `--negative` 可生成同场无人对照。联调机加载准备好的包无需安装 Blender。
+
+Blender 打开完整建筑，默认相机位于拍卖厅内 1.85 米高处。切换到同一工程的 `A–A / building section` 场景可查看阶梯剖切：切面经过南门滑槽出口和北装卸井，保留远侧屋架。Gazebo 使用完整建筑。几何验收读取导出的碰撞网格，按 0.50 米网格追踪坡道、竖井、桥面、楼梯与滑槽，沿途保留至少 0.60 米净空。离线报告 `offline-views.json` 含路线、入口值班灯视线及逐人的遮挡与观察位。报告中的可见比例按人体网格采样点计算。建筑和道具由脚本生成，人物使用仓库固定的 Marina Kollmitz / MakeHuman 模型。[Blender 场景源文件](tools/scenarios/quay_market) · [资产来源](licenses/NOTICE.md)
+
 ## A 加载并运行
 
 飞行入口支持 D 提供的 `--prepared 场景包目录`，也支持 `--scene-spec 地图JSON --layout 起点名`。运行前准备 ROS 2、PX4 SITL 和本地检测权重，并构建、载入原生 RACER。运行机设置下列变量及尚未使用的输出路径。[联调环境与构建](docs/REPRODUCIBILITY.md)

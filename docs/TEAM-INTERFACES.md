@@ -4,7 +4,7 @@
 
 | 方向 | 数据与入口 | 关键约定 |
 | --- | --- | --- |
-| D → A | JSON 地图或由它生成的目录 | 地图包含 bounds、starts、person_pose、boxes。位置和尺寸用米，人物姿态为 x/y/z/roll/pitch/yaw，角度用弧度。--layout 选择起点，--negative 生成同地图无人对照。准备好的包由 --prepared 接收。 |
+| D → A | JSON 地图或由它生成的目录 | 地图包含 bounds、starts、boxes，单人使用 person_pose，多人使用 people。位置和尺寸用米，人物姿态为 x/y/z/roll/pitch/yaw，角度用弧度。--layout 选择起点，--negative 生成同地图无人对照。准备好的包由 --prepared 接收。 |
 | C → B、A | /drone_0/{rgb,depth}/{image,camera_info} | sensor_msgs/Image 和 CameraInfo，传感器 QoS。光学坐标为右、下、前。默认 Gazebo 深度为 32FC1，单位米。直接取同像素深度需通过采集时刻、标定、分辨率和外参检查。缺少有效深度时仍可保留 RGB 线索。 |
 | B → A | /uav0/search/target_observations，std_msgs/String 中的 JSON | registry 模式使用 schema 1。observations 行含 robot、session、counter、sequence、capture_s、visual_state、localization_state、has_bearing、has_position。位置或方位仅在相应标志有效时消费。位置指可见表面。一个来源 ID 可在多次观测中出现。 |
 | B → A | /search/bearing_evidence，std_msgs/Float64MultiArray | 方位引导使用已有 v1 定长 17 项数值布局，包含采集时间、原点、方向、角范围及支持帧数。Python 编码位于 aspire_interfaces/bearing.py。 |
@@ -22,3 +22,9 @@ Depot 07 的 `registry` + `--bearing-bias` 联调中，局部人体通过现有 
 验收建议采用一个遮挡实例。D 核验遮挡与可见区域，C 核验图像和深度配准，B 对同一来源输出带采集时刻的观测，A 按实际授权与到达反馈检查复查结果。主机交接回归见 tests/test_team_boundaries.py，仿真入口的进程替身测试见 tests/test_flight_entry_supervision.py。
 
 共享话题见 [topics.py](../src/aspire_interfaces/topics.py)。人员观测的生产者见 [registry_evidence.py](../src/person_search/registry_evidence.py)，原生解码器见 [target_protocol.hpp](../tools/flight/target_protocol.hpp)。原生代码使用 C++ 接口，修改字段时两端需一起运行 [注册表测试](../tests/test_target_registry.py)。
+
+北岸鱼市场沿用 D → A 的地图入口。地图中的 `environment_model` 和每个 `people[].model` 对应地图旁的 `models/<名称>/`，打包时随场景复制。人物记录含六维 `pose` 和米制 `height`。离线真值的 `people` 数组含实例 ID、足底坐标及身高，无人对照返回空数组。旧单人地图保留 `person` 真值字段。
+
+`ground_plane_z` 设置 Gazebo 全局地面的上表面，地下建筑另有自己的承重楼板。`flight_limits` 是公开的世界坐标飞行高度上下限，与地图边界和起点一起交给 A。人员摆位和通路检查结果只用于生成及独立验收。
+
+鱼市场 GLB 保留 glTF 的 +Y 向上约定，SDF 在 visual 上绕 X 轴旋转 +π/2 后与 Z 向上的 STL 碰撞体对齐。离线验收从 GLB 顶点范围和 SDF 位姿核对地板及两种人物模型。

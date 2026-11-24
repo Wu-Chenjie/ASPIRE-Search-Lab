@@ -13,7 +13,7 @@ PERFORMANCE_PROFILES = ("legacy", "moderate", "consistent", "bounded-fast")
 def scene(out, negative, layout="original", performance="legacy", *, spec_path=DEFAULT_SPEC):
     if performance not in PERFORMANCE_PROFILES:
         raise ValueError(f"Unknown flight performance profile: {performance}")
-    build_room(out, spec_path, layout, negative)
+    flight_limits = build_room(out, spec_path, layout, negative)
     base_path = out / "models/annual_base_0/model.sdf"
     tree = ET.parse(base_path)
     link = tree.find('model/link[@name="base_link"]')
@@ -26,7 +26,7 @@ def scene(out, negative, layout="original", performance="legacy", *, spec_path=D
     tree.write(base_path)
     cfg = json.loads((out / "runtime.json").read_text())
     cfg.update(research_planner="racer_ros2", native_frame_source="mapper_observation",
-               racer_planning_scale=.85, racer_flight_limits=[.7, 3.], control_timing_diagnostics=True,
+               racer_planning_scale=.85, racer_flight_limits=flight_limits, control_timing_diagnostics=True,
                bootstrap_altitudes=[1.75, 2.65, 2.2], layout=layout, performance_profile=performance)
     if performance != "legacy":
         cfg.update(motion_limits=dict(speed=1., acceleration=1.2, jerk=4., yaw_rate=.9),
