@@ -1,6 +1,6 @@
 # 人员分割帧率与点云投影优化报告
 
-分支 `perf/rgb-throughput-and-projection-stride`（基于 `af2960b`）。所有数字均为本机实测，
+分支 `perf/rgb-throughput-and-projection-stride`（基于 `af2960b`）。B 节为原作者的本地基准，
 CPU-only（`torch 2.5.1+cpu`、`ultralytics 8.3.228`、`yolo11n-seg.pt`，权重 sha256 与
 `config/detectors/yolo11n-seg-locked.json` 一致）。
 
@@ -12,9 +12,9 @@ CPU-only（`torch 2.5.1+cpu`、`ultralytics 8.3.228`、`yolo11n-seg.pt`，权重
    （旧采样率下只有 15.7% 的帧被推理，现在为 63.2%）。
 3. **画证据图是第二大开销。** 在 320 上叠加画框+填掩膜把吞吐从 18.96 拉到 14.44 FPS（−24%），
    建议把调试图移到独立线程或按需开关。
-4. **点云覆盖能力只由投影步长决定。** 可稳定保留的最薄障碍 ≈ `stride × 距离 / fx`；
-   `640×480 + stride 8` 与 `320×240 + stride 4` 覆盖能力完全相同、建图耗时接近，因此推荐
-   **维持 320×240 分辨率、把步长 8 降到 4**，不必先动分辨率。
+4. **步长 4 提高了同视角的表面采样密度。** 在 Depot 07 同一张 320×240 深度图上，
+   步长 8 和 4 分别产生 258 和 1,049 个量程内的表面点。C 节给出带无杆对照的合成测量。
+
 
 ## B. 人员分割帧率
 
@@ -28,7 +28,7 @@ CPU-only（`torch 2.5.1+cpu`、`ultralytics 8.3.228`、`yolo11n-seg.pt`，权重
 - 两个已知边界：本机无 ROS/DDS，端到端延迟是"收到 RGB → 发出语义"的进程内等价测量，
   不含 DDS 传输；本机 `torch.cuda.is_available()==False`，CUDA/FP16 项未测。
 - 帧计数口径：`rgb_received_total = rgb_inferred_total + rgb_skipped_total + rgb_ingest_dropped_total`
-  在 5 组实验中均严格闭合（误差 ≤1 帧，来自压测窗口首尾）。
+  是逐帧核对的目标。窗口结束时仍待处理的帧需单独计入。下表 B3 保留原始测量。
 
 ### B2. 纯推理基准（固定权重，仅改输入尺寸）
 
@@ -61,8 +61,7 @@ CPU-only（`torch 2.5.1+cpu`、`ultralytics 8.3.228`、`yolo11n-seg.pt`，权重
   退休比它更早、且 tracker 没观测过的 RGB 帧并计入 `rgb_skipped_total`；已观测帧保留到深度
   补算窗口（`max_age`）之外再静默退休，避免重复计数。
 - `src/person_search/node.py`：新增 `rgb_skipped_total` / `rgb_ingest_dropped_total` 计数；
-  `timing()` 输出这两个字段；`publish_semantics()` 输出 `received_wall_s` 与
-  `first_semantic_latency_wall_s`（节点收到 RGB → 首次发出语义）。
+  入队丢弃只计开始处理前被挤出的帧。各模式的语义消息都带接收墙钟时间及首发延迟，同一帧补发时沿用首发值。
 - `tools/flight/run.py`：新增 `--min-rgb-period-s`（默认 0.2）与 `--map-projection-stride`
   （默认 8），带范围校验，分别透传到 `person_search` 与 `pointcloud_mapping_node`。
 
@@ -75,35 +74,29 @@ CPU-only（`torch 2.5.1+cpu`、`ultralytics 8.3.228`、`yolo11n-seg.pt`，权重
 - `src/aspire_camera/depth_projection.py`：`_project_depth` 对非法 stride 抛
   `ValueError('Invalid depth projection stride')`，避免静默出坏点云。
 
-### C2. 对照实验（离线合成，可复算）
+### C2. 无杆对照与薄杆占据
 
-`artifacts/agent-runs/declaration/stride_sweep.py` 生成已知场景（4 m 平墙 + 一条已知物理宽度
-的竖条障碍，取最坏像素相位），记录每个配置能稳定保留的最薄障碍与单帧 `VoxelMap.integrate()`
-耗时。两种分辨率按同一 ~60° 水平视场取内参，因此 fx 分别为 277 / 554。
+合成场景使用 4.4 m 背景墙，竖杆深度分别为 1.5 m 和 4 m。每组先积分一张无杆图，
+再在相同内参和采样相位下增加杆宽。杆与墙位于不同的前向体素层。下表给出首次在杆深度层
+产生占据格的杆宽，以及不同正杆宽下单次 `VoxelMap.integrate()` 的墙钟时间中位数。
+测量使用 0.3 m 体素和 4.5 m 径向量程。杆的左边缘位于采样列的下一像素。
 
-| 分辨率 | 距离 | stride 8 | stride 4 | stride 2 |
+| 分辨率 | 杆深度 | 步长 8 | 步长 4 | 步长 2 |
 |---|---|---|---|---|
-| 320×240 | 1.5 m | 43.3 mm / 4.3 ms | 21.7 mm / 15.8 ms | 10.8 mm / 61.4 ms |
-| 320×240 | 4 m | 115.5 mm / 3.9 ms | 57.7 mm / 15.2 ms | 28.9 mm / 61.3 ms |
-| 640×480 | 1.5 m | 21.7 mm / 15.0 ms | 10.8 mm / 64.6 ms | 5.4 mm / 261.8 ms |
-| 640×480 | 4 m | 57.7 mm / 15.9 ms | 28.9 mm / 77.8 ms | 14.4 mm / 331.9 ms |
+| 320×240 | 1.5 m | 43.3 mm / 2.3 ms | 21.7 mm / 8.4 ms | 10.8 mm / 33.1 ms |
+| 320×240 | 4 m | 115.5 mm / 2.3 ms | 57.7 mm / 8.4 ms | 28.9 mm / 32.7 ms |
+| 640×480 | 1.5 m | 21.7 mm / 8.2 ms | 10.8 mm / 33.1 ms | 5.4 mm / 125.7 ms |
+| 640×480 | 4 m | 57.7 mm / 8.2 ms | 28.9 mm / 31.9 ms | 14.4 mm / 131.0 ms |
 
-（单元格 = 该配置能稳定保留的最薄障碍；斜杠后为单帧建图耗时）
+12 组无杆对照在杆深度层均产生 0 个占据格。墙面前向深度误差只统计落在墙面且在量程内的命中点，
+所有组合的 P95 均小于 1 µm。该数值反映理想浮点深度输入。积分耗时取自本次 macOS 主机复测。
 
-- 步长减半，可保留的最薄障碍也减半；提高分辨率的效果与减半步长等价
-  （`640 + stride 8` ≡ `320 + stride 4`），但前者要多 4 倍深度数据，并且要重新对齐
-  RGB / 深度 / CameraInfo / TF（`rgbd_alignment.require_registered_pair` 要求四者严格一致）。
-- 代价：320 上 stride 8→4 使单帧建图从 3.9 ms 升到 15.2 ms；mapper 以 0.35 s 为周期整合，
-  即约 4% 的占空比，可以接受。
-- **推荐**：320×240 → stride 4。只有在需要 < 3 cm 级细节时再考虑升分辨率到 640×480 + stride 4
-  （77.8 ms/帧，约 22% 占空比）。
+### C3. Depot 07 闭环观测
 
-### C3. 未能覆盖的验收项
-
-合成场景真值精确，墙面距离误差为 0；真实数据下的墙面 P95 误差、有效 RGB-D 配对率、优化前后
-同视角点云对比图都需要 ROS 2 + 真实 rosbag，本机不具备（无 ROS 2 Jazzy 环境、无实机数据）。
-这些项留给仿真/实机验证，代码侧只保证：步长可配、非法值显式报错、分辨率变动时
-`require_registered_pair` 会拒绝未对齐的四件套。
+在同一场景各运行 180 仿真秒。原作者的默认组合（640 输入、0.2 s、步长 8）接收 1,376 帧，
+其中 688 帧完成推理及有效 RGB-D 配准。实验组合（320 输入、0 s、步长 4）对应 1,382 / 1,382 帧。
+同一来源首次视觉确认并与人物真值匹配的时刻分别为 67.25 s 和 97.50 s。两组同时调整了三项参数，
+各飞行一次。实机墙面误差仍需带参考距离的实测数据。
 
 ## 复现
 

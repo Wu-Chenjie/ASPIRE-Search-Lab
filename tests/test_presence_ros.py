@@ -33,7 +33,8 @@ main()
     rclpy.init(domain_id=184);node=rclpy.create_node('presence_fixture')
     pubs={k:node.create_publisher(c,t,qos_profile_sensor_data) for k,c,t in [('rgb',Image,'/drone_0/rgb/image'),('depth',Image,'/drone_0/depth/image'),('ri',CameraInfo,'/drone_0/rgb/camera_info'),('di',CameraInfo,'/drone_0/depth/camera_info')]}
     clockpub=node.create_publisher(Clock,'/clock',10);tfpub=node.create_publisher(TFMessage,'/tf_static',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
-    reports=[];packets=[];markers=[];events=[];registry=[];timings=[]
+    reports=[];packets=[];markers=[];events=[];registry=[];timings=[];semantics=[]
+    node.create_subscription(String,'/search/semantic_candidates',lambda m:semantics.append(json.loads(m.data)),100)
     node.create_subscription(String,'/search/perception_timing',lambda m:timings.append(json.loads(m.data)),100)
     node.create_subscription(String,'/search/tracks',lambda m:reports.append(json.loads(m.data)),30)
     node.create_subscription(String,'/search/presence_events',lambda m:events.append(json.loads(m.data)),30)
@@ -106,6 +107,21 @@ main()
         assert sum(e['event']=='visual_confirmed' for e in events)==2
         if mode=='decoupled':assert not any(m.id==latest()['id'] and m.type in (Marker.SPHERE,Marker.LINE_LIST) for m in markers[-1].markers)
         else:assert not registry[-1]['observations'][0]['has_position'] and not registry[-1]['observations'][0]['has_bearing']
+        # Advance the timer without publishing an RGB image to exercise a repeat.
+        if pace == 'original_fast':
+            tick = Clock()
+            tick.clock.sec = 18  # Last image is at 17.8 s.
+            tick.clock.nanosec = 200_000_000
+            clockpub.publish(tick)
+        deadline = time.monotonic() + 3
+        while len({msg['stamp_ns'] for msg in semantics}) == len(semantics) and time.monotonic() < deadline:
+            spin(.05)
+        first_by_stamp = {}
+        for msg in semantics:
+            timing = (msg['received_wall_s'], msg['first_semantic_latency_wall_s'])
+            assert timing[0] > 0 and timing[1] >= 0
+            assert first_by_stamp.setdefault(msg['stamp_ns'], timing) == timing
+        assert 0 < len(first_by_stamp) < len(semantics)
     finally:
         proc.terminate()
         try:proc.wait(timeout=5)

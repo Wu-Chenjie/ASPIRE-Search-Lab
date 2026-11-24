@@ -17,7 +17,7 @@ sys.path[:0]=[str(Path(__file__).resolve().parents[2]),str(Path(__file__).resolv
 from person_search.detector_spec import DetectorSpec
 from person_search.yolo import YoloPersonDetector
 from person_search.presence_adapter import select_presence_capture, discard_superseded_rgb
-from person_search.node import rgb_pixels
+from person_search.node import claim_rgb, enqueue_rgb, rgb_pixels
 
 class Tracker:
     def __init__(self):self.last_rgb_ns=-1;self.frames=OrderedDict();self.tracks=[]
@@ -28,9 +28,8 @@ class Node:
     require_pose=False;max_age=1.5;input_queue_limit=40
     def __init__(self,period_ns):
         self.queues={k:{} for k in ('rgb','depth','ri','di')}
-        self.tracker=Tracker();self.input_lock=threading.RLock();self.received_wall={}
+        self.tracker=Tracker();self.input_lock=threading.RLock();self.rgb_receipts={}
         self.min_rgb_period_ns=period_ns;self.rgb_skipped_total=0;self.rgb_ingest_dropped_total=0
-        self.frame_of={}
 
 def quantiles(values):
     return dict(zip(('p50','p95','p99'),np.quantile(values,[.5,.95,.99]).tolist())) if values else {}
@@ -80,19 +79,14 @@ def main():
                 stop.wait(min(next_at-now,.05));continue
             stamp=time.monotonic_ns()
             frame=frames[index%len(frames)];index+=1
-            header=type('H',(),{'frame_id':'optical','stamp':None})()
-            image=type('Img',(),{'header':header,'width':frame.shape[1],'height':frame.shape[0]})()
             with node.input_lock:
-                node.queues['rgb'][stamp]=image;node.received_wall[stamp]=time.monotonic()
-                for key in ('depth','ri','di'):node.queues[key][stamp]=object()
-                if len(node.queues['rgb'])>node.input_queue_limit:
-                    oldest=min(node.queues['rgb'])
-                    for key in node.queues:node.queues[key].pop(oldest,None)
-                    node.received_wall.pop(oldest,None);node.rgb_ingest_dropped_total+=1
+                enqueue_rgb(node, stamp, frame)
+                for key in ('depth','ri','di'):
+                    queue = node.queues[key]
+                    queue[stamp] = None
+                    if len(queue) > node.input_queue_limit:
+                        del queue[min(queue)]
                 state['index']=index
-            node.frame_of[stamp]=index-1
-            if len(node.frame_of)>512:
-                for stale in sorted(node.frame_of)[:len(node.frame_of)-512]:node.frame_of.pop(stale,None)
             next_at+=period
             if next_at<now:next_at=now+period
             wake.set()
@@ -100,24 +94,23 @@ def main():
     def consume():
         while not stop.is_set():
             wake.wait(timeout=.05);wake.clear()
-            with node.input_lock:queues={k:q.copy() for k,q in node.queues.items()}
-            ns,_,_=select_presence_capture(node,queues,None,time.monotonic_ns())
-            if ns is None:continue
-            discard_superseded_rgb(node,ns)
             with node.input_lock:
-                received=node.received_wall.get(ns);index=node.frame_of.pop(ns,None)
-            if index is None:continue
-            frame=frames[index%len(frames)]
+                ns,_,_=select_presence_capture(node,node.queues,None,time.monotonic_ns())
+                if ns is None:continue
+                discard_superseded_rgb(node,ns)
+                frame=node.queues['rgb'][ns]
+                receipt=claim_rgb(node,ns,frame)
             started=time.perf_counter();pixels=rgb_pixels(type('I',(),{'encoding':'rgb8','data':frame.tobytes(),
                 'height':frame.shape[0],'width':frame.shape[1],'step':frame.shape[1]*3})())
             converted=time.perf_counter();detections=model.detect(pixels);inferred_at=time.perf_counter()
             if args.annotate:annotate(pixels.copy(),detections)
             published=time.perf_counter()
-            node.tracker.last_rgb_ns=ns;node.tracker.frames[ns]=[];state['inferred']+=1
+            latency=time.monotonic()-receipt.received_wall_s
+            node.last_ns=ns;node.tracker.last_rgb_ns=ns;node.tracker.frames[ns]=[];state['inferred']+=1
             while len(node.tracker.frames)>128:node.tracker.frames.popitem(last=False)
             samples.append(dict(stamp_ns=ns,convert_s=converted-started,inference_s=inferred_at-converted,
                 frame_s=inferred_at-started,publish_s=published-inferred_at,
-                latency_s=published-received,instances=len(detections)))
+                latency_s=latency,instances=len(detections)))
     started=time.monotonic()
     threads=[threading.Thread(target=producer),threading.Thread(target=consume)]
     for thread in threads:thread.daemon=True;thread.start()

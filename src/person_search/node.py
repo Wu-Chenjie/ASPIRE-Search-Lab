@@ -7,6 +7,7 @@ import json
 import os
 import time
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -16,6 +17,40 @@ from .active_confirmation import review_execution_ready, review_pose
 from aspire_interfaces import topics
 from .segmentation import localize_masks
 from aspire_camera.rgbd_alignment import camera_uses_full_resolution,require_registered_pair,stamp_ns
+
+
+@dataclass
+class RgbReceipt:
+    received_wall_s: float
+    processing_started: bool = False
+    first_semantic_latency_wall_s: float | None = None
+
+    def publication_timing(self):
+        if self.first_semantic_latency_wall_s is None:
+            self.first_semantic_latency_wall_s = time.monotonic() - self.received_wall_s
+        return dict(received_wall_s=self.received_wall_s,
+                    first_semantic_latency_wall_s=self.first_semantic_latency_wall_s)
+
+
+def enqueue_rgb(node, ns, image):
+    """Called under the input lock, once per accepted RGB stamp."""
+    queue = node.queues['rgb']
+    queue[ns] = image
+    node.rgb_receipts[ns] = RgbReceipt(time.monotonic())
+    if len(queue) > node.input_queue_limit:
+        oldest = min(queue)
+        del queue[oldest]
+        if not node.rgb_receipts.pop(oldest).processing_started:
+            node.rgb_ingest_dropped_total += 1
+
+
+def claim_rgb(node, ns, image):
+    """Claim the same buffered image under the input lock before processing it."""
+    if node.queues['rgb'].get(ns) is not image:
+        raise ValueError('RGB capture replaced or evicted before inference')
+    receipt = node.rgb_receipts[ns]
+    receipt.processing_started = True
+    return receipt
 
 
 def choose_view(*args, **kwargs):
@@ -106,7 +141,7 @@ def main():
             super().__init__('person_search')
             if not self.has_parameter('use_sim_time'):self.declare_parameter('use_sim_time',True)
             self.queues={k:{} for k in ('rgb','depth','ri','di')};self.buffer=Buffer();self.listener=TransformListener(self.buffer,self)
-            self.received_wall={};self.rgb_received_total=0;self.rgb_consumed_total=0;self.process_calls=0;self.latest_rgb_received_ns=-1;self.last_rgb_consumed_ns=-1;self.callback_started_wall=None;self.callback_started_ns=None;self.previous_callback_wall_gap=None;self.previous_callback_sim_gap=None;self.last_callback_wall_s=None;self.input_lock=threading.RLock()
+            self.rgb_receipts={};self.last_semantic_receipt=(None, None);self.rgb_received_total=0;self.rgb_consumed_total=0;self.process_calls=0;self.latest_rgb_received_ns=-1;self.last_rgb_consumed_ns=-1;self.callback_started_wall=None;self.callback_started_ns=None;self.previous_callback_wall_gap=None;self.previous_callback_sim_gap=None;self.last_callback_wall_s=None;self.input_lock=threading.RLock()
             self.require_pose=self.declare_parameter('require_estimated_pose',False).value;self.pose_history=PoseHistory()
             if self.require_pose:
                 from rclpy.qos import QoSProfile,ReliabilityPolicy
@@ -294,29 +329,31 @@ def main():
                     self.rgb_received_total += 1
                     if ns in q or ns in self.semantic_cache or ns==self.inference_rgb_ns:
                         return
-                    self.received_wall[ns] = time.monotonic()
+                    enqueue_rgb(self, ns, m)
                     self.latest_rgb_received_ns = max(self.latest_rgb_received_ns, ns)
-                q[ns] = m
-                if len(q) > self.input_queue_limit:
-                    oldest = min(q)
-                    del q[oldest]
-                    if k == 'rgb':
-                        del self.received_wall[oldest]
-                        self.rgb_ingest_dropped_total += 1
+                else:
+                    q[ns] = m
+                    if len(q) > self.input_queue_limit:
+                        del q[min(q)]
             if self.decoupled:self.input_event.set()
         def fresh_capture(self,ns):
             return capture_age_valid(ns,self.get_clock().now().nanoseconds,self.max_age)
+        def publish_candidate_report(self, report):
+            ns = report['stamp_ns']
+            last_ns, receipt = self.last_semantic_receipt
+            if ns != last_ns:
+                receipt = self.semantic_cache[ns][2]
+                self.last_semantic_receipt = ns, receipt
+            report.update(receipt.publication_timing())
+            self.semantic_output.publish(String(data=json.dumps(report)))
+            if self.evidence_dir:self.record_evidence(dict(kind='semantic', **report))
+
         def publish_semantics(self,ns,frame,rows):
             if self.active_confirmation:self.tracker.semantic_memory.update(rows,ns*1e-9)
-            received_wall=self.received_wall.get(ns)
             report=dict(stamp_ns=ns,rgb_frame=frame,position_frame='map',backend=self.backend,candidates=rows,
-                        inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],published_sim_ns=self.get_clock().now().nanoseconds,
-                        received_wall_s=received_wall,
-                        first_semantic_latency_wall_s=None if received_wall is None else time.monotonic()-received_wall)
+                        inference_wall_s=self.semantic_cache[ns][1],published_sim_ns=self.get_clock().now().nanoseconds)
             if self.active_confirmation:report['semantic_memory']=self.tracker.semantic_memory.candidates
-            msg=String();msg.data=json.dumps(report)
-            self.semantic_output.publish(msg)
-            if self.evidence_dir:self.record_evidence(dict(kind='semantic',**report))
+            self.publish_candidate_report(report)
             with self.input_lock:source=self.queues['rgb'].get(ns)
             if source is not None and ns in self.semantic_cache:
                 import cv2
@@ -339,7 +376,8 @@ def main():
                 self.get_logger().warning(f'Perception snapshot write failed: {error}', throttle_duration_sec=5.)
         def timing(self,ns,status,reason=None):
             now=self.get_clock().now().nanoseconds
-            row=dict(stamp_ns=ns,now_ns=now,age_s=(now-ns)*1e-9,received_age_wall_s=time.monotonic()-self.received_wall.get(ns,time.monotonic()),inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],status=status,reason=reason)
+            receipt = self.rgb_receipts.get(ns)
+            row=dict(stamp_ns=ns,now_ns=now,age_s=(now-ns)*1e-9,received_age_wall_s=time.monotonic()-receipt.received_wall_s if receipt else 0.,inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],status=status,reason=reason)
             row.update(processing_wall_monotonic_s=time.monotonic(),confirmation_mode=self.confirmation_mode,
                 rgb_received_total=self.rgb_received_total,rgb_consumed_total=self.rgb_consumed_total,
                 process_calls=self.process_calls,latest_rgb_received_stamp_ns=self.latest_rgb_received_ns,
@@ -360,8 +398,7 @@ def main():
             if ns in self.semantic_cache:
                 return self.semantic_cache[ns][0]
             with self.input_lock:
-                if self.queues['rgb'].get(ns,rgb) is not rgb:
-                    raise ValueError('RGB capture replaced before inference')
+                receipt = claim_rgb(self, ns, rgb)
                 self.inference_rgb_ns=ns
             try:
                 pixels=rgb_pixels(rgb)
@@ -370,9 +407,9 @@ def main():
                 detections=self.detector.detect(pixels)
                 elapsed=time.perf_counter()-started
                 with self.input_lock:
-                    self.semantic_cache[ns]=detections,elapsed
-                    if len(self.semantic_cache)>self.input_queue_limit:
+                    if len(self.semantic_cache) >= self.input_queue_limit:
                         del self.semantic_cache[min(self.semantic_cache)]
+                    self.semantic_cache[ns] = detections, elapsed, receipt
             finally:
                 with self.input_lock:self.inference_rgb_ns=None
             self.timing(ns,'inference_complete')
@@ -521,6 +558,7 @@ def main():
                     self.publish_bearings(self.get_clock().now().nanoseconds*1e-9)
                 else:
                     points = cloud(data, di.k, transform)
+                    with self.input_lock: claim_rgb(self, ns, rgb)
                     observations = candidates_from_cloud(rgb_pixels(rgb), data, points, self.detector)
                 context=dict(semantic_candidate_count=len(rows),localization_rejections=[r.get('depth_reason') for r in rows if r['localization_state']=='unlocalized'],capture_time_s=ns*1e-9,processing_time_s=self.get_clock().now().nanoseconds*1e-9) if self.backend=='yolo11n-seg' else None
                 tracks=self.tracker.update(observations,transform[:3,3],ns*1e-9,capture_context=context) if self.active_confirmation else self.tracker.update(observations,transform[:3,3],ns*1e-9)

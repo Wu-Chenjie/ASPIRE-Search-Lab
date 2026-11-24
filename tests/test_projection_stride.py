@@ -33,3 +33,17 @@ def test_narrow_obstacle_missed_at_stride_8_is_kept_at_stride_4():
 def test_invalid_stride_is_refused(stride):
     with pytest.raises(ValueError):
         project_depth(frame(),K,stride=stride)
+
+
+def test_four_metre_bar_changes_depth_and_mapper_occupancy_only_when_sampled():
+    from runpy import run_path
+    sweep = run_path(str(ROOT / 'artifacts/agent-runs/declaration/stride_sweep.py'))
+    run = sweep['run']
+    args = dict(width=320, height=240, phase=1, distance=4.)
+    control = run(stride=4, bar_px=0, **args)
+    missed = run(stride=8, bar_px=4, **args)
+    detected = run(stride=4, bar_px=4, **args)
+    assert control['obstacle_cells'] == missed['obstacle_cells'] == 0
+    assert detected['obstacle_cells'] > 0
+    assert 0 < detected['wall_hits'] < detected['samples'] - detected['obstacle_samples']
+    assert detected['wall_range_p95_error_m'] < 1e-6

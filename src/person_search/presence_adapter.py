@@ -153,8 +153,9 @@ def discard_superseded_rgb(node,ns):
         expired=[s for s in older if s in frames and s<horizon]
         for stale in dead+expired:
             del node.queues['rgb'][stale]
-            getattr(node,'received_wall',{}).pop(stale,None)
-        node.rgb_skipped_total=getattr(node,'rgb_skipped_total',0)+len(dead)
+            receipt = node.rgb_receipts.pop(stale)
+            if stale not in frames and not receipt.processing_started:
+                node.rgb_skipped_total += 1
     return len(dead)+len(expired)
 
 
@@ -168,8 +169,8 @@ def process_presence(node,queues,history):
     tracker.expire(now)
     # Complete a paired capture first; otherwise RGB does not depend on depth/TF.
     ns, geo_ns, stale_pair_ns = select_presence_capture(node, queues, history, now_ns)
-    if ns is not None and discard_superseded_rgb(node,ns):
-        queues=snapshot_inputs(node)[0]
+    if ns is not None:
+        discard_superseded_rgb(node,ns)
     geo_pair=None
     prepared=None
     preparation_error=None
@@ -347,8 +348,7 @@ def publish_presence(node):
     if ns>=0:
         rows=node.tracker.frame_rows(ns,processing)
         semantic=dict(schema_version=2,stamp_ns=ns,processing_time_s=processing,published_sim_ns=now.nanoseconds,backend=node.backend,counts=report['counts'],candidates=rows)
-        node.semantic_output.publish(String(data=json.dumps(semantic)))
-        if node.evidence_dir:node.record_evidence(dict(kind='semantic',**semantic))
+        node.publish_candidate_report(semantic)
         with node.input_lock:rgb=node.queues['rgb'].get(ns)
         if rgb is not None:
             import cv2
