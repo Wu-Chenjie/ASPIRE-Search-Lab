@@ -358,23 +358,26 @@ def main():
     from aspire_camera.poses import PoseHistory
     from aspire_camera.rgbd_alignment import stamp_ns
     import numpy as np
-    try:
-        import cv2
-    except (ImportError,OSError) as error:
-        warn('rgbd_snapshot',error)
-        cv2=None
+    cv2=None
+    if a.record_debug_evidence:
+        try:
+            import cv2
+        except (ImportError,OSError) as error:
+            warn('rgbd_snapshot',error)
     from std_msgs.msg import Float64MultiArray,String
     from geometry_msgs.msg import TransformStamped
     from tf2_ros import TransformBroadcaster
     rclpy.init();node=rclpy.create_node('flight_evidence');node.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)]);tf=TransformBroadcaster(node)
-    pose_history=PoseHistory();frames={k:{} for k in ('rgb','depth','ri','di')};last_frame=-1e9;frame_count=0
-    def image_received(key,msg):
-        q=frames[key];q[stamp_ns(msg.header)]=msg
-        while len(q)>30:del q[min(q)]
-    for key, kind, stream, channel in [('rgb', Image, 'rgb', 'image'), ('depth', Image, 'depth', 'image'),
-                                       ('ri', CameraInfo, 'rgb', 'camera_info'), ('di', CameraInfo, 'depth', 'camera_info')]:
-        topic = topics.camera_topic(0, stream, channel)
-        node.create_subscription(kind, topic, lambda m,k=key:image_received(k,m), qos_profile_sensor_data)
+    pose_history=PoseHistory() if a.record_debug_evidence else None
+    frames={k:{} for k in ('rgb','depth','ri','di')};last_frame=-1e9;frame_count=0
+    if a.record_debug_evidence:
+        def image_received(key,msg):
+            q=frames[key];q[stamp_ns(msg.header)]=msg
+            while len(q)>30:del q[min(q)]
+        for key, kind, stream, channel in [('rgb', Image, 'rgb', 'image'), ('depth', Image, 'depth', 'image'),
+                                           ('ri', CameraInfo, 'rgb', 'camera_info'), ('di', CameraInfo, 'depth', 'camera_info')]:
+            topic = topics.camera_topic(0, stream, channel)
+            node.create_subscription(kind, topic, lambda m,k=key:image_received(k,m), qos_profile_sensor_data)
     try:
         evidence=(out/'telemetry.jsonl').open('x',buffering=1)
     except OSError as error:
@@ -399,7 +402,8 @@ def main():
     def odom(m):
         nonlocal previous,path,max_z,last_log
         pos=m.pose.pose.position;q=m.pose.pose.orientation
-        pose_history.add(stamp_ns(m.header)*1e-9,[pos.x,pos.y,pos.z],[q.x,q.y,q.z,q.w])
+        if pose_history is not None:
+            pose_history.add(stamp_ns(m.header)*1e-9,[pos.x,pos.y,pos.z],[q.x,q.y,q.z,q.w])
         # PX4 bridge provides ENU estimate, calibrated at known initial ground datum.
         t=TransformStamped();t.header=m.header;t.header.frame_id='map';t.child_frame_id='drone_0/base_link';t.transform.translation.x=pos.x;t.transform.translation.y=pos.y;t.transform.translation.z=pos.z;t.transform.rotation=q;tf.sendTransform(t)
         v=[pos.x,pos.y,pos.z];max_z=max(max_z,pos.z)

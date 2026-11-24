@@ -42,10 +42,17 @@ def prepare_geometry(node,images,history,Time):
         registration=node.buffer.lookup_transform(rgb.header.frame_id,depth.header.frame_id,Time(nanoseconds=ns))
         require_registered_pair(rgb,depth,ri,di,registration)
         data=decode_depth(depth.data,depth.width,depth.height,depth.step,depth.encoding,depth.is_bigendian)
-        import hashlib
-        calibration=dict(width=ri.width,height=ri.height,frame=ri.header.frame_id,
-            k=list(ri.k),p=list(ri.p),r=list(ri.r),d=list(ri.d))
-        identity=hashlib.sha256(json.dumps(calibration,sort_keys=True,allow_nan=False).encode()).hexdigest()
+        cal_key = (ri.width, ri.height, ri.header.frame_id,
+                   tuple(ri.k), tuple(ri.p), tuple(ri.r), tuple(ri.d))
+        cached = getattr(node, '_strict_calibration_cache', None)
+        if cached is not None and cached[0] == cal_key:
+            identity = cached[1]
+        else:
+            import hashlib
+            calibration=dict(width=ri.width,height=ri.height,frame=ri.header.frame_id,
+                k=list(ri.k),p=list(ri.p),r=list(ri.r),d=list(ri.d))
+            identity=hashlib.sha256(json.dumps(calibration,sort_keys=True,allow_nan=False).encode()).hexdigest()
+            node._strict_calibration_cache = (cal_key, identity)
         return data,di.k,transform,dict(rgb_stamp_ns=ns,depth_stamp_ns=dns,skew_s=0.,mode='strict',calibration_id=identity)
     if dns!=ns:
         if not capture_age_valid(dns,node.get_clock().now().nanoseconds,node.max_age):raise ValueError('stale_registration_capture')
@@ -148,18 +155,17 @@ def discard_superseded_rgb(node,ns):
     frames=node.tracker.frames
     horizon=ns-int(float(getattr(node,'max_age',1.5))*1e9)
     with node.input_lock:
-        older=[s for s in node.queues['rgb'] if s<ns]
-        dead=[s for s in older if s not in frames]
-        expired=[s for s in older if s in frames and s<horizon]
-        for stale in dead+expired:
-            del node.queues['rgb'][stale]
+        rgb_queue = node.queues['rgb']
+        stale_keys = [s for s in rgb_queue if s < ns and (s not in frames or s < horizon)]
+        for stale in stale_keys:
+            del rgb_queue[stale]
             receipt = node.rgb_receipts.pop(stale)
             if stale not in frames and not receipt.processing_started:
                 node.rgb_skipped_total += 1
-    return len(dead)+len(expired)
+    return len(stale_keys)
 
 
-def process_presence(node,queues,history):
+def process_presence(node,queues,history,*,selected=None):
     from rclpy.time import Time
     from tf2_ros import TransformException
     from cv2 import error as OpenCVError
@@ -168,7 +174,8 @@ def process_presence(node,queues,history):
     tracker = node.tracker
     tracker.expire(now)
     # Complete a paired capture first; otherwise RGB does not depend on depth/TF.
-    ns, geo_ns, stale_pair_ns = select_presence_capture(node, queues, history, now_ns)
+    ns, geo_ns, stale_pair_ns = (selected if selected is not None else
+                                 select_presence_capture(node, queues, history, now_ns))
     if ns is not None:
         discard_superseded_rgb(node,ns)
     geo_pair=None
@@ -241,40 +248,45 @@ def process_presence(node,queues,history):
         node.bearing_capture(ns,queues,history)
     trace_input=None
     if geo_ns is not None and geo_ns in tracker.frames:
-        try:
-            if preparation_error is not None:raise preparation_error
-            data,intrinsics,transform,registration_quality=(prepared if prepared is not None else
-                prepare_geometry(node,geo_pair,history,Time))
-            node.timing(geo_ns,'surface_start')
-            indices=[a['raw_index'] for a in tracker.frames[geo_ns]]
-            kept=[detections[i] for i in indices]
-            if node.registry_mode:
-                from .surface import localize_surfaces
-                kept_rows,supports=localize_surfaces(kept,data,intrinsics,transform,registration_quality=registration_quality)
-            else:kept_rows,_=localize_masks(kept,data,intrinsics,transform)
-            # Keep the detector indices used by the tracks and evidence files.
-            rows=[None]*len(detections)
-            for i,row in zip(indices,kept_rows):rows[i]=row
-            node.timing(geo_ns,'surface_complete')
-            if not node.fresh_capture(geo_ns):raise ValueError('stale_after_inference')
-            if node.registry_mode:node.registry_evidence.capture(tracker,geo_ns,rows,node.get_clock().now().nanoseconds*1e-9)
-            else:tracker.localize(geo_ns,rows,node.get_clock().now().nanoseconds*1e-9)
-            if node.registry_mode and node.static_visibility_config is not None:
-                from .visibility_evidence import visibility_batch
-                node.pending_visibility=visibility_batch(node.registry_evidence,tracker,geo_ns,data,intrinsics,transform,
-                    node.get_clock().now().nanoseconds*1e-9,node.static_visibility_config,node.static_visibility_model)
-            node.processed+=1;node.timing(geo_ns,'accepted')
-            if node.trace_detector is not None:
-                trace_input=rgb,data,intrinsics,transform,registration_quality
-            if node.registry_mode and node.evidence_dir:
-                indexed_supports=np.zeros((len(detections),*data.shape),dtype=bool)
-                if indices:indexed_supports[indices]=supports
-                node.save_evidence(str(geo_ns)+'-supports.npz',supports=indexed_supports)
-            if node.evidence_dir:node.save_evidence(str(geo_ns)+'-geometry.npz',stamp_ns=geo_ns,depth=data,k=intrinsics,camera_to_map=transform,registration_json=json.dumps(registration_quality))
-        except (ValueError,RuntimeError,OSError,OpenCVError,TransformException) as e:
-            node.rejected+=1;tracker.reject_localization(geo_ns,node.get_clock().now().nanoseconds*1e-9,str(e));node.timing(geo_ns,'localization_rejected',str(e))
-            if node.registry_mode:node.registry_evidence.reject(tracker,geo_ns,node.get_clock().now().nanoseconds*1e-9,str(e))
-        node.last_ns=geo_ns
+        indices=[a['raw_index'] for a in tracker.frames[geo_ns]]
+        needs_geometry=(bool(indices) or (node.registry_mode and node.static_visibility_config is not None)
+                        or node.trace_detector is not None or bool(node.evidence_dir))
+        if not needs_geometry:
+            node.last_ns=geo_ns
+        else:
+            try:
+                if preparation_error is not None:raise preparation_error
+                data,intrinsics,transform,registration_quality=(prepared if prepared is not None else
+                    prepare_geometry(node,geo_pair,history,Time))
+                node.timing(geo_ns,'surface_start')
+                kept=[detections[i] for i in indices]
+                if node.registry_mode:
+                    from .surface import localize_surfaces
+                    kept_rows,supports=localize_surfaces(kept,data,intrinsics,transform,registration_quality=registration_quality)
+                else:kept_rows,_=localize_masks(kept,data,intrinsics,transform)
+                # Keep the detector indices used by the tracks and evidence files.
+                rows=[None]*len(detections)
+                for i,row in zip(indices,kept_rows):rows[i]=row
+                node.timing(geo_ns,'surface_complete')
+                if not node.fresh_capture(geo_ns):raise ValueError('stale_after_inference')
+                if node.registry_mode:node.registry_evidence.capture(tracker,geo_ns,rows,node.get_clock().now().nanoseconds*1e-9)
+                else:tracker.localize(geo_ns,rows,node.get_clock().now().nanoseconds*1e-9)
+                if node.registry_mode and node.static_visibility_config is not None:
+                    from .visibility_evidence import visibility_batch
+                    node.pending_visibility=visibility_batch(node.registry_evidence,tracker,geo_ns,data,intrinsics,transform,
+                        node.get_clock().now().nanoseconds*1e-9,node.static_visibility_config,node.static_visibility_model)
+                node.processed+=1;node.timing(geo_ns,'accepted')
+                if node.trace_detector is not None:
+                    trace_input=rgb,data,intrinsics,transform,registration_quality
+                if node.registry_mode and node.evidence_dir:
+                    indexed_supports=np.zeros((len(detections),*data.shape),dtype=bool)
+                    if indices:indexed_supports[indices]=supports
+                    node.save_evidence(str(geo_ns)+'-supports.npz',supports=indexed_supports)
+                if node.evidence_dir:node.save_evidence(str(geo_ns)+'-geometry.npz',stamp_ns=geo_ns,depth=data,k=intrinsics,camera_to_map=transform,registration_json=json.dumps(registration_quality))
+            except (ValueError,RuntimeError,OSError,OpenCVError,TransformException) as e:
+                node.rejected+=1;tracker.reject_localization(geo_ns,node.get_clock().now().nanoseconds*1e-9,str(e));node.timing(geo_ns,'localization_rejected',str(e))
+                if node.registry_mode:node.registry_evidence.reject(tracker,geo_ns,node.get_clock().now().nanoseconds*1e-9,str(e))
+            node.last_ns=geo_ns
     elif ns is not None and ns>node.last_ns:
         tracker.pending_localization(ns,node.get_clock().now().nanoseconds*1e-9,'missing_registered_capture_pair_or_pose')
         if node.registry_mode:node.registry_evidence.capture(tracker,ns,None,node.get_clock().now().nanoseconds*1e-9)
@@ -351,12 +363,13 @@ def publish_presence(node):
         rows=node.tracker.frame_rows(ns,processing)
         semantic=dict(schema_version=2,stamp_ns=ns,processing_time_s=processing,published_sim_ns=now.nanoseconds,backend=node.backend,counts=report['counts'],candidates=rows)
         node.publish_candidate_report(semantic)
-        with node.input_lock:rgb=node.queues['rgb'].get(ns)
-        if rgb is not None:
-            import cv2
-            pixels=rgb_pixels(rgb)
-            for r in rows:
-                x,y,w,h=map(int,r['box']);color=(40,220,70) if r['visual_state']=='visually_confirmed' else (240,190,30);cv2.rectangle(pixels,(x,y),(x+w,y+h),color,1)
-                cv2.putText(pixels,f"V{r['id']} {r['visual_state']} loc:{r['localization_state']}",(max(0,x-2),max(12,y-3)),cv2.FONT_HERSHEY_SIMPLEX,.28,color,1)
-            m=Image();m.header=rgb.header;m.height=rgb.height;m.width=rgb.width;m.encoding='rgb8';m.step=rgb.width*3;m.data=pixels.tobytes();node.annotated_output.publish(m)
+        if node.annotated_output.get_subscription_count():
+            with node.input_lock:rgb=node.queues['rgb'].get(ns)
+            if rgb is not None:
+                import cv2
+                pixels=rgb_pixels(rgb)
+                for r in rows:
+                    x,y,w,h=map(int,r['box']);color=(40,220,70) if r['visual_state']=='visually_confirmed' else (240,190,30);cv2.rectangle(pixels,(x,y),(x+w,y+h),color,1)
+                    cv2.putText(pixels,f"V{r['id']} {r['visual_state']} loc:{r['localization_state']}",(max(0,x-2),max(12,y-3)),cv2.FONT_HERSHEY_SIMPLEX,.28,color,1)
+                m=Image();m.header=rgb.header;m.height=rgb.height;m.width=rgb.width;m.encoding='rgb8';m.step=rgb.width*3;m.data=pixels.tobytes();node.annotated_output.publish(m)
     publish_presence_events(node)

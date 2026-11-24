@@ -175,3 +175,99 @@ def test_perception_worker_recovers_after_a_work_item_exception():
         assert succeeded.wait(2.) and len(errors) == 1
     finally:
         assert env['stop_worker'](node)
+
+
+def test_empty_detections_skip_geometry_prep_and_strict_calibration_hash_caches(monkeypatch):
+    fake = ModuleType('rclpy.time')
+    fake.Time = lambda **kw: kw
+    monkeypatch.setitem(sys.modules, 'rclpy.time', fake)
+    class TransformException(Exception):
+        pass
+    monkeypatch.setitem(sys.modules, 'tf2_ros', N(TransformException=TransformException))
+
+    _, depth = sample()
+    depth[:] = 2.
+    ns = 1_000_000_000
+    header = N(frame_id='optical', stamp=N(sec=1, nanosec=0))
+    rgb = N(width=320, height=240, header=header)
+    info = N(width=320, height=240, header=header, k=np.asarray(K).reshape(-1).tolist(),
+             p=[0.] * 12, r=[0.] * 9, d=[])
+    dm = N(width=320, height=240, header=header, encoding='32FC1', is_bigendian=False,
+           step=320 * 4, data=depth.astype('<f4').tobytes())
+    history = PoseHistory()
+    history.add(.99, [0, 0, 0], [0, 0, 0, 1])
+    history.add(1.01, [0, 0, 0], [0, 0, 0, 1])
+
+    events = []
+    node = N(
+        tracker=PresenceTracker(), registry_mode=True, registry_evidence=RegistryEvidence(session='test'),
+        rgbd_registration_mode='strict', trace_detector=None, static_visibility_config=None,
+        review_depth_continuity=False,
+        queues={'rgb': {ns: rgb}, 'depth': {ns: dm}, 'ri': {ns: info}, 'di': {ns: info}},
+        pose_history=history, input_lock=threading.RLock(), max_age=.75, require_pose=True,
+        last_ns=-1, last_semantic_ns=-1, min_rgb_period_ns=0, evidence_dir=None,
+        processed=0, rejected=0, rgb_consumed_total=0, last_rgb_consumed_ns=-1,
+        get_clock=lambda: N(now=lambda: N(nanoseconds=1_020_000_000)),
+        fresh_capture=lambda stamp: stamp == ns,
+        timing=lambda stamp, status, reason=None: events.append(status),
+        bearing_capture=lambda *args: None,
+        publish_bearings=lambda *args: None,
+        publish_person_masks=lambda *args: None,
+        detect_semantics=lambda stamp, image: [],
+        buffer=N(lookup_transform=lambda *args: N(header=header)),
+    )
+    monkeypatch.setattr(adapter, 'capture_world', lambda *args: T.copy())
+    monkeypatch.setattr(adapter, 'require_registered_pair', lambda *args: None)
+    monkeypatch.setattr(adapter, 'publish_presence', lambda n: None)
+    prep_calls = []
+    real_prepare = adapter.prepare_geometry
+    monkeypatch.setattr(adapter, 'prepare_geometry', lambda *a, **kw: prep_calls.append(a) or real_prepare(*a, **kw))
+    adapter.process_presence(node, {k: q.copy() for k, q in node.queues.items()}, history)
+    assert not prep_calls
+    assert node.last_ns == ns
+    assert not any(s in events for s in ('surface_start', 'surface_complete', 'accepted'))
+
+    sha_calls = []
+    import hashlib
+    real_sha256 = hashlib.sha256
+    monkeypatch.setattr(hashlib, 'sha256', lambda data: sha_calls.append(data) or real_sha256(data))
+    _, _, _, reg1 = real_prepare(node, (rgb, dm, info, info), history, fake.Time)
+    _, _, _, reg2 = real_prepare(node, (rgb, dm, info, info), history, fake.Time)
+    assert reg1['calibration_id'] == reg2['calibration_id'] and len(sha_calls) == 1
+    changed = N(width=320, height=240, header=header, k=[200., 0., 160., 0., 200., 120., 0., 0., 1.],
+                p=[0.] * 12, r=[0.] * 9, d=[])
+    _, _, _, reg3 = real_prepare(node, (rgb, dm, changed, info), history, fake.Time)
+    assert reg3['calibration_id'] != reg1['calibration_id'] and len(sha_calls) == 2
+
+
+def test_publish_presence_skips_annotation_without_subscribers(monkeypatch):
+    monkeypatch.setitem(sys.modules, 'std_msgs.msg', N(String=lambda **kw: N(**kw)))
+    monkeypatch.setitem(sys.modules, 'sensor_msgs.msg', N(Image=lambda: N()))
+    tracker = PresenceTracker()
+    d, _ = sample()
+    ns = 1_000_000_000
+    tracker.observe_rgb([d], ns, 320, 240, 1.01)
+    rgb = N(header=N(frame_id='optical', stamp=N(sec=1, nanosec=0)),
+            width=320, height=240, encoding='rgb8', step=960, data=np.zeros((240, 320, 3), np.uint8).tobytes())
+    sub_count = [0]
+    annotated = []
+    node = N(
+        tracker=tracker, registry_mode=True, backend='rfdetr-seg-nano',
+        registry_evidence=RegistryEvidence(session='test'),
+        pending_visibility=None, evidence_dir=None,
+        input_lock=threading.RLock(), queues={'rgb': {ns: rgb}},
+        get_clock=lambda: N(now=lambda: N(nanoseconds=1_020_000_000, to_msg=lambda: None)),
+        output=N(publish=lambda m: None),
+        registry_pub=N(publish=lambda m: None),
+        presence_events=N(publish=lambda m: None),
+        publish_candidate_report=lambda r: None,
+        annotated_output=N(get_subscription_count=lambda: sub_count[0], publish=annotated.append),
+    )
+    pixel_calls = []
+    real_rgb_pixels = adapter.rgb_pixels
+    monkeypatch.setattr(adapter, 'rgb_pixels', lambda image: pixel_calls.append(image) or real_rgb_pixels(image))
+    adapter.publish_presence(node)
+    assert not pixel_calls and not annotated
+    sub_count[0] = 1
+    adapter.publish_presence(node)
+    assert len(pixel_calls) == 1 and len(annotated) == 1

@@ -62,6 +62,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
         self.safety_certificate_count = 0
         self.safety_certificate_queue = None
         self.safety_certificate_writer = None
+        self._last_certificate_replacement = None
         if self.safety_output:
             self.safety_certificate_queue = queue.Queue(maxsize=8)
             self.safety_certificate_stop = threading.Event()
@@ -126,10 +127,13 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
 
     def save_safety_certificate(self,kind,original,progress,replacement=None,token=None):
         if self.safety_certificate_queue is None:
+            self._last_certificate_replacement = None
             return None
         self.safety_certificate_count += 1
         path = Path(self.safety_output)/f'{self.safety_certificate_count:04}-{kind}.npz'
         m=self.safety_replica.map; n=self.native_safety
+        replacement_dict = replacement.to_dict() if replacement else None
+        self._last_certificate_replacement = (replacement, replacement_dict) if replacement_dict is not None else None
         # Exact online maps at the decision, not reconstructed sensor replay.
         payload = dict(token=token or self.token or "",decision_time=self.get_clock().now().nanoseconds*1e-9,mapper_state=m.state.copy(),native_state=n.state.copy(),
             mapper_origin=m.origin,mapper_resolution=m.resolution,flight_limits=m.flight_limits,
@@ -138,7 +142,7 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
             mapper_version=m.version,tracking_margin=TRACKING_MARGIN,
             actual=self.positions[self.id].copy(),reference=self.ref.copy(),progress=progress,
             terminal_hold=json.dumps(self.terminal_hold_status),observation_failure=json.dumps(self.observation_failure),
-            original=json.dumps(original.to_dict()),replacement=json.dumps(replacement.to_dict()) if replacement else '')
+            original=json.dumps(original.to_dict()),replacement=json.dumps(replacement_dict) if replacement_dict else '')
         if kind in ('brake', 'terminal_hold', 'observation_abort', 'fault'):
             payload['static_handoff'] = self.current_static_handoff
         try:
@@ -381,13 +385,15 @@ class ViewExecutor(GuardedC2Executor, StaticCancellationExecutor, Node):
                 raise ValueError('New stop would extend original absolute deadline')
         except ValueError as error:
             self.fail_execution_safety(reason+': '+str(error)); return
-        stopped_path = stopped.path()
-        stopped_yaw = stopped.sample(stopped.duration)[3]
-        stopped_trajectory = stopped.to_dict()
         certificate=self.save_safety_certificate('brake',self.curve,self.curve_time,stopped)
+        cached = getattr(self, '_last_certificate_replacement', None)
+        self._last_certificate_replacement = None
         if elective_stop is not None and elapsed() > EXECUTION_DELAY_BUDGET:
             self._decline_delayed_review_stop(t, corridor, started)
             return
+        stopped_path = stopped.path()
+        stopped_yaw = stopped.sample(stopped.duration)[3]
+        stopped_trajectory = cached[1] if cached is not None and cached[0] is stopped else stopped.to_dict()
         self.curve=stopped; self.path=stopped_path; self.goal_yaw=stopped_yaw
         self.safety_hold_valid = True
         self.terminal_hold_since=None; self.terminal_hold_status=None; self.observation_failure=None

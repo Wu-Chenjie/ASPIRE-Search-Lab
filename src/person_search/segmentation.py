@@ -20,15 +20,18 @@ class PersonMask:
 
 def person_mask_packet(ns, rgb, detections, associations):
     """Serialize each accepted instance in the original RGB pixel coordinates."""
-    import cv2
-
+    cv2 = None
     instances = []
     for index, track_id in associations:
+        if cv2 is None:
+            import cv2
         detection = detections[index]
         mask = np.asarray(detection.mask, dtype=bool)
         if mask.shape != (rgb.height, rgb.width):
             raise ValueError("Person mask dimensions differ from the RGB capture")
-        ok, png = cv2.imencode(".png", mask.astype(np.uint8) * 255, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+        mask_u8 = mask.astype(np.uint8, copy=True)
+        mask_u8 *= 255
+        ok, png = cv2.imencode(".png", mask_u8, [cv2.IMWRITE_PNG_COMPRESSION, 1])
         if not ok:
             raise ValueError("Failed to encode person mask as PNG")
         instances.append(dict(instance_id=index, track_id=track_id, confidence=float(detection.confidence),

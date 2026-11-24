@@ -103,16 +103,40 @@ class NativeSafetyMap:
     def fresh(self, now):
         return self.state is not None and -.05 <= now-self.stamp <= MAX_MAP_AGE
 
-    def box_safe(self, low, high, *, ignore_inflation=False):
-        if self.state is None: return False
-        lo = np.floor((np.asarray(low)-self.origin)/self.resolution).astype(int)
-        hi = np.floor((np.asarray(high)-self.origin)/self.resolution).astype(int)
-        if np.any(lo < 0) or np.any(hi >= self.shape): return False
-        cells = self.state[tuple(slice(a,b+1) for a,b in zip(lo,hi))]
-        if ignore_inflation:
-            # Bit 4 encodes inflation. Raw unknown and occupied still block.
-            cells = cells & 3
-        return bool(np.all(cells == 1))
+    def box_safe(self, low, high, *, ignore_inflation=False, strict_box=None):
+        if self.state is None:
+            return False
+        ox, oy, oz = self.origin
+        res = self.resolution
+        sx, sy, sz = self.shape
+        lo0 = math.floor((low[0] - ox) / res)
+        lo1 = math.floor((low[1] - oy) / res)
+        lo2 = math.floor((low[2] - oz) / res)
+        hi0 = math.floor((high[0] - ox) / res)
+        hi1 = math.floor((high[1] - oy) / res)
+        hi2 = math.floor((high[2] - oz) / res)
+        if lo0 < 0 or lo1 < 0 or lo2 < 0 or hi0 >= sx or hi1 >= sy or hi2 >= sz:
+            return False
+        cells = self.state[lo0:hi0 + 1, lo1:hi1 + 1, lo2:hi2 + 1]
+        if bool(np.all(cells == 1)):
+            return True
+        if not ignore_inflation:
+            return False
+        # Bit 4 encodes inflation. Raw unknown and occupied still block.
+        if not bool(np.all((cells & 3) == 1)):
+            return False
+        if strict_box is not None:
+            rlo, rhi = strict_box
+            rlo0 = math.floor((rlo[0] - ox) / res)
+            rlo1 = math.floor((rlo[1] - oy) / res)
+            rlo2 = math.floor((rlo[2] - oz) / res)
+            rhi0 = math.floor((rhi[0] - ox) / res)
+            rhi1 = math.floor((rhi[1] - oy) / res)
+            rhi2 = math.floor((rhi[2] - oz) / res)
+            if rlo0 < 0 or rlo1 < 0 or rlo2 < 0 or rhi0 >= sx or rhi1 >= sy or rhi2 >= sz:
+                return False
+            return bool(np.all(self.state[rlo0:rhi0 + 1, rlo1:rhi1 + 1, rlo2:rhi2 + 1] == 1))
+        return True
 
 
 def polynomial_box(coefficients, lo, hi):
@@ -163,12 +187,13 @@ class ExecutionCorridor:
         low, high = raw_low - self.margin, raw_high + self.margin
         m = self.runtime
         if low[2] < m.flight_limits[0] or high[2] > m.flight_limits[1]: return False
-        # Unknown and occupied cells block across the full tracking tube.
-        if not self.native.box_safe(low, high, ignore_inflation=True): return False
-        # In strict mode, also enforce native obstacle inflation (bit 4) on the
-        # reference AABB so native-only obstacles block before VoxelMap updates
-        # without double-stacking margin onto native's 0.60 m cubic kernel.
-        if not self.relaxed_sitl and not self.native.box_safe(raw_low, raw_high, ignore_inflation=False):
+        # Unknown and occupied cells block across the full tracking tube; in
+        # strict mode, also enforce native obstacle inflation (bit 4) on the
+        # reference AABB without double-stacking margin onto the 0.60 m kernel.
+        if not self.native.box_safe(
+            low, high, ignore_inflation=True,
+            strict_box=None if self.relaxed_sitl else (raw_low, raw_high),
+        ):
             return False
         # Conservative Minkowski test between the enclosing reference AABB
         # (including tracking tube) and every occupied/unknown voxel box.

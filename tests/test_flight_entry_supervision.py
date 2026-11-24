@@ -78,13 +78,17 @@ def harness(tmp_path, monkeypatch):
             header = NS(stamp=NS(sec=int(sim), nanosec=0), frame_id='map')
             state.subscriptions['/drone_0/estimated_odometry'](NS(header=header, pose=NS(pose=NS(
                 position=NS(x=0.,y=0.,z=.55 if flying else .24), orientation=NS(x=0.,y=0.,z=0.,w=1.)))))
-            state.subscriptions['/drone_0/rgb/image'](NS(
-                header=header, height=1,width=1,step=3,encoding='rgb8',data=b'\0\0\0'))
+            if '/drone_0/rgb/image' in state.subscriptions:
+                state.subscriptions['/drone_0/rgb/image'](NS(
+                    header=header, height=1,width=1,step=3,encoding='rgb8',data=b'\0\0\0'))
             depth_data = b'' if state.snapshot_fails and sim == 40. else b'\0\0\0\0'
-            state.subscriptions['/drone_0/depth/image'](NS(
-                header=header,height=1,width=1,step=4,encoding='32FC1',is_bigendian=False,data=depth_data))
+            if '/drone_0/depth/image' in state.subscriptions:
+                state.subscriptions['/drone_0/depth/image'](NS(
+                    header=header,height=1,width=1,step=4,encoding='32FC1',is_bigendian=False,data=depth_data))
             for topic in ('rgb','depth'):
-                state.subscriptions[f'/drone_0/{topic}/camera_info'](NS(header=header,k=[1.]*9))
+                info_topic = f'/drone_0/{topic}/camera_info'
+                if info_topic in state.subscriptions:
+                    state.subscriptions[info_topic](NS(header=header,k=[1.]*9))
         if state.mandatory_exit and sim >= 50.:
             state.children[state.mandatory_exit].returncode = 3
         clock.sim += 5.
@@ -432,3 +436,6 @@ def test_default_run_skips_debug_evidence_and_warns_only_on_post_budget_cleanup(
     nodes = yaml.safe_load((harness.output / 'nodes.yaml').read_text())['/**']['ros__parameters']
     assert nodes['control_timing_dir'] == '' and nodes['execution_safety_dir'] == ''
     assert all('evidence_dir:=' not in arg for arg in harness.children['person_search'].args)
+    assert not any(topic in harness.subscriptions for topic in (
+        '/drone_0/rgb/image', '/drone_0/depth/image',
+        '/drone_0/rgb/camera_info', '/drone_0/depth/camera_info'))

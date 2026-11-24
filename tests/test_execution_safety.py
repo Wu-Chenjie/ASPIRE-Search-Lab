@@ -272,3 +272,33 @@ def test_endpoint_proof_preserves_latest_reason_and_uses_older_eligible_frame():
     assert completion.wait_reason == 'integrated_frame_stale'
     assert completion.proof(6.5, 4., goal, 0.) is None
     assert completion.wait_reason == 'awaiting_post_arrival_integrated_frame'
+
+
+def test_strict_box_safe_combines_native_check_and_distinguishes_margin_band():
+    runtime, native = maps()
+    corridor = ExecutionCorridor(runtime, native)
+    center = np.array([3.15, 3.15, 1.5])
+    cell = tuple(runtime.indices(center))
+    outer = tuple(runtime.indices(center + np.array([corridor.margin, 0., 0.])))
+    assert outer != cell
+
+    calls = []
+    original = native.box_safe
+
+    def counted_box_safe(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original(*args, **kwargs)
+
+    native.box_safe = counted_box_safe
+    assert corridor.box_safe(center, center)
+    assert len(calls) == 1
+
+    calls.clear()
+    native.state[outer] = 5
+    assert corridor.box_safe(center, center)
+    assert len(calls) == 1
+
+    calls.clear()
+    native.state[cell] = 5
+    assert not corridor.box_safe(center, center)
+    assert len(calls) == 1

@@ -1058,3 +1058,58 @@ def test_failed_view_does_not_relax_next_native_reference_root(executor,monkeypa
     live.NativeLeaseAgent.propose(agent,dict(traj_id=99,from_id=-1,boundary_progress=-1))
     assert events[-1]['reason']=='native_static_reference_discontinuity'
     np.testing.assert_array_equal(node.ref,reference)
+
+
+def test_brake_serialization_runs_after_budget_gate(executor, monkeypatch):
+    from core.planning.continuous_trajectory import ContinuousTrajectory
+
+    node = executor.node
+    activate(executor)
+    node._static_cancel_setup('123')
+    node.collision_stop_enabled = True
+    node.native_plan_id = 7
+
+    calls = []
+    original_to_dict = ContinuousTrajectory.to_dict
+
+    def counted_to_dict(self):
+        calls.append(self)
+        executor.wall[0] += .25
+        return original_to_dict(self)
+
+    monkeypatch.setattr(ContinuousTrajectory, 'to_dict', counted_to_dict)
+    request = dict(native_id=7, epoch=node.epoch, token=node.token,
+                   requested_at=executor.now(), purpose='review')
+    node.command(String(data=json.dumps(dict(native_collision_stop=request, authorization_session='123'))))
+    node.check_execution_safety(executor.now())
+    assert node.safety_stopping and node.safety_fault is None
+    assert node.safety_revision['reason'] == 'fresh_review_requested_stop'
+    assert calls == [node.curve]
+
+
+def test_brake_certificate_reuses_serialized_replacement(executor, monkeypatch, tmp_path):
+    import queue
+    from core.planning.continuous_trajectory import ContinuousTrajectory
+
+    node = executor.node
+    original = activate(executor)
+    node.safety_output = str(tmp_path / 'certs')
+    node.safety_certificate_queue = queue.Queue(maxsize=8)
+
+    calls = []
+    original_to_dict = ContinuousTrajectory.to_dict
+
+    def counted_to_dict(self):
+        calls.append(self)
+        return original_to_dict(self)
+
+    monkeypatch.setattr(ContinuousTrajectory, 'to_dict', counted_to_dict)
+    state = np.ones(node.safety_replica.map.shape, dtype=np.uint8)
+    state[29:34, 44:49, 2:10] = 5
+    state[31, 46, 4:8] = 6
+    snapshot(executor, state)
+    node.check_execution_safety(executor.now())
+    assert node.safety_stopping and node.safety_fault is None
+    assert calls == [original, node.curve]
+    _, payload = node.safety_certificate_queue.get_nowait()
+    assert json.loads(payload['replacement']) == node.safety_revision['trajectory']

@@ -315,7 +315,7 @@ def main():
             if self.input_queue_limit < 2:
                 self.get_logger().warning('Input queue needs at least two samples, using the default')
                 self.input_queue_limit = 40
-            self.worker=None;self.expiry_requested=False;self.min_rgb_period_ns=round(period*1e9)
+            self.worker=None;self._pending_work=None;self.expiry_requested=False;self.min_rgb_period_ns=round(period*1e9)
             if self.decoupled:self.create_timer(.2,self.wake_process)
             else:self.create_timer(.2,self.process,callback_group=self.inference_group)
         def receive_review_status(self,m):
@@ -324,9 +324,12 @@ def main():
             with self.input_lock:self.review_status_queue.append(row)
         def odom(self,m):
             p=m.pose.pose.position;q=m.pose.pose.orientation
-            with self.input_lock:self.pose_history.add(stamp_ns(m.header)*1e-9,[p.x,p.y,p.z],[q.x,q.y,q.z,q.w])
-            if self.decoupled:self.input_event.set()
+            with self.input_lock:
+                self.pose_history.add(stamp_ns(m.header)*1e-9,[p.x,p.y,p.z],[q.x,q.y,q.z,q.w])
+                wake = self.decoupled and self.latest_rgb_received_ns > self.last_ns
+            if wake:self.input_event.set()
         def receive(self,k,m):
+            wake = False
             with self.input_lock:
                 ns = stamp_ns(m.header)
                 q = self.queues[k]
@@ -336,11 +339,17 @@ def main():
                         return
                     enqueue_rgb(self, ns, m)
                     self.latest_rgb_received_ns = max(self.latest_rgb_received_ns, ns)
+                    wake = self.decoupled
                 else:
                     q[ns] = m
                     if len(q) > self.input_queue_limit:
                         del q[min(q)]
-            if self.decoupled:self.input_event.set()
+                    if self.decoupled:
+                        wake = (self.rgbd_registration_mode != 'strict' or
+                                (ns > self.last_ns and ns in self.queues['rgb'] and
+                                 ns in self.queues['depth'] and ns in self.queues['ri'] and
+                                 ns in self.queues['di']))
+            if wake:self.input_event.set()
         def fresh_capture(self,ns):
             return capture_age_valid(ns,self.get_clock().now().nanoseconds,self.max_age)
         def publish_candidate_report(self, report):
@@ -359,16 +368,17 @@ def main():
                         inference_wall_s=self.semantic_cache[ns][1],published_sim_ns=self.get_clock().now().nanoseconds)
             if self.active_confirmation:report['semantic_memory']=self.tracker.semantic_memory.candidates
             self.publish_candidate_report(report)
-            with self.input_lock:source=self.queues['rgb'].get(ns)
-            if source is not None and ns in self.semantic_cache:
-                import cv2
-                pixels=rgb_pixels(source)
-                for detection,row in zip(self.semantic_cache[ns][0],rows):
-                    color=np.array([255,210,30] if row['state']=='unlocalized' else [30,210,255])
-                    pixels[detection.mask]=(pixels[detection.mask]*.65+color*.35).astype(np.uint8)
-                    x,y,w,h=map(int,detection.box);cv2.rectangle(pixels,(x,y),(x+w,y+h),color.tolist(),1)
-                    cv2.putText(pixels,f"person {detection.confidence:.2f} {row['state']}",(max(0,x-5),max(12,y-4)),cv2.FONT_HERSHEY_SIMPLEX,.28,color.tolist(),1)
-                m=Image();m.header=source.header;m.height=source.height;m.width=source.width;m.encoding='rgb8';m.step=source.width*3;m.data=pixels.tobytes();self.annotated_output.publish(m)
+            if self.annotated_output.get_subscription_count():
+                with self.input_lock:source=self.queues['rgb'].get(ns)
+                if source is not None and ns in self.semantic_cache:
+                    import cv2
+                    pixels=rgb_pixels(source)
+                    for detection,row in zip(self.semantic_cache[ns][0],rows):
+                        color=np.array([255,210,30] if row['state']=='unlocalized' else [30,210,255])
+                        pixels[detection.mask]=(pixels[detection.mask]*.65+color*.35).astype(np.uint8)
+                        x,y,w,h=map(int,detection.box);cv2.rectangle(pixels,(x,y),(x+w,y+h),color.tolist(),1)
+                        cv2.putText(pixels,f"person {detection.confidence:.2f} {row['state']}",(max(0,x-5),max(12,y-4)),cv2.FONT_HERSHEY_SIMPLEX,.28,color.tolist(),1)
+                    m=Image();m.header=source.header;m.height=source.height;m.width=source.width;m.encoding='rgb8';m.step=source.width*3;m.data=pixels.tobytes();self.annotated_output.publish(m)
         def record_evidence(self, row):
             try:
                 self.evidence_log.write(json.dumps(row)+'\n')
@@ -389,23 +399,32 @@ def main():
                         instance_count=len(packet['instances']))
 
         def timing(self,ns,status,reason=None,**details):
+            if not self.evidence_dir and not self.diagnostic_output.get_subscription_count():
+                return
             now=self.get_clock().now().nanoseconds
-            receipt = self.rgb_receipts.get(ns)
-            row=dict(stamp_ns=ns,now_ns=now,age_s=(now-ns)*1e-9,received_age_wall_s=time.monotonic()-receipt.received_wall_s if receipt else 0.,inference_wall_s=self.semantic_cache.get(ns, (None, None))[1],status=status,reason=reason)
-            row.update(processing_wall_monotonic_s=time.monotonic(),confirmation_mode=self.confirmation_mode,
+            wall=time.monotonic()
+            with self.input_lock:
+                receipt = self.rgb_receipts.get(ns)
+                inference_wall_s = self.semantic_cache.get(ns, (None, None))[1]
+                rgb_queue_length = len(self.queues['rgb'])
+                queue_latest = {k:max(q,default=None) for k,q in self.queues.items()}
+                pose_samples = len(self.pose_history.samples)
+                pose_latest = self.pose_history.samples[-1][0] if self.pose_history.samples else None
+                bracket_available = self.pose_history.brackets(ns*1e-9)
+                last_bearing_ns = self.bearings.last_ns
+            row=dict(stamp_ns=ns,now_ns=now,age_s=(now-ns)*1e-9,received_age_wall_s=wall-receipt.received_wall_s if receipt else 0.,inference_wall_s=inference_wall_s,status=status,reason=reason)
+            row.update(processing_wall_monotonic_s=wall,confirmation_mode=self.confirmation_mode,
                 rgb_received_total=self.rgb_received_total,rgb_consumed_total=self.rgb_consumed_total,
                 process_calls=self.process_calls,latest_rgb_received_stamp_ns=self.latest_rgb_received_ns,
-                last_rgb_consumed_stamp_ns=self.last_rgb_consumed_ns,rgb_queue_length=len(self.queues['rgb']),
+                last_rgb_consumed_stamp_ns=self.last_rgb_consumed_ns,rgb_queue_length=rgb_queue_length,
                 rgb_skipped_total=self.rgb_skipped_total,rgb_ingest_dropped_total=self.rgb_ingest_dropped_total,
                 callback_started_sim_ns=self.callback_started_ns,callback_started_wall=self.callback_started_wall,
-                callback_elapsed_wall_s=time.monotonic()-self.callback_started_wall if self.callback_started_wall is not None else None,
+                callback_elapsed_wall_s=wall-self.callback_started_wall if self.callback_started_wall is not None else None,
                 previous_callback_sim_gap_s=self.previous_callback_sim_gap,previous_callback_wall_gap_s=self.previous_callback_wall_gap,
-                last_callback_wall_s=self.last_callback_wall_s,queue_latest_stamps={k:max(q,default=None) for k,q in self.queues.items()})
-            with self.input_lock:
-                row.update(pose_samples=len(self.pose_history.samples),
-                    pose_latest_s=self.pose_history.samples[-1][0] if self.pose_history.samples else None,
-                    selected_capture_pose_bracket_available=self.pose_history.brackets(ns*1e-9),
-                    last_bearing_capture_ns=self.bearings.last_ns)
+                last_callback_wall_s=self.last_callback_wall_s,queue_latest_stamps=queue_latest,
+                pose_samples=pose_samples,pose_latest_s=pose_latest,
+                selected_capture_pose_bracket_available=bracket_available,
+                last_bearing_capture_ns=last_bearing_ns)
             row.update(details)
             msg=String();msg.data=json.dumps(row);self.diagnostic_output.publish(msg)
             if self.evidence_dir:self.record_evidence(dict(kind='timing',**row))
@@ -473,11 +492,19 @@ def main():
         def wake_process(self):
             self.expiry_requested=True;self.input_event.set()
         def pending_capture(self):
+            from copy import copy
             from .presence_adapter import select_presence_capture
             now = self.get_clock().now().nanoseconds
             with self.input_lock:
-                selected, _, _ = select_presence_capture(self, self.queues, self.pose_history, now)
-                return selected is not None
+                selection = select_presence_capture(self, self.queues, self.pose_history, now)
+                if selection[0] is None:
+                    self._pending_work = None
+                    return False
+                queues = {k: q.copy() for k, q in self.queues.items()}
+                history = copy(self.pose_history)
+                history.samples = self.pose_history.samples.copy()
+                self._pending_work = (queues, history, selection)
+                return True
         def start_worker(self):
             def work():
                 while not self.worker_stop.is_set():
@@ -513,6 +540,7 @@ def main():
                 if not self.worker_stop.is_set() and rclpy.ok():
                     self.get_logger().error(f'Perception processing failed: {error!r}', throttle_duration_sec=5.)
             finally:
+                self._pending_work = None
                 self.last_callback_wall_s=time.monotonic()-now
                 if not self.worker_stop.is_set():
                     self.timing(self.last_rgb_consumed_ns if self.last_rgb_consumed_ns>=0 else self.latest_rgb_received_ns,'callback_complete')
@@ -523,9 +551,17 @@ def main():
                 for status in statuses:self.tracker.review_status(status,now)
                 self.tracker.advance(now,self.execution)
                 self.flush_review_events()
-            queues, history = snapshot_inputs(self)
             if self.decoupled:
-                process_presence(self,queues,history);return
+                pending = self._pending_work
+                self._pending_work = None
+                if pending is not None:
+                    queues, history, selection = pending
+                    process_presence(self, queues, history, selected=selection)
+                else:
+                    queues, history = snapshot_inputs(self)
+                    process_presence(self, queues, history)
+                return
+            queues, history = snapshot_inputs(self)
             common=[ns for ns in queues['rgb'].keys() & queues['ri'].keys() & queues['depth'].keys() & queues['di'].keys()
                     if ns>self.last_ns]
             ns=(newest_bracketed_capture(common,history,self.get_clock().now().nanoseconds,self.max_age)
