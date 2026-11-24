@@ -15,7 +15,7 @@
 
 在团队的 WSL 运行机上，从仓库根目录执行。资产使用 `/opt/aspire/assets/depot07-20261118`。该目录的 `start.sh` 用于单独查看 Gazebo 世界。联调入口读取同一套资产，保留仓库、人物、R-01 及原始摆位，把配准 RGB-D 和 PX4 所需的改动写入外部运行目录中的场景副本。原始资产仍由资产目录维护。
 
-运行机应已配置 ROS 2 Jazzy、Gazebo Harmonic 8.15、colcon、RViz、Xvfb、x11vnc 和 noVNC。脚本使用现有的 `/opt/aspire/build/ros-ws`、`/opt/aspire/build/px4-sitl`、`/planner/external/agent_install`、分析及分割 Python 环境、DDS 配置、YOLO 权重和已校验的 x86 Gazebo 退出保护。WSL 的 Windows I 盘启动时需有至少 6.4 GB 可用空间。[联调环境与验收](docs/REPRODUCIBILITY.md)
+运行机应已配置 ROS 2 Jazzy、Gazebo Harmonic 8.15、colcon、RViz、Xvfb、x11vnc 和 noVNC。脚本使用现有的 `/opt/aspire/build/ros-ws`、`/opt/aspire/build/px4-sitl`、`/planner/external/agent_install`、分析及分割 Python 环境、DDS 配置、RF-DETR-Seg Nano 权重和已校验的 x86 Gazebo 退出保护。WSL 的 Windows I 盘启动时需有至少 6.4 GB 可用空间。[联调环境与验收](docs/REPRODUCIBILITY.md)
 
 首次构建或原生代码变更后，在仓库外构建原生 RACER。再次运行可以复用同一提交的构建。
 
@@ -40,7 +40,9 @@ ASPIRE_CAMERA_FPS=60 ASPIRE_MIN_RGB_PERIOD_S=0 ASPIRE_SIM_REAL_TIME_FACTOR=1 \
 
 参数 `ASPIRE_MAP_PROJECTION_STRIDE` 可调整深度建图的像素步长（默认 8）。相机频率写入 `scene/scene-audit.json`。逐人掩膜话题以及计算实际吞吐与延迟的字段见[联调接口](docs/TEAM-INTERFACES.md)。
 
-更换 Depot 07 的 YOLO 分割模型时，运行前设置 `ASPIRE_SEG_WEIGHTS` 为新权重路径，`ASPIRE_DETECTOR_MANIFEST` 为配套的 JSON 清单路径。
+Depot 07 默认在 CUDA GPU 上运行 RF-DETR-Seg Nano，使用 CUDA Graph、FP32 和 batch 1。团队运行机的权重位于 `/opt/aspire/assets/rf-detr-seg-nano.pt`。已验证环境为 Python 3.12、`rfdetr==1.12.1`、`torch==2.11.0+cu128` 和 `torchvision==0.26.0+cu128`。其他安装位置可用 `ASPIRE_DETECTOR_PYTHON_PATH` 指定。人员候选阈值取自 Depot 07 的 625 张校准图（0.2918）。识别节点将逐人可见掩膜交给现有的跟踪、RGB-D 定位和注册表。相机帧率与采样间隔由上面的两个参数独立控制。
+
+用 `ASPIRE_DETECTOR=yolo11n-seg` 可复跑 YOLO。已有显式指定 `ASPIRE_SEG_WEIGHTS` 或 `ASPIRE_DETECTOR_MANIFEST` 的 YOLO 命令仍可直接使用。若 RF-DETR 官方权重放在其他目录，同时传入 `ASPIRE_DETECTOR=rfdetr-seg-nano` 和 `ASPIRE_SEG_WEIGHTS`。
 
 默认传入 `--rviz`，运行 180 仿真秒。运行期间在运行机上打开 [RViz 浏览器视图](http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale)。远程观看时通过已有 SSH 连接将本机端口转发到运行机的 `127.0.0.1:18680`。
 
@@ -84,7 +86,7 @@ RACER_EXECUTION_SAFETY=1 python3 tools/flight/run.py \
 
 `--external` 指向运行机上已有的 PX4 和 Agent 构建依赖目录。仓库自带模型可供离线生成场景。上述组合接入人员观测注册表及方位引导。主动静态复查的成对实验另有运行设置和评分协议。[配对验收](docs/STATIC-EVALUATION.md)
 
-直接运行飞行入口时，换模型需同时传入 `--segmentation-weights` 和 `--detector-manifest`。可参考现有清单，按新模型填写权重 SHA-256、运行库版本、人员类别 ID 和输入尺寸。模型须返回与原始 RGB 图像对齐的人员分割掩膜。省略清单时使用原有的权重校验。运行记录会保存显式传入的清单 SHA-256。[清单示例](config/detectors/yolo11n-seg-locked.json)
+直接运行飞行入口时，切换 YOLO 权重可同时传入 `--segmentation-weights` 和 `--detector-manifest`。可参考现有清单，按新模型填写权重 SHA-256、运行库版本、人员类别 ID 和输入尺寸。模型须返回与原始 RGB 图像对齐的人员分割掩膜。省略清单时使用原有的权重校验。运行记录会保存显式传入的清单 SHA-256。[清单示例](config/detectors/yolo11n-seg-locked.json)
 
 ## 开发验证
 

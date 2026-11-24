@@ -16,6 +16,7 @@ from .tracking import Tracker
 from .active_confirmation import review_execution_ready, review_pose
 from aspire_interfaces import topics
 from .segmentation import localize_masks, person_mask_packet
+from .detector_spec import MASK_DETECTORS
 from aspire_camera.rgbd_alignment import camera_uses_full_resolution,require_registered_pair,stamp_ns
 
 
@@ -183,6 +184,9 @@ def main():
                     if spec.purpose!='person':raise ValueError('Human pipeline requires a person manifest')
                     detector_options['spec']=spec
                 self.detector=YoloPersonDetector(weights,**detector_options)
+            elif self.backend=='rfdetr-seg-nano':
+                from .rfdetr import RFDETRPersonDetector
+                self.detector=RFDETRPersonDetector(weights)
             elif self.backend=='hog':self.detector=PeopleDetector()
             else:raise ValueError('Unknown detector_backend')
             from .bearing import BearingMemory
@@ -220,7 +224,7 @@ def main():
                     self.evidence_dir = directory
                 except (OSError, ValueError) as error:
                     self.get_logger().warning(f'Perception evidence unavailable: {error}')
-            if self.evidence_dir and self.backend == 'yolo11n-seg':
+            if self.evidence_dir and self.backend in MASK_DETECTORS:
                 self.record_evidence(dict(kind='detector_runtime', **self.detector.runtime_diagnostics()))
             self.diagnostic_output=self.create_publisher(String,'/search/perception_timing',10)
             self.trace_detector=None;self.trace_pipeline=None
@@ -527,7 +531,7 @@ def main():
             ns=(newest_bracketed_capture(common,history,self.get_clock().now().nanoseconds,self.max_age)
                 if self.require_pose else max(common,default=None))
             # RGB evidence must survive missing depth, calibration or map TF.
-            if self.backend=='yolo11n-seg':
+            if self.backend in MASK_DETECTORS:
                 fresh=[ns for ns in queues['rgb'] if ns>self.last_semantic_ns]
                 rgb_common=[v for v in set(queues['rgb'])&set(queues['ri']) if v>self.bearings.last_ns]
                 rgb_ns=newest_bracketed_capture(rgb_common,history,self.get_clock().now().nanoseconds,self.max_age) if self.require_pose else max(rgb_common,default=None)
@@ -563,7 +567,7 @@ def main():
                 require_registered_pair(rgb,depth,ri,di,registration)
                 data=np.ndarray((depth.height,depth.width),np.dtype('>f4' if depth.is_bigendian else '<f4'),bytes(depth.data),strides=(depth.step,4)).copy()
                 points = None
-                if self.backend=='yolo11n-seg':
+                if self.backend in MASK_DETECTORS:
                     rows,observations=localize_masks(self.detect_semantics(ns,rgb),data,di.k,transform)
                     if not self.fresh_capture(ns):raise ValueError('stale_after_inference')
                     self.publish_semantics(ns,rgb.header.frame_id,rows)
@@ -573,12 +577,12 @@ def main():
                     points = cloud(data, di.k, transform)
                     with self.input_lock: claim_rgb(self, ns, rgb)
                     observations = candidates_from_cloud(rgb_pixels(rgb), data, points, self.detector)
-                context=dict(semantic_candidate_count=len(rows),localization_rejections=[r.get('depth_reason') for r in rows if r['localization_state']=='unlocalized'],capture_time_s=ns*1e-9,processing_time_s=self.get_clock().now().nanoseconds*1e-9) if self.backend=='yolo11n-seg' else None
+                context=dict(semantic_candidate_count=len(rows),localization_rejections=[r.get('depth_reason') for r in rows if r['localization_state']=='unlocalized'],capture_time_s=ns*1e-9,processing_time_s=self.get_clock().now().nanoseconds*1e-9) if self.backend in MASK_DETECTORS else None
                 tracks=self.tracker.update(observations,transform[:3,3],ns*1e-9,capture_context=context) if self.active_confirmation else self.tracker.update(observations,transform[:3,3],ns*1e-9)
             except (ValueError,RuntimeError,OSError,OpenCVError,TransformException) as e:
                 self.rejected+=1;self.timing(ns,'rejected',str(e))
                 if self.active_confirmation:self.tracker.reject_capture(ns*1e-9,str(e))
-                if self.backend=='yolo11n-seg' and ns in self.semantic_cache:
+                if self.backend in MASK_DETECTORS and ns in self.semantic_cache:
                     rows,_=localize_masks(self.semantic_cache[ns][0],None,None,None)
                     for row in rows:row['depth_reason']=str(e)
                     self.publish_semantics(ns,rgb.header.frame_id,rows)

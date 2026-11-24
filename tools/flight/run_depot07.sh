@@ -8,7 +8,26 @@ out="$(realpath -m "${3:?Supply a new output directory outside the repository}")
 case "$out/" in
     "$repo/"*|"$assets/"*) echo "Output must be outside the repository and asset pack." >&2; exit 1 ;;
 esac
-detector_args=(--segmentation-weights "$(realpath -m "${ASPIRE_SEG_WEIGHTS:-/opt/aspire/assets/yolo11n-seg.pt}")")
+# Existing explicit YOLO weight/manifest invocations keep selecting their backend.
+detector=${ASPIRE_DETECTOR:-rfdetr-seg-nano}
+if [[ -z "${ASPIRE_DETECTOR:-}" && -n "${ASPIRE_SEG_WEIGHTS:-}${ASPIRE_DETECTOR_MANIFEST:-}" ]]; then
+    detector=yolo11n-seg
+fi
+seg_site=/opt/aspire/venvs/seg/lib/python3.12/site-packages
+case "$detector" in
+    rfdetr-seg-nano)
+        default_weights=/opt/aspire/assets/rf-detr-seg-nano.pt
+        detector_path=/opt/aspire/venvs/rfdetr/packages:/opt/aspire/venvs/rfdetr/cuda:$seg_site
+        export HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 TRANSFORMERS_OFFLINE=1
+        ;;
+    yolo11n-seg)
+        default_weights=/opt/aspire/assets/yolo11n-seg.pt
+        detector_path=$seg_site
+        ;;
+    *) echo "Unsupported Depot 07 detector: $detector" >&2; exit 1 ;;
+esac
+detector_args=(--detector "$detector" --segmentation-weights "$(realpath -m "${ASPIRE_SEG_WEIGHTS:-$default_weights}")"
+               --detector-python-path "${ASPIRE_DETECTOR_PYTHON_PATH:-$detector_path}")
 if [[ -n "${ASPIRE_DETECTOR_MANIFEST:-}" ]]; then
     detector_args+=(--detector-manifest "$(realpath -m "$ASPIRE_DETECTOR_MANIFEST")")
 fi
@@ -53,9 +72,8 @@ printf 'Launch log: %s\n' "$out/launch.log"
 timeout -s INT -k 45s 770s python3 -B -m tools.flight.run \
     --prepared "$out/scene" --output "$out/run" \
     --external /planner/external --px4-build /opt/aspire/build/px4-sitl \
-    --confirmation-mode registry --detector yolo11n-seg \
+    --confirmation-mode registry \
     "${detector_args[@]}" \
-    --detector-python-path /opt/aspire/venvs/seg/lib/python3.12/site-packages \
     --stop-and-plan --recover-no-path --bearing-bias --rviz --sim-real-time-factor "${ASPIRE_SIM_REAL_TIME_FACTOR:-0.42}" \
     --min-rgb-period-s "${ASPIRE_MIN_RGB_PERIOD_S:-0.2}" --map-projection-stride "${ASPIRE_MAP_PROJECTION_STRIDE:-8}" \
     --budget-clock sim --seconds 180 --wall-watchdog-seconds 700 \

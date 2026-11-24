@@ -207,8 +207,10 @@ def test_missing_viewer_config_and_optional_modes_leave_base_run_available(harne
         'review_continuation', 'static_pair'}
 
 
-@pytest.mark.parametrize('custom_model', [False, True])
-def test_yolo_manifest_reaches_only_the_perception_node(harness, tmp_path, monkeypatch, custom_model):
+@pytest.mark.parametrize(('backend', 'custom_model'), [
+    ('yolo11n-seg', False), ('yolo11n-seg', True), ('rfdetr-seg-nano', False),
+])
+def test_segmentation_backend_reaches_registry_node(harness, tmp_path, monkeypatch, backend, custom_model):
     weights = tmp_path/'model weights.pt'
     weights.write_bytes(b'test weights')
     manifest = tmp_path/'model manifest.json'
@@ -217,10 +219,11 @@ def test_yolo_manifest_reaches_only_the_perception_node(harness, tmp_path, monke
     options = ['--detector-manifest', manifest.name] if custom_model else []
     weights_arg = weights.name if custom_model else str(weights)
 
-    result = harness.launch('--confirmation-mode', 'registry', '--detector', 'yolo11n-seg',
+    result = harness.launch('--confirmation-mode', 'registry', '--detector', backend,
                             '--segmentation-weights', weights_arg, *options)
     perception_args = harness.children['person_search'].args
     assert result['error'] is None and result['confirmation_mode'] == 'registry'
+    assert f'detector_backend:={backend}' in perception_args
     assert f'segmentation_weights:={weights}' in perception_args
     assert [arg for arg in perception_args if arg.startswith('detector_manifest:=')] == (
         [f'detector_manifest:={manifest}'] if custom_model else [])

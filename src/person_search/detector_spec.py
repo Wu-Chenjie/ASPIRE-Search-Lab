@@ -7,6 +7,9 @@ from pathlib import Path
 import re
 import warnings
 
+MASK_DETECTORS = ('yolo11n-seg', 'rfdetr-seg-nano')
+
+
 @dataclass(frozen=True)
 class DetectorSpec:
     model_sha256:str
