@@ -175,6 +175,29 @@ def reference_step_distance(curve, progress, seconds=.04):
     return bound
 
 
+def _ellipsoid_distance(delta, rx, rz):
+    """Exact Euclidean distance from nonnegative box gaps to E(rx, rx, rz)."""
+    if abs(rx - rz) <= 1e-12:
+        return np.maximum(np.linalg.norm(delta, axis=1) - rx, 0.)
+    rho = np.hypot(delta[:, 0], delta[:, 1])
+    z = delta[:, 2]
+    dist = np.zeros(len(delta), dtype=float)
+    out = (rho / rx) ** 2 + (z / rz) ** 2 > 1.
+    if np.any(out):
+        ro, zo = rho[out], z[out]
+        rx2, rz2 = rx * rx, rz * rz
+        t = np.maximum(np.maximum(rx * ro - rx2, rz * zo - rz2), 0.)
+        for _ in range(10):
+            a, b = rx2 + t, rz2 + t
+            fa, fb = (rx * ro / a) ** 2, (rz * zo / b) ** 2
+            step = (fa + fb - 1.) / (2. * (fa / a + fb / b))
+            t = np.maximum(t + step, 0.)
+            if float(np.max(np.abs(step))) <= 1e-12:
+                break
+        dist[out] = np.hypot(ro - rx2 * ro / (rx2 + t), zo - rz2 * zo / (rz2 + t))
+    return dist
+
+
 class ExecutionCorridor:
     def __init__(self, runtime, native, margin=TRACKING_MARGIN, *, relaxed_sitl=False, frontier_sitl=False):
         self.runtime, self.native = runtime, native
@@ -196,13 +219,23 @@ class ExecutionCorridor:
         ):
             return False
         # Conservative Minkowski test between the enclosing reference AABB
-        # (including tracking tube) and every occupied/unknown voxel box.
+        # + Euclidean L2 tracking ball and every occupied/unknown voxel box.
         center, half = (low+high)/2, (high-low)/2
         radius = m.clearance+np.linalg.norm((half+m.resolution/2)*m.metric)
         ids = m.obstacle_tree.query_ball_point(center*m.metric, radius)
         if len(ids):
-            delta = np.maximum(abs(center-m.obstacle_centers[ids])-half-m.resolution/2, 0.)
-            if np.any(np.linalg.norm(delta*m.metric,axis=1) < m.clearance-CLEARANCE_TOLERANCE_M): return False
+            obstacles = m.obstacle_centers[ids]
+            delta = np.maximum(abs(center-obstacles)-half-m.resolution/2, 0.)
+            near = np.linalg.norm(delta*m.metric, axis=1) < m.clearance-CLEARANCE_TOLERANCE_M
+            if np.any(near):
+                if self.margin <= 0.:
+                    return False
+                raw_center, raw_half = (raw_low+raw_high)/2, (raw_high-raw_low)/2
+                raw_delta = np.maximum(abs(raw_center-obstacles[near])-raw_half-m.resolution/2, 0.)
+                rx = m.clearance / m.metric[0]
+                rz = m.clearance / m.metric[2]
+                if np.any(_ellipsoid_distance(raw_delta, rx, rz) < self.margin-CLEARANCE_TOLERANCE_M):
+                    return False
         if m.reserved_points is not None:
             if m.reserved_points.query(center)[0] < m.reserved_radius+np.linalg.norm(half): return False
         return True

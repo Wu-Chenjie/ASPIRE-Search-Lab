@@ -29,8 +29,8 @@ def test_native_planning_reference_uses_fixed_hover_instead_of_odometry_drift():
     runtime.state[8, 8, 4] = 1
     runtime.rebuild()
     corridor = ExecutionCorridor(runtime, native)
-    fixed = [3.21, 3.21, 1.99]
-    actual = [3.21, 3.21, 1.98]
+    fixed = [2.55, 2.55, 2.055]
+    actual = [2.55, 2.55, 2.045]
     assert corridor.box_safe(fixed, fixed)
     assert not corridor.box_safe(actual, actual)
     report = dict(time=8., position_stamp=7.95, epoch=0, ready=True, arrived=True,
@@ -45,7 +45,7 @@ def test_native_planning_reference_uses_fixed_hover_instead_of_odometry_drift():
     assert stopped_planning_reference(completed, 5, False, 8.1) is None
 
     for invalid in (dict(ready=False), dict(arrived=False), dict(pending_token='pending'), dict(epoch=3),
-                    dict(time=7.5), dict(position_stamp=7.5), dict(actual_position=[3.21, 3.21, 2.25]),
+                    dict(time=7.5), dict(position_stamp=7.5), dict(actual_position=[2.55, 2.55, 2.315]),
                     dict(reference_velocity=[0., 0., .01]), dict(reference_acceleration=[0., 0., .01]),
                     dict(reference_yaw_rate=.01)):
         assert stopped_planning_reference(dict(report, **invalid), -1, False, 8.1) is None
@@ -302,3 +302,64 @@ def test_strict_box_safe_combines_native_check_and_distinguishes_margin_band():
     native.state[cell] = 5
     assert not corridor.box_safe(center, center)
     assert len(calls) == 1
+
+
+def test_corridor_uses_l2_tracking_ball_for_diagonal_unknown_voxels(monkeypatch):
+    from core.planning.bspline_trajectory import safe_native_execution
+
+    runtime = VoxelMap([[-3.0, -13.0, 0.3], [3.0, -7.0, 4.2]], resolution=.3, clearance=.6,
+                       flight_limits=(-2.85, 7.1))
+    runtime.state[:] = 0
+    for cx in (-0.15, 0.15):
+        runtime.state[tuple(runtime.indices([cx, -11.65, 2.85]))] = -1
+    runtime.rebuild()
+    native = NativeSafetyMap()
+    native.ingest([1, 58.0, 1, .3, *runtime.origin, *runtime.shape,
+                   *np.where(runtime.state == 0, 1, 0).ravel(order='C')])
+
+    corridor = ExecutionCorridor(runtime, native)
+    root = np.array([0., -11., 2.2])
+    drifted = np.array([0.011, -11.039, 2.206])
+    assert corridor.box_safe(root, root)
+    assert corridor.box_safe(drifted, drifted)
+
+    goal = np.array([0., -9.5, 2.2])
+    coeff = np.zeros((1, 6, 3))
+    coeff[0, 0] = root
+    coeff[0, 3] = 10. * (goal - root)
+    coeff[0, 4] = -15. * (goal - root)
+    coeff[0, 5] = 6. * (goal - root)
+    curve = ContinuousTrajectory([4.5], coeff, 0., 0., yaw_durations=[4.5], yaw_segments=np.zeros((1, 6)))
+    monkeypatch.setenv('ASPIRE_FRONTIER_STEPS', '1')
+    stopped, duration = safe_native_execution(curve, corridor)
+    assert duration == pytest.approx(4.5)
+    np.testing.assert_allclose(stopped.sample(stopped.duration)[0], goal, atol=1e-9)
+
+    # Diagonal infringement below 0.25 m from E(0.60, 0.30) must fail closed.
+    closer = np.array([0., -11.10, 2.25])
+    assert not corridor.box_safe(closer, closer)
+
+    # Pure axis boundaries: 0.60 + 0.25 = 0.85 m horizontal, 0.30 + 0.25 = 0.55 m vertical.
+    clear_map, clear_native = maps()
+    clear_map.state[8, 8, 5] = 1
+    clear_map.rebuild()
+    clear_native.state[8, 8, 5] = 2
+    axis_corridor = ExecutionCorridor(clear_map, clear_native)
+    # Voxel [8, 8, 5] spans [2.4, 2.7] x [2.4, 2.7] x [1.5, 1.8].
+    assert not axis_corridor.box_safe([2.55, 1.56, 1.65], [2.55, 1.56, 1.65])
+    assert axis_corridor.box_safe([2.55, 1.54, 1.65], [2.55, 1.54, 1.65])
+    assert not axis_corridor.box_safe([2.55, 2.55, 2.34], [2.55, 2.55, 2.34])
+    assert axis_corridor.box_safe([2.55, 2.55, 2.36], [2.55, 2.55, 2.36])
+
+    # Spherical profile (rx == rz == 0.43 m): boundary at 0.43 + 0.25 = 0.68 m.
+    monkeypatch.setenv('ANNUAL_VOXEL_MAP', json.dumps(dict(collision_profile='x500_swept_sphere')))
+    sphere_map = VoxelMap([[0, 0, 0], [6., 6., 3.9]], flight_limits=(.7, 3.))
+    sphere_map.state[:] = 0
+    sphere_map.state[8, 8, 5] = 1
+    sphere_map.rebuild()
+    sphere_native = NativeSafetyMap()
+    sphere_native.ingest([1, 89.2, 1, .3, 0, 0, 0, *sphere_map.shape, *np.ones(sphere_map.state.size)])
+    sphere_native.state[8, 8, 5] = 2
+    sphere_corridor = ExecutionCorridor(sphere_map, sphere_native)
+    assert not sphere_corridor.box_safe([2.55, 2.55, 2.47], [2.55, 2.55, 2.47])
+    assert sphere_corridor.box_safe([2.55, 2.55, 2.49], [2.55, 2.55, 2.49])
