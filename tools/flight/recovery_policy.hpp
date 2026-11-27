@@ -50,9 +50,9 @@ public:
     // Reserve the next check even if the caller defers planning after refresh.
     next_=now+.5;return true;
   }
-  bool eligible(const Point& p,const Point& root,double now) const {
+  bool eligible(const Point& p,const Point& root,double now,double min_distance=.5) const {
     for(double v:p)if(!std::isfinite(v))return false;
-    if(distance(p,root)<=.5)return false;
+    if(distance(p,root)<=min_distance)return false;
     for(const auto& b:bad_)if(b.until>now && distance(p,b.p)<.5)return false;
     return true;
   }

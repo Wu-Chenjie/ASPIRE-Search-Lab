@@ -9,6 +9,11 @@ int main() {
   p.failed(failed,.02);assert(p.active());assert(!p.eligible(failed,root,1));
   assert(!p.eligible({-.54,2.07,.81},root,1));assert(p.eligible({1.5,2,1.5},root,1));
   assert(!p.eligible(root,root,1));assert(!p.eligible({NAN,2,1},root,1));
+  const Point previous={root[0]+.276,root[1],root[2]};
+  assert(!p.eligible(previous,root,1));
+  assert(p.eligible(previous,root,1,.15));
+  assert(!p.eligible(root,root,1,.15));
+  assert(!p.eligible(failed,root,1,.15));
   // Historical 4845 failure callbacks must reach the 5 s retry rate.
   // Simulate 50 Hz scheduling for 100 s without an environmental change.
   int attempts=0;

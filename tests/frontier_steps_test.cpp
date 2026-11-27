@@ -113,7 +113,18 @@ void repeated_replacement() {
   assert(history.accept(V(.61, 0., 1.), V(1.2, .41, 1.), resolution));
 }
 
+void alternate_recovery_goals() {
+  const std::vector<V> roots{V(-2.,0.,1.), V(-1.,0.,1.), V(0.,0.,1.)};
+  auto eligible = [](const V& p) { return p.x() < 0.; };
+  assert(!aspire_steps::recoveryRetreat(roots, 0, eligible));
+  assert(aspire_steps::recoveryRetreat(roots, 1, eligible).value() == roots[1]);
+  assert(!aspire_steps::recoveryRetreat(roots, 2, eligible));
+  assert(aspire_steps::recoveryRetreat(roots, 3, [](const V& p){return p.x() < -1.;}).value() == roots[0]);
+  assert(!aspire_steps::recoveryRetreat(roots, 5, [](const V&){return false;}));
+}
+
 int main(){
+  alternate_recovery_goals();
   V origin(0,0,1),target(3,0,1),a,b;double ha=0,hb=0;
   std::vector<V> fa,fb;
   for(int i=0;i<24;i++){fa.emplace_back(3.2,.5+i*.03,1);fb.emplace_back(3.2,-.5-i*.03,1);}

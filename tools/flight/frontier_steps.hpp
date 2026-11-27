@@ -17,6 +17,16 @@ inline bool enabled() {
   return p && std::string(p)=="1";
 }
 
+// A stream of rejected staged views must leave opportunities to retrace a
+// previously authorized root. Recheck eligibility on the current map.
+template<class Eligible>
+std::optional<V> recoveryRetreat(const std::vector<V>& roots, int attempts, Eligible eligible) {
+  if (attempts % 2 == 0) return std::nullopt;
+  const auto it = std::find_if(roots.rbegin(), roots.rend(), eligible);
+  if (it == roots.rend()) return std::nullopt;
+  return *it;
+}
+
 template<class Visit>
 bool segmentBoxes(const V& start, const V& end, double res, Visit visit) {
   const V delta = end - start;

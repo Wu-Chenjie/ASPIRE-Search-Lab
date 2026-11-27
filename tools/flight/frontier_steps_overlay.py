@@ -88,30 +88,45 @@ def apply(core):
   }''')
     f.write_text(inc+s[:start]+plan+s[end:])
     f=core/'src/exploration_manager/fast_exploration_fsm.cpp'
-    text=replace_once(f.read_text(), '''res = expl_manager_->planExploreMotion(
+    # Retain short authorized legs at the same spacing used to select a retreat.
+    spacing = '(task_np_breadcrumbs_.back()-fd_->start_pt_).norm()>.5'
+    text = replace_once(f.read_text(), spacing,
+                        '(task_np_breadcrumbs_.back()-fd_->start_pt_).norm()>'
+                        '(aspire_steps::enabled() ? .5*map->getResolution() : .5)')
+    text=replace_once(text, '''res = expl_manager_->planExploreMotion(
         fd_->start_pt_, fd_->start_vel_, fd_->start_acc_, fd_->start_yaw_);''',
         '''res = expl_manager_->planExploreMotion(fd_->start_pt_, fd_->start_vel_, fd_->start_acc_,
         fd_->start_yaw_, live_execution_ && task_stop_and_plan_ && fd_->static_state_);''')
     at='  // Last observed, previously authorized roots'
     f.write_text(inc+replace_once(text,at,'''  if(aspire_steps::enabled()) {
-    // Give a frontier a reachable intermediate observation before falling back
-    // to a previously visited root. The recovery budget/blacklist still applies.
-    double best=1e9; Eigen::Vector3d chosen;double heading=0;
-    for(size_t i=0;i<ed->points_.size() && i<ed->frontiers_.size() &&
-                       i<ed->averages_.size() && i<ed->yaws_.size();++i){
-      Eigen::Vector3d p; double h=ed->yaws_[i];
-      auto eligible=[&](const Eigen::Vector3d& q){
-        return task_np_policy_.eligible({q.x(),q.y(),q.z()},root,now);
-      };
-      if(!aspire_steps::select(*map,fd_->start_pt_,ed->points_[i],ed->frontiers_[i],
-                               ed->averages_[i],eligible,p,h))continue;
-      const double cost=(ed->points_[i]-fd_->start_pt_).norm();
-      if(cost<best){best=cost;chosen=p;heading=h;}
+    auto eligible = [&](const Eigen::Vector3d& p) {
+      return task_np_policy_.eligible({p.x(),p.y(),p.z()},root,now);
+    };
+    auto goal = aspire_steps::recoveryRetreat(task_np_breadcrumbs_,task_np_policy_.attempts(),
+        [&](const Eigen::Vector3d& p) {
+          // A certified prefix can stop less than one frontier step from its start.
+          return task_np_policy_.eligible({p.x(),p.y(),p.z()},root,now,.5*map->getResolution()) &&
+                 map->getOccupancy(p)==SDFMap::FREE && map->getInflateOccupancy(p)==0;
+        });
+    const bool retreat = goal.has_value();
+    double heading = fd_->start_yaw_[0];
+    if (!retreat) {
+      double best = std::numeric_limits<double>::infinity();
+      for(size_t i=0;i<ed->points_.size() && i<ed->frontiers_.size() &&
+                         i<ed->averages_.size() && i<ed->yaws_.size();++i){
+        Eigen::Vector3d p; double h=ed->yaws_[i];
+        if(!aspire_steps::select(*map,fd_->start_pt_,ed->points_[i],ed->frontiers_[i],
+                                 ed->averages_[i],eligible,p,h))continue;
+        const double cost=(ed->points_[i]-fd_->start_pt_).norm();
+        if(cost<best){best=cost;goal=p;heading=h;}
+      }
     }
-    if(best<1e9){
+    if(goal){
+      const auto& chosen = *goal;
       task_np_goal_=chosen;ed->next_pos_=chosen;ed->next_yaw_=heading;
       task_np_policy_.attempted({chosen.x(),chosen.y(),chosen.z()},now);
-      ROS_INFO("FRONTIER_STEP recovery range=%.3f yaw=%.3f",(chosen-fd_->start_pt_).norm(),heading);
+      ROS_INFO("FRONTIER_STEP recovery range=%.3f yaw=%.3f source=%s",(chosen-fd_->start_pt_).norm(),
+               heading,retreat?"retreat":"staged");
       return expl_manager_->planTrajToView(fd_->start_pt_,fd_->start_vel_,fd_->start_acc_,
                                            fd_->start_yaw_,chosen,heading);
     }
