@@ -40,7 +40,7 @@ ASPIRE_MIN_RGB_PERIOD_S=0 ASPIRE_SIM_REAL_TIME_FACTOR=1 \
   bash tools/flight/run_depot07.sh /opt/aspire/assets/depot07-20261118 "$native" "$run"
 ```
 
-参数 `ASPIRE_MAP_PROJECTION_STRIDE` 可调整深度建图的像素步长（默认 8）。相机频率写入 `scene/scene-audit.json`。逐人掩膜话题以及计算实际吞吐与延迟的字段见[联调接口](docs/TEAM-INTERFACES.md)。
+Depot 07 常规启动的 RGB-D 分辨率为 320×240，建图投影步长默认为 4 像素，可用 `ASPIRE_MAP_PROJECTION_STRIDE` 覆盖。相机频率写入 `scene/scene-audit.json`。逐人掩膜话题以及计算实际吞吐与延迟的字段见[联调接口](docs/TEAM-INTERFACES.md)。
 
 Depot 07 默认在 CUDA GPU 上运行 RF-DETR-Seg Nano，使用 CUDA Graph、FP32 和 batch 1。团队运行机的权重位于 `/opt/aspire/assets/rf-detr-seg-nano.pt`。已验证环境为 Python 3.12、`rfdetr==1.12.1`、`torch==2.11.0+cu128` 和 `torchvision==0.26.0+cu128`。其他安装位置可用 `ASPIRE_DETECTOR_PYTHON_PATH` 指定。人员候选阈值取自 Depot 07 的 625 张校准图（0.2918）。识别节点将逐人可见掩膜交给现有的跟踪、RGB-D 定位和注册表。相机帧率与采样间隔由上面的两个参数独立控制。
 

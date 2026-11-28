@@ -10,7 +10,7 @@
 - 每次改动完成并验证无误后，提交并推送到本仓库的 GitHub 远端。
 - 运行机配置和验收方式见 docs/REPRODUCIBILITY.md。修改接口时请交接双方共同查看测试结果。
 - 启动仿真时传入 `--rviz` 并开启可视化。使用仓库启动脚本时，确认 RViz 和显示链路已启动。
-- Depot 07 常规启动使用 `tools/flight/run_depot07.sh`。RGB 和深度相机按仿真时钟以 60 Hz 出图，识别采样的最小间隔为 0.016666666 秒。默认模型为 RF-DETR-Seg Nano（CUDA Graph、FP32、batch 1），使用 `registry` 解耦模式。
+- Depot 07 常规启动使用 `tools/flight/run_depot07.sh`。RGB 和深度相机按仿真时钟以 60 Hz 输出 320×240 图像，建图投影步长默认为 4 像素，识别采样的最小间隔为 0.016666666 秒。默认模型为 RF-DETR-Seg Nano（CUDA Graph、FP32、batch 1），使用 `registry` 解耦模式。
 - 核验 Depot 07 的频率时，按 RGB 采集时间戳核对深度配对数和 `/search/person_masks` 的唯一输出帧数。分别记录仿真 Hz、墙钟帧/秒和实时因子（常规启动默认 0.42）。运行机的 Gazebo 相机时钟配置见 [联调环境](docs/REPRODUCIBILITY.md)。
 
 ## 禁止过度工程化与防御性编程

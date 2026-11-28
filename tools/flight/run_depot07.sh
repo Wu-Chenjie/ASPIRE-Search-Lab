@@ -76,7 +76,7 @@ timeout -s INT -k 45s 770s python3 -B -m tools.flight.run \
     --confirmation-mode registry \
     "${detector_args[@]}" \
     --stop-and-plan --recover-no-path --bearing-bias --rviz --sim-real-time-factor "${ASPIRE_SIM_REAL_TIME_FACTOR:-0.42}" \
-    --min-rgb-period-s "${ASPIRE_MIN_RGB_PERIOD_S:-0.016666666}" --map-projection-stride "${ASPIRE_MAP_PROJECTION_STRIDE:-8}" \
+    --min-rgb-period-s "${ASPIRE_MIN_RGB_PERIOD_S:-0.016666666}" --map-projection-stride "${ASPIRE_MAP_PROJECTION_STRIDE:-4}" \
     --budget-clock sim --seconds 180 --wall-watchdog-seconds 700 \
     > "$out/launch.log" 2>&1 &
 run_pid=$!
