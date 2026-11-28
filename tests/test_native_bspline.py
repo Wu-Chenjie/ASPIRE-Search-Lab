@@ -163,3 +163,27 @@ def test_stopped_native_prefix_checks_same_measured_path_once(monkeypatch,clear)
         with pytest.raises(ValueError,match='No known-free native prefix'):
             safe_native_execution(curve,gate)
         assert calls
+
+
+def test_stepped_continuous_certification_skips_redundant_sampled_paths(monkeypatch):
+    monkeypatch.setenv('ASPIRE_FRONTIER_STEPS', '1')
+    packet = dict(order=3, knots=list(np.arange(-3, 6) * 4.),
+                  points=[[i * .3, 0, 1.5] for i in range(5)], yaw_points=[0.] * 5, yaw_dt=4.)
+    native = native_trajectory(packet)
+    path_calls = []
+    curve_calls = []
+
+    def check_path(points):
+        path_calls.append(points)
+        return True
+
+    def check_curve(candidate):
+        curve_calls.append(candidate)
+        return True
+
+    gate = SimpleNamespace(safe_curve=check_curve, safe_path=check_path)
+    stopped, used = safe_native_execution(native, gate)
+    assert used == native.duration
+    assert stopped.duration > used
+    assert path_calls == []
+    assert len(curve_calls) == 2

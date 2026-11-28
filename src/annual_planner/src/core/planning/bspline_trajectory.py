@@ -69,13 +69,13 @@ def native_trajectory(packet):
     return result
 
 
-def _brake_candidates(curve, runtime, diagnostics):
+def _brake_candidates(curve, runtime, diagnostics, *, check_path=True, check_limits=True):
     p,v,a,h,r=curve.sample(curve.duration);alpha=curve.yaw_acceleration(curve.duration)
     if max(np.linalg.norm(v),np.linalg.norm(a),abs(r),abs(alpha))<1e-5:
         yield curve, None
         return
     limits=motion_limits()
-    if not limits.accepts(curve):
+    if check_limits and not limits.accepts(curve):
         return
     for T in BRAKE_DURATIONS:
         c = stopping_polynomial(p, v, a, T)
@@ -84,7 +84,7 @@ def _brake_candidates(curve, runtime, diagnostics):
             brake=ContinuousTrajectory([T],[c],h,float(sum(y)-h),yaw_coefficients=y)
             if not limits.accepts(brake):
                 raise ValueError('Trajectory exceeds executor dynamics envelope')
-            if not runtime.safe_path(brake.path()):
+            if check_path and not runtime.safe_path(brake.path()):
                 if diagnostics is not None: diagnostics.append((T,'brake_path'))
                 continue
             result = join_brake(curve, brake, 'native_racer_bspline_with_brake')
@@ -157,6 +157,7 @@ def safe_native_execution(curve, runtime, *, validate_stop=None, reserve_horizon
             ends.append(max(.5, ends[-1] * .5))
     else:
         ends = np.r_[curve.duration,np.arange(curve.duration-.25,.49,-.25)]
+    limits_ok = None
     for end in ends:
         prefix=curve if end==curve.duration else native_prefix(curve,float(end))
         status = dict(prefix_s=float(end))
@@ -164,21 +165,23 @@ def safe_native_execution(curve, runtime, *, validate_stop=None, reserve_horizon
         if stepped and not runtime.safe_curve(prefix):
             status['stage']='continuous_prefix'
             continue
-        if not frontier and not runtime.safe_path(prefix.path()):
+        if not stepped and not runtime.safe_path(prefix.path()):
             status['stage']='sampled_prefix'
             continue
         attempts = [] if diagnostics is not None else None
         if attempts is not None: status['brake_attempts']=attempts
         status['stage']='no_legal_brake'
         reserve_before_brake = reserve_horizon is not None and prefix.duration > reserve_horizon
-        for stopped, brake in _brake_candidates(prefix,runtime,attempts):
+        if limits_ok is None:
+            limits_ok = motion_limits().accepts(curve)
+        for stopped, brake in _brake_candidates(prefix,runtime,attempts,check_path=not stepped,check_limits=not limits_ok):
             brake_time = brake.duration if brake is not None else 0.
             if stepped and brake is not None and not runtime.safe_curve(brake):
                 status['stage']='continuous_brake'
                 status.pop('detail',None)
                 if attempts is not None: attempts.append((brake_time,'continuous_brake'))
                 continue
-            if not frontier and brake is not None and not runtime.safe_path(stopped.path()):
+            if not stepped and brake is not None and not runtime.safe_path(stopped.path()):
                 status['stage']='sampled_stopped_path'
                 if attempts is not None: attempts.append((brake_time,'sampled_stopped_path'))
                 continue

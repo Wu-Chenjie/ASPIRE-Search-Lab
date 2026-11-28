@@ -5,6 +5,7 @@ completion. PX4 runs the estimator, position/attitude loops and motor allocation
 A stale reference or estimator stops Offboard heartbeat, invoking PX4 failsafe.
 """
 import json
+import math
 import time
 import numpy as np
 import rclpy
@@ -277,8 +278,7 @@ class PX4Bridge(Node):
         q = odom.pose.pose.orientation
         q.x, q.y, q.z, q.w = map(float, sample_attitude)
         # ROS Odometry twist is expressed in child_frame_id (body FLU).
-        from scipy.spatial.transform import Rotation
-        body_velocity = Rotation.from_quat(sample_attitude).inv().apply(ENU_NED @ velocity)
+        body_velocity = matched[1].inv().apply(ENU_NED @ velocity)
         odom.twist.twist.linear.x, odom.twist.twist.linear.y, odom.twist.twist.linear.z = map(float, body_velocity)
         self.odom_pub.publish(odom)
         record(self, 'odometry_sent', lambda: dict(local_record(self, message), odometry=odometry_record(self, odom), attitude_quaternion=sample_attitude))
@@ -295,7 +295,6 @@ class PX4Bridge(Node):
             return
         p = point.transforms[0].translation; q = point.transforms[0].rotation
         v = point.velocities[0]; a = point.accelerations[0]
-        import math
         yaw = math.atan2(2*(q.w*q.z+q.x*q.y), 1-2*(q.y*q.y+q.z*q.z))
         stamp = message.header.stamp.sec + message.header.stamp.nanosec*1e-9
         now = self.get_clock().now().nanoseconds*1e-9

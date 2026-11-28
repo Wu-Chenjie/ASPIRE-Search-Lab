@@ -422,14 +422,15 @@ class NativeLeaseAgent(StaticCancelGateway, Node):
                 raise ValueError('native_safety_map_stale')
             runtime=self.corridor(at_rest=row['boundary_progress']<0) if self.safety_enabled else self.replica.map
             frontier=self.safety_enabled and runtime.frontier_sitl
+            stepped=frontier or (self.safety_enabled and os.environ.get('ASPIRE_FRONTIER_STEPS')=='1')
             moving=row['boundary_progress']>=0
             checks=dict(diagnostics=trace) if trace is not None else {}
             if frontier:
                 checks.update(validate_stop=lambda c:stopping_reserve(c,0.,runtime),reserve_horizon=REACTION_HORIZON)
             curve,native_duration=safe_native_execution(curve,runtime,**checks)
             path=curve.path(.08)
-            # Frontier and moving C2 modes check continuous corridors themselves.
-            if self.safety_enabled and not frontier and not moving:
+            # Continuous stepped, frontier, and moving C2 modes certify corridors already.
+            if self.safety_enabled and not stepped and not moving:
                 if not runtime.safe_curve(curve): raise ValueError('continuous_native_corridor_invalid')
             # Frontier mode checks the prefix and brake continuously. Certify
             # the composed sampled path here; other modes already did so.

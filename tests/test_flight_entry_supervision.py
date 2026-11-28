@@ -190,6 +190,7 @@ def test_run_continues_after_diagnostics_and_optional_process_failures(harness):
     assert result['startup']['ready_at']['sim_s'] == pytest.approx(70.)
     assert result['startup']['takeoff_observed'] and not result['startup']['executor_ready']
     assert result['captured_pairs'] == 0 and harness.png_attempts > 0
+    assert '/search/perception_timing' in harness.subscriptions
     assert set(result['diagnostics']) >= {
         'cpu_profile', 'gazebo_guard_configuration', 'px4_logger_configuration', 'rviz_spawn',
         'evaluation_exit', 'continuous_rgb_exit', 'startup_odometry', 'startup_ready',
@@ -452,4 +453,5 @@ def test_default_run_skips_debug_evidence_and_warns_only_on_post_budget_cleanup(
     assert all('evidence_dir:=' not in arg for arg in harness.children['person_search'].args)
     assert not any(topic in harness.subscriptions for topic in (
         '/drone_0/rgb/image', '/drone_0/depth/image',
-        '/drone_0/rgb/camera_info', '/drone_0/depth/camera_info'))
+        '/drone_0/rgb/camera_info', '/drone_0/depth/camera_info',
+        '/search/perception_timing'))
