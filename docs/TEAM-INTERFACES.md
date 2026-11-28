@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | D → A | JSON 地图或由它生成的目录 | 地图包含 bounds、starts、person_pose、boxes。位置和尺寸用米，人物姿态为 x/y/z/roll/pitch/yaw，角度用弧度。--layout 选择起点，--negative 生成同地图无人对照。准备好的包由 --prepared 接收。 |
 | C → B、A | /drone_0/{rgb,depth}/{image,camera_info} | sensor_msgs/Image 和 CameraInfo，传感器 QoS。光学坐标为右、下、前。默认 Gazebo 深度为 32FC1，单位米。直接取同像素深度需通过采集时刻、标定、分辨率和外参检查。缺少有效深度时仍可保留 RGB 线索。 |
+| 建图 → RViz | `/drone_0/surface_hits`、`/search/surface_cloud` | 两者均为 map 系中的 PointCloud2。前者沿用深度采集时间戳，仅含建图帧中射程小于 4.5 m 的实测命中。后者每个 5 cm 显示格保留一个实测点，有新点时以最多 2 Hz 发布累计快照，使用 reliable、transient local、深度 1。规划继续使用原生射线与 0.30 m 占据图。 |
 | B → A | /uav0/search/target_observations，std_msgs/String 中的 JSON | registry 模式使用 schema 1。observations 行含 robot、session、counter、sequence、capture_s、visual_state、localization_state、has_bearing、has_position。位置或方位仅在相应标志有效时消费。位置指可见表面。一个来源 ID 可在多次观测中出现。 |
 | B → A | /search/bearing_evidence，std_msgs/Float64MultiArray | 方位引导使用已有 v1 定长 17 项数值布局，包含采集时间、原点、方向、角范围及支持帧数。Python 编码位于 aspire_interfaces/bearing.py。 |
 | A → B | /drone_0/view_execution，std_msgs/String 中的 JSON | 执行节点报告活动任务、实际到达及观测证据；B 以捕获时间判断是否为到达后的新证据。历史复查模式另用 /search/review_goal、/search/review_status 和 /search/review_cancel。 |

@@ -12,10 +12,11 @@ from rclpy.qos import qos_profile_sensor_data, QoSProfile, DurabilityPolicy
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
+from sensor_msgs_py.point_cloud2 import create_cloud_xyz32
 from aspire_camera.poses import PoseHistory
 from annual_runtime.flight_session import FlightSessionFault
 from aspire_camera.depth_projection import project_depth_message, SENSOR_TRANSLATION
-from std_msgs.msg import String
+from std_msgs.msg import Header, String
 from core.exploration.voxel_mapping import VoxelMap
 from .map_evidence import bind_capture,close_capture,mapper_received,mapper_before,mapper_after
 
@@ -48,6 +49,7 @@ class PointCloudMapper(Node):
         self.map = VoxelMap(bounds); self.belief = np.zeros(self.map.shape, np.float32); self.ego_cells = set(); self.poses = PoseHistory(); self.pending = deque(maxlen=8); self.sequence = 0; self.full_requested = False; self.last = -10.
         q = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub = self.create_publisher(String, f'/drone_{self.id}/observation', q)
+        self.surface_pub = self.create_publisher(PointCloud2, f'/drone_{self.id}/surface_hits', 10)
         if self.publish_native_dds:
             self.native_pose_pub=self.create_publisher(PoseStamped,f'/baseline/sensor_{self.id}',20)
             self.native_cloud_pub=self.create_publisher(PointCloud2,f'/baseline/cloud_{self.id}',20)
@@ -189,6 +191,9 @@ class PointCloudMapper(Node):
         if timing:timing.event('mapper_publish',capture_ns=round(stamp*1e9),
             sim_ns=self.get_clock().now().nanoseconds,sequence=self.sequence)
         self.pub.publish(message)
+        if self.surface_pub.get_subscription_count():
+            header = Header(stamp=m.header.stamp, frame_id='map')
+            self.surface_pub.publish(create_cloud_xyz32(header, world[hits].astype(np.float32)))
         mapper_after(self,evidence,packet,points,hits,origin,world)
 
 

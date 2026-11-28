@@ -440,13 +440,10 @@ def main():
         manager['Global Options']['Frame Rate'] = 5
         manager['Tools'] = [{'Class': 'rviz_default_plugins/MoveCamera'}]
         displays = manager['Displays']
-        live_depth = next(d for d in displays if d['Name'] == 'Measured depth')
-        live_depth.update({'Decay Time': 0.3, 'Style': 'Points'})
         if cfg['execution_safety']:
-            live_depth['Enabled'] = False
             displays.insert(1, {
                 'Class': 'rviz_default_plugins/PointCloud2', 'Name': 'Accumulated occupancy',
-                'Enabled': True, 'Style': 'Points', 'Size (Pixels)': 4,
+                'Enabled': False, 'Style': 'Points', 'Size (Pixels)': 4,
                 'Color Transformer': 'AxisColor', 'Axis': 'Z', 'Decay Time': 0,
                 'Topic': {'Value': '/search/mapped_cloud', 'Reliability Policy': 'Reliable',
                           'Durability Policy': 'Transient Local', 'Depth': 1},
@@ -476,8 +473,7 @@ def main():
                             '-nopw','-forever','-shared'])
             start('websockify',['websockify','--web=/usr/share/novnc','127.0.0.1:18680','127.0.0.1:5901'])
         start('display',[sys.executable,'-m','tools.flight.visualization'])
-        if cfg['execution_safety']:
-            start('map_display',[sys.executable,'-m','tools.flight.map_display'])
+        start('map_display',[sys.executable,'-m','tools.flight.map_display'])
     try:
         start('xvfb',['Xvfb',':119','-screen','0','1280x900x24','-nolisten','tcp']);time.sleep(.7)
         if a.rviz:

@@ -14,14 +14,23 @@ Visualization Manager:
       Cell Size: 1
       Plane Cell Count: 20
     - Class: rviz_default_plugins/PointCloud2
-      Name: Measured depth
+      Name: Accumulated surface hits
       Enabled: true
-      Topic: {Value: /baseline/cloud_0, Reliability Policy: Reliable, Durability Policy: Volatile, Depth: 5}
-      Size (m): 0.045
-      Style: Flat Squares
+      Topic: {Value: /search/surface_cloud, Reliability Policy: Reliable, Durability Policy: Transient Local, Depth: 1}
+      Size (Pixels): 2
+      Style: Points
+      Color Transformer: AxisColor
+      Axis: Z
+      Decay Time: 0
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Measured depth
+      Enabled: false
+      Topic: {Value: /drone_0/surface_hits, Reliability Policy: Reliable, Durability Policy: Volatile, Depth: 5}
+      Size (Pixels): 2
+      Style: Points
       Color Transformer: FlatColor
       Color: 100; 160; 210
-      Decay Time: 5
+      Decay Time: 0
     - Class: rviz_default_plugins/Path
       Name: Estimated flight path
       Enabled: true

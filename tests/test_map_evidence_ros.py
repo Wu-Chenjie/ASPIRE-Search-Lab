@@ -6,11 +6,14 @@ import numpy as np
 import pytest
 rclpy=pytest.importorskip('rclpy')
 from sensor_msgs.msg import Image,CameraInfo
+from sensor_msgs_py.point_cloud2 import create_cloud_xyz32, read_points_numpy
+from std_msgs.msg import Header
 from std_msgs.msg import String
 from scipy.spatial.transform import Rotation
 from annual_runtime.pointcloud_mapping_node import PointCloudMapper
 from core.exploration.voxel_mapping import VoxelMap
 from annual_runtime.trigger_evidence import EvidenceRing
+from tools.flight.map_display import MapDisplay
 
 def test_real_ros_trigger_and_raw_mapper_capture_exactly_replay(tmp_path,monkeypatch):
     monkeypatch.setenv('RACER_MAP_EVIDENCE_DIR',str(tmp_path/'evidence'))
@@ -25,6 +28,8 @@ def test_real_ros_trigger_and_raw_mapper_capture_exactly_replay(tmp_path,monkeyp
         a=np.load(fixture);depth=a['depth'].astype(np.float32);k=a['k'].reshape(-1).tolist();position=a['base_position'];quat=a['base_quaternion'];stamp=float(a['stamp_ns'])*1e-9
     else:
         depth=np.full((240,320),2.8,np.float32);k=[216.,0,160.,0,216.,120.,0,0,1.];position=np.array([0.,-2.,1.5]);quat=np.array([0.,0.,0.,1.]);stamp=10.
+        depth[:, :32] = 6.
+        depth[:8, :8] = np.nan
     info=CameraInfo();info.width=depth.shape[1];info.height=depth.shape[0];info.k=k;info.header.frame_id='depth_optical';node.camera_info(info)
     def image(t):
         m=Image();ns=round(t*1e9);m.header.stamp.sec=ns//10**9;m.header.stamp.nanosec=ns%10**9;m.header.frame_id='depth_optical';m.width=depth.shape[1];m.height=depth.shape[0];m.encoding='32FC1';m.step=m.width*4;m.data=depth.tobytes();return m
@@ -48,11 +53,12 @@ def test_real_ros_trigger_and_raw_mapper_capture_exactly_replay(tmp_path,monkeyp
         np.testing.assert_allclose(capture['pose_endpoint_positions'],[position,position]);assert meta['receipt'] is None
         m=image(meta['sensor_stamp_s']);m.data=capture['raw_depth'].tobytes()
         info.k=capture['k'].tolist();state=capture['mapper_before'];replay=VoxelMap(bounds);replay.state=state.copy();replay.shape=state.shape;replay.version=meta['mapper_version_before']
-        packets=[]
+        packets=[]; surfaces=[]
         fake=N(id=0,session=meta['sensor_session'],calibration=info,map=replay,projection_stride=meta['projection_stride'],
                belief=capture['belief_before'].copy(),ego_cells=set(map(tuple,capture['ego_cells_before'])),
                full_requested=False,publish_native_frames=True,sequence=meta['sequence_before'],last=-10.,
                map_evidence=None,map_timing=None,publish_native_dds=False,
+               surface_pub=N(get_subscription_count=lambda:1, publish=surfaces.append),
                pub=N(publish=lambda msg:packets.append(json.loads(msg.data))))
         PointCloudMapper.integrate(fake,m,meta['sensor_stamp_s'],(capture['estimated_position'],Rotation.from_quat(capture['estimated_quaternion']),meta['pose_bracket']))
         np.testing.assert_array_equal(fake.map.state,capture['mapper_after']);np.testing.assert_array_equal(fake.belief,capture['belief_after'])
@@ -68,6 +74,29 @@ def test_real_ros_trigger_and_raw_mapper_capture_exactly_replay(tmp_path,monkeyp
         assert 'native_frame' not in packets[1]
         np.testing.assert_array_equal(np.frombuffer(cloud.data,dtype='<f4').reshape(-1,3),np.asarray(legacy['points'],dtype='<f4'))
         np.testing.assert_array_equal([pose.pose.position.x,pose.pose.position.y,pose.pose.position.z],legacy['origin'])
+        for measured in surfaces:
+            assert measured.header.stamp == m.header.stamp and measured.header.frame_id == 'map'
+            expected = capture['world_points'][capture['endpoint_hits']].astype(np.float32)
+            np.testing.assert_array_equal(read_points_numpy(measured), expected)
+
+
+def test_surface_display_keeps_first_measured_point_across_frames():
+    published = []
+    display = N(surfaces={}, surface_header=None, surface_publisher=N(publish=published.append))
+    def send(sec, points):
+        header = Header(frame_id='map')
+        header.stamp.sec = sec
+        cloud = create_cloud_xyz32(header, np.asarray(points, np.float32).reshape(-1, 3))
+        MapDisplay.receive_hits(display, cloud)
+    send(1, [[-.01, 0, 2], [.001, 0, 2]])
+    send(2, [[.04, 0, 2], [.06, 0, 2]])
+    send(3, [])
+    MapDisplay.publish_surfaces(display)
+    send(4, [[.07, 0, 2]])
+    MapDisplay.publish_surfaces(display)
+    assert len(published) == 1 and published[0].header.stamp.sec == 2
+    expected = np.array([[-.01, 0, 2], [.001, 0, 2], [.06, 0, 2]], np.float32)
+    np.testing.assert_array_equal(read_points_numpy(published[0]), expected)
 
 # Reuse the real callback harness, not a running aircraft.
 from test_execution_safety_ros import executor,activate,snapshot,observation,set_odometry

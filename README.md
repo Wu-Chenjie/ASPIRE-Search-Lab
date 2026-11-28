@@ -48,6 +48,8 @@ Depot 07 默认在 CUDA GPU 上运行 RF-DETR-Seg Nano，使用 CUDA Graph、FP3
 
 默认传入 `--rviz`，运行 180 仿真秒。运行期间在运行机上打开 [RViz 浏览器视图](http://127.0.0.1:18680/vnc.html?autoconnect=true&resize=scale)。远程观看时通过已有 SSH 连接将本机端口转发到运行机的 `127.0.0.1:18680`。
 
+RViz 默认显示 `Accumulated surface hits`。每个 5 cm 显示格保留飞行中首次命中的实际表面坐标，按高度着色。可单独勾选 `Measured depth` 查看当前建图帧的量程内命中，或勾选 `Accumulated occupancy` 查看规划使用的 0.30 m 占据体素中心。
+
 启动日志在 `$run/launch.log`，生成的场景在 `$run/scene/`，退出码在 `$run/exit-code.txt`。验收查看 `$run/run/result.json`、`telemetry.jsonl` 和 `flight/0/events.jsonl`，核对场景加载、RGB-D 配对、人员观测进入原生注册表，以及轨迹激活和到达后的新观测。
 
 ### Depot 07 人员掩膜评测场景
