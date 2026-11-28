@@ -364,7 +364,7 @@ def main():
             import cv2
         except (ImportError,OSError) as error:
             warn('rgbd_snapshot',error)
-    from std_msgs.msg import Float64MultiArray,String
+    from std_msgs.msg import Empty,Float64MultiArray,String
     from geometry_msgs.msg import TransformStamped
     from tf2_ros import TransformBroadcaster
     rclpy.init();node=rclpy.create_node('flight_evidence');node.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)]);tf=TransformBroadcaster(node)
@@ -399,6 +399,10 @@ def main():
             warn(kind+'_telemetry',error)
             return
         record(kind,row)
+    if a.recover_no_path:
+        node.create_subscription(Empty,'/baseline/return_blocked_0',
+            lambda _:record('return_blocked',{'reason':'no_authorized_return_route'}),
+            QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
     def odom(m):
         nonlocal previous,path,max_z,last_log
         pos=m.pose.pose.position;q=m.pose.pose.orientation
@@ -557,6 +561,9 @@ def main():
             if wall_watchdog_seconds is not None and elapsed>=wall_watchdog_seconds:
                 raise RuntimeError('Explicit wall watchdog exceeded')
             rclpy.spin_once(node,timeout_sec=.01)
+            if 'return_blocked' in last:
+                mission_failure=mission_failure or 'Return blocked: no authorized route home'
+                break
             if not rclpy.ok():raise KeyboardInterrupt
             startup_error=startup_watchdog.observe(budget_end_sim,elapsed,last.get('estimated_odometry'),
                                                    last.get('flight',{}),last.get('execution',{}))

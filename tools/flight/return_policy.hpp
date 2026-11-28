@@ -6,17 +6,18 @@ namespace racer_task {
 class ReturnPolicy {
 public:
   enum class State { inactive, planning_home, planning_temporary, executing_home,
-    executing_temporary, waiting_retry, waiting_no_goal, returned, retired };
+    executing_temporary, waiting_retry, waiting_no_goal, returned, blocked, retired };
 private:
   State state_=State::inactive;
   Point home_{};
   int attempts_=0, proposal_=-1, active_=-1;
   bool retry_home_=false;
   double next_=0.;
+  double first_failure_=-1.;
 public:
   State state() const{return state_;}
   bool started() const{return state_!=State::inactive;}
-  bool terminal() const{return state_==State::returned || state_==State::retired;}
+  bool terminal() const{return state_==State::returned || state_==State::blocked || state_==State::retired;}
   bool executing() const{return state_==State::executing_home || state_==State::executing_temporary;}
   const Point& home() const{return home_;}
   int attempts() const{return attempts_;}
@@ -31,19 +32,25 @@ public:
       case State::waiting_retry:return "waiting_return_retry";
       case State::waiting_no_goal:return "waiting_return_candidates";
       case State::returned:return "returned";
+      case State::blocked:return "return_blocked";
       case State::retired:return "execution_lost_latched";
     }
     return "invalid";
   }
-  void begin(const Point& home) {
+  void begin(const Point& home,bool try_home_first=false) {
     if(started())return; // A repeated trigger must not move home or reset scheduling.
     for(double x:home)if(!std::isfinite(x)){state_=State::retired;return;}
-    home_=home;state_=State::planning_home;
+    home_=home;retry_home_=try_home_first;state_=State::planning_home;
   }
   bool mayPlan(double now) const {
     return started() && !terminal() && !executing() && proposal_<0 && std::isfinite(now) && now>=next_;
   }
   bool mayUseTemporary() const{return !retry_home_;}
+  bool blockIfStalled(double now) {
+    if(first_failure_<0. || now-first_failure_<kNoProgressSeconds || !mayPlan(now))return false;
+    state_=State::blocked;
+    return true;
+  }
   bool attempt(double now,bool temporary) {
     if(!mayPlan(now))return false;
     if(attempts_<std::numeric_limits<int>::max())++attempts_;
@@ -58,6 +65,7 @@ public:
   bool activated(int id) {
     if(!awaiting(id))return false;
     active_=id;proposal_=-1;
+    first_failure_=-1.;
     state_=state_==State::planning_temporary?State::executing_temporary:State::executing_home;
     return true;
   }
@@ -71,6 +79,8 @@ public:
   }
   void failed(double now) {
     if(!started() || terminal() || executing())return;
+    if(first_failure_<0.)first_failure_=now;
+    if(state_==State::planning_temporary)retry_home_=true;
     next_=std::max(next_,now+planningRetryDelay(attempts_));
     state_=State::waiting_retry;
   }
@@ -80,6 +90,7 @@ public:
   }
   void noGoal(double now) {
     if(!started() || terminal() || executing())return;
+    if(first_failure_<0.)first_failure_=now;
     next_=now+5.;
     retry_home_=true;
     state_=State::waiting_no_goal;

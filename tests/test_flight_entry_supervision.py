@@ -47,7 +47,7 @@ def harness(tmp_path, monkeypatch):
     clock = NS(wall=0., sim=0., active=True)
     state = NS(clock=clock, children={}, subscriptions={}, mandatory_exit=None, user_stop=False,
                png_fails=False, png_attempts=0, snapshot_fails=False, viewer_config_fails=False,
-               flight_fault=None, safety_fault=None, odometry_at=40., takeoff_at=70.)
+               flight_fault=None, safety_fault=None, return_blocked=False, odometry_at=40., takeoff_at=70.)
 
     def sleep(seconds):
         clock.wall += seconds
@@ -91,6 +91,8 @@ def harness(tmp_path, monkeypatch):
                     state.subscriptions[info_topic](NS(header=header,k=[1.]*9))
         if state.mandatory_exit and sim >= 50.:
             state.children[state.mandatory_exit].returncode = 3
+        if state.return_blocked and flying:
+            state.subscriptions['/baseline/return_blocked_0'](NS())
         clock.sim += 5.
 
     def transform():
@@ -105,7 +107,7 @@ def harness(tmp_path, monkeypatch):
     install('rclpy.qos', qos_profile_sensor_data=0, QoSProfile=lambda **k:k, DurabilityPolicy=NS(TRANSIENT_LOCAL=1))
     install('nav_msgs.msg', Odometry=object)
     install('sensor_msgs.msg', Image=object, CameraInfo=object)
-    install('std_msgs.msg', String=object, Float64MultiArray=object)
+    install('std_msgs.msg', Empty=object, String=object, Float64MultiArray=object)
     install('geometry_msgs.msg', TransformStamped=transform)
     install('tf2_ros', TransformBroadcaster=lambda _:NS(sendTransform=lambda _:None))
     install('px4_msgs.msg', EstimatorStatusFlags=object, VehicleLocalPosition=object)
@@ -280,6 +282,18 @@ def test_preserves_explicit_wall_watchdog(harness):
     result = harness.result()
     assert result['error'] == 'Explicit wall watchdog exceeded'
     assert not result['deferred_graph_started']
+
+
+def test_blocked_return_ends_run_as_failure_and_cleans_up(harness):
+    harness.return_blocked = True
+    with pytest.raises(SystemExit) as stopped:
+        harness.launch('--recover-no-path', seconds=10_000.)
+    result = harness.result()
+    assert stopped.value.code == 1
+    assert result['error'] == 'Return blocked: no authorized route home'
+    assert result['last']['return_blocked']['reason'] == 'no_authorized_return_route'
+    assert result['budget_end_sim'] == harness.takeoff_at
+    assert result['cleanup']['direct_returncodes']
 
 
 def test_preserves_core_process_exit_failure(harness):

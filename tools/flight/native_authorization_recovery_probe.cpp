@@ -5,6 +5,7 @@
 #include <exploration_manager/fast_exploration_manager.h>
 #include <exploration_manager/expl_data.h>
 #include <plan_manage/planner_manager.h>
+#include <future>
 #include <iostream>
 #include <stdexcept>
 namespace fast_planner {
@@ -193,6 +194,33 @@ struct TaskAuthorizationRecoveryProbe {
             !f.task_return_.terminal() && !f.task_return_.executing() &&
             f.executed_id_<0 && f.state_==PLAN_TRAJ,
             "In-flight loss did not schedule a return retry");
+    f.task_return_=racer_task::ReturnPolicy{};
+    f.task_np_policy_=racer_task::RecoveryPolicy{};
+    f.fd_->go_back_=false;
+    f.fd_->start_pos_=Eigen::Vector3d(3.,0.,1.8);
+    const double failed_at=racer_ros::Time::now().toSec()-101.;
+    for(int i=0;i<3;++i)f.task_np_policy_.failed(root,failed_at+i);
+    f.state_=PUB_TRAJ;
+    f.taskReturnTick();
+    require(!f.task_return_.started(),"A pending search proposal lost ownership");
+    f.state_=PLAN_TRAJ;
+    f.taskReturnTick();
+    require(f.fd_->go_back_ && f.task_return_.home()==racer_task::Point{3.,0.,1.8} &&
+        !f.task_return_.mayUseTemporary(),"Stalled search did not plan to the original home first");
+    require(f.task_return_.attempt(failed_at,false),"No direct return attempt");
+    f.task_return_.noGoal(failed_at);
+    require(f.taskReturnTick() && f.state_==FINISH &&
+        f.task_return_.state()==racer_task::ReturnPolicy::State::blocked,
+        "An unavailable return route did not end the failed mission");
+    auto observer=std::make_shared<rclcpp::Node>("blocked_return_observer");
+    std::promise<void> blocked;
+    auto received=blocked.get_future();
+    auto subscription=observer->create_subscription<std_msgs::Empty>(
+        "/baseline/return_blocked_0",rclcpp::QoS(1).transient_local(),
+        [&](std_msgs::EmptyConstPtr){blocked.set_value();});
+    require(rclcpp::spin_until_future_complete(observer,received,std::chrono::seconds(5))==
+        rclcpp::FutureReturnCode::SUCCESS,"The runner could not receive the terminal status over DDS");
+    std::cout<<"PASS_NATIVE_STALLED_SEARCH fixed_home_first=1 blocked_return=1\n";
     std::cout<<"PASS_NATIVE_COLLISION_FEEDBACK same_stamp_isolated=1 exact_release=1 duplicate_hold_only=1 current_denial=1 no_flight=1\n";
     std::cout<<"PASS_NATIVE_RETURN_RETRY empty_trigger_waits=1 no_goal_retries=1 verified_stop_resumes=1 stale_and_wrong_id_rejected=1 loss_retried=1 no_flight=1\n";
     std::cout<<"PASS_NATIVE_AUTHORIZATION_RECOVERY trigger=3 recovery_attempts=9 real_ros_callback=1 no_flight=1\n";

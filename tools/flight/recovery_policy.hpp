@@ -9,6 +9,8 @@
 #include <limits>
 namespace racer_task {
 using Point = std::array<double,3>;
+// The native idle-to-home interval, in simulation seconds.
+constexpr double kNoProgressSeconds = 100.;
 inline double distance(const Point& a,const Point& b) {
   double s=0;for(int i=0;i<3;++i)s+=(a[i]-b[i])*(a[i]-b[i]);return std::sqrt(s);
 }
@@ -30,6 +32,7 @@ class RecoveryPolicy {
   bool active_=false;
   int failures_=0, attempts_=0;
   double next_=0;
+  double first_failure_=-1.;
   void remember(const Point& p,double now) {
     bad_.erase(std::remove_if(bad_.begin(),bad_.end(),[now](const Bad& b){return b.until<=now;}),bad_.end());
     for(auto& b:bad_)if(distance(p,b.p)<.5){b.until=now+15.;return;}
@@ -39,8 +42,12 @@ public:
   bool active() const{return active_;}
   int attempts() const{return attempts_;}
   int failures() const{return failures_;}
+  bool stalled(double now) const {
+    return active_ && now-first_failure_>=kNoProgressSeconds;
+  }
   void failed(const Point& p,double now) {
     remember(p,now);
+    if(failures_==0)first_failure_=now;
     if(failures_<std::numeric_limits<int>::max())++failures_;
     if(failures_>=3)active_=true;
     if(attempts_>0)next_=std::max(next_,now+planningRetryDelay(attempts_));
@@ -63,7 +70,7 @@ public:
   }
   void hold(double now){next_=now+5.;}
   // A proposal is insufficient: only the actual external activation resets.
-  void activated(){active_=false;failures_=0;attempts_=0;next_=0;bad_.clear();}
+  void activated(){active_=false;failures_=0;attempts_=0;next_=0;first_failure_=-1.;bad_.clear();}
 };
 // Shared by the native FSM and its integration fixture. Geometry comes only
 // from the caller's measured map; this function never invents candidate goals.

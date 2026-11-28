@@ -33,6 +33,19 @@ int main() {
     if(i>=7){assert(!policy.ready(now+1.99));if(i==7)assert(policy.ready(now+2.));}
   }
   assert(attempts==9 && policy.attempts()==9 && policy.failures()==12);
+  // North Quay kept recycling seven endpoints after their 15 s cooldown.
+  // Neither a new proposal nor a duplicate denial starts a new episode.
+  for(int id=13;id<=44;++id) {
+    Point goal={double(id%7),2.,1.8};
+    double now=15.+(id-13)*2.5;
+    policy.attempted(goal,now);
+    assert(authorizationRejected(policy,true,id,id,-1,id-1,goal,now));
+    assert(!policy.stalled(now));
+  }
+  assert(!policy.stalled(100.99) && policy.stalled(101.));
   policy.activated();assert(!policy.active() && policy.attempts()==0 && policy.failures()==0);
+  assert(!policy.stalled(500.));
+  for(int i=0;i<3;++i)policy.failed(requested,500.+i);
+  assert(!policy.stalled(599.) && policy.stalled(600.));
   std::cout<<"PASS_AUTHORIZATION_RECOVERY trigger=3 recovery_attempts=9 duplicate_feedback=300 activation_only_reset=1\n";
 }

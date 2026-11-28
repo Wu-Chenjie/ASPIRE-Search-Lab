@@ -9,6 +9,7 @@ def apply(core):
     p=core/'include/exploration_manager/fast_exploration_fsm.h';s=p.read_text()
     s=replace_once(s,'#include <exploration_manager/task_recovery_policy.hpp>', '#include <exploration_manager/task_recovery_policy.hpp>\n#include <exploration_manager/task_return_policy.hpp>')
     s=replace_once(s,'  bool task_no_path_recovery_', '''  racer_task::ReturnPolicy task_return_;
+  racer_ros::Publisher task_return_blocked_pub_;
   double task_return_odom_stamp_=-1., task_return_log_stamp_=-1.;
   double task_return_execution_stamp_=-1.;
   double task_idle_frontier_retry_=-1.;
@@ -16,18 +17,23 @@ def apply(core):
   void taskReturnLog(const char* reason);
   bool task_no_path_recovery_''');p.write_text(s)
     p=core/'src/exploration_manager/fast_exploration_fsm.cpp';s=p.read_text()
+    anchor='  replan_pub_ = nh.advertise<std_msgs::Empty>("/planning/replan", 10);'
+    s=replace_once(s,anchor,anchor+'''
+  if(live_execution_ && task_stop_and_plan_ && task_no_path_recovery_)
+    task_return_blocked_pub_=nh.advertise<std_msgs::Empty>(
+        "/baseline/return_blocked_"+std::to_string(getId()-1), 1, true);''')
     s=replace_once(s,'  switch (state_) {','  if(taskReturnTick())return;\n  switch (state_) {')
     # Keep the original idle-to-home timer, but allow delayed observations to
     # produce a first or subsequent frontier in the usual live entry point.
     s=replace_once(s,'      if (check_interval > 100.0) {','''      const double now=racer_ros::Time::now().toSec();
-      if(live_execution_ && check_interval<=100. && now>=task_idle_frontier_retry_) {
+      if(live_execution_ && check_interval<=racer_task::kNoProgressSeconds && now>=task_idle_frontier_retry_) {
         task_idle_frontier_retry_=now+5.;
         if(expl_manager_->updateFrontierStruct(fd_->odom_pos_)!=0) {
           transitState(PLAN_TRAJ,"measured frontiers available");
           break;
         }
       }
-      if (check_interval > 100.0) {''')
+      if (check_interval > racer_task::kNoProgressSeconds) {''')
     s=replace_once(s,'''  } else
     transitState(FINISH, "triggerCallback");''','''  } else if(live_execution_) {
     fd_->last_check_frontier_time_=racer_ros::Time::now();

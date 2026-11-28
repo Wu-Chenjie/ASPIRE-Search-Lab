@@ -57,6 +57,21 @@ int main() {
   assert(rejected.attempts()==8 && rejected.state()==ReturnPolicy::State::waiting_retry);
   assert(!rejected.terminal() && !rejected.attempt(9.05,false));
   assert(rejected.attempt(9.11,false));
+  ReturnPolicy stalled;stalled.begin(home,true);
+  assert(!stalled.mayUseTemporary() && stalled.attempt(0.,false));
+  stalled.failed(1.);
+  assert(stalled.mayUseTemporary() && stalled.attempt(10.,true));
+  stalled.proposed(50);assert(stalled.rejected(50,11.));
+  assert(!stalled.mayUseTemporary() && !stalled.blockIfStalled(100.99));
+  assert(stalled.attempt(100.99,false));stalled.proposed(51);
+  assert(!stalled.blockIfStalled(102.)); // A pending authorization still owns the proposal.
+  assert(stalled.activated(51) && !stalled.blockIfStalled(250.));
+  assert(stalled.observe(51,true,away,true) && !stalled.blockIfStalled(251.));
+  assert(stalled.attempt(252.,false));stalled.failed(252.);
+  assert(stalled.attempt(255.,true));stalled.noGoal(255.);
+  assert(!stalled.blockIfStalled(351.99) && stalled.blockIfStalled(352.));
+  assert(stalled.state()==ReturnPolicy::State::blocked && !stalled.attempt(500.,false));
+  assert(!stalled.observe(51,true,home,true) && !stalled.blockIfStalled(500.));
   // Session/failsafe retirement is irreversible; fresh input cannot reflight.
   ReturnPolicy lost;lost.begin(home);lost.attempt(0,false);lost.proposed(42);lost.activated(42);lost.retire();
   lost.begin(away);assert(!lost.activated(42));assert(!lost.observe(42,true,home,true));assert(!lost.attempt(100,false));
