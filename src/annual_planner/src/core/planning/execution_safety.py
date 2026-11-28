@@ -260,16 +260,19 @@ class ExecutionCorridor:
             if not ExecutionCorridor(self.runtime, self.native, self.margin).box_safe(endpoint, endpoint):
                 return False
 
-        def span(c,lo,hi,T,depth=0):
-            low,high=polynomial_box(c,lo,hi)
+        def span(c,lo,hi,T,begin,depth=0):
+            low,high=polynomial_box(c,max(lo,begin),hi)
             if self.box_safe(low,high): return True
             if depth >= 12 or (hi-lo)*T <= .01: return False
+            # Keep the admission subdivision when checking a suffix. Shifting
+            # every midpoint can create a failing box on an unchanged map.
             mid=(lo+hi)/2
-            return span(c,lo,mid,T,depth+1) and span(c,mid,hi,T,depth+1)
+            if begin < mid and not span(c,lo,mid,T,begin,depth+1): return False
+            return span(c,mid,hi,T,begin,depth+1)
         for i,(c,T) in enumerate(zip(curve.coefficients,curve.durations)):
             if curve.knots[i+1] < start: continue
-            lo=max(0.,(start-curve.knots[i])/T)
-            if not span(c,lo,1.,T): return False
+            begin=min(1.,max(0.,(start-curve.knots[i])/T))
+            if not span(c,0.,1.,T,begin): return False
         return True
 
 

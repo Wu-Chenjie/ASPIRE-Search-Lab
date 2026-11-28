@@ -24,6 +24,20 @@ def recorded_curve():
     return append_safe_brake(native_trajectory(packet),SimpleNamespace(safe_path=lambda p:True))
 
 
+def test_clearance_recheck_keeps_the_certified_subdivision():
+    runtime, native = maps()
+    native.state[4, 5, 5] = 5  # Free but inflated. The diagonal skirts its corner.
+    coefficients = np.zeros((6, 3))
+    coefficients[0] = [1.2, 1.1999, 1.65]
+    coefficients[1] = [.6, .6, 0.]
+    curve = ContinuousTrajectory([1.], [coefficients], 0., 0., 'diagonal')
+    corridor = ExecutionCorridor(runtime, native)
+    for progress in (0., .123, .499, .5, 1.):
+        assert corridor.safe_curve(curve, progress)
+    native.state[5, 5, 5] = 5  # This cell intersects the remaining trajectory.
+    assert not corridor.safe_curve(curve, .123)
+
+
 def test_native_planning_reference_uses_fixed_hover_instead_of_odometry_drift():
     runtime, native = maps()
     runtime.state[8, 8, 4] = 1

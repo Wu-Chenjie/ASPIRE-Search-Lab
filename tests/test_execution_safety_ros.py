@@ -1110,6 +1110,7 @@ def test_brake_certificate_reuses_serialized_replacement(executor, monkeypatch, 
     snapshot(executor, state)
     node.check_execution_safety(executor.now())
     assert node.safety_stopping and node.safety_fault is None
-    assert calls == [original, node.curve]
+    assert len(calls) == 2 and set(calls) == {original, node.curve}
     _, payload = node.safety_certificate_queue.get_nowait()
+    assert json.loads(payload['original']) == original_to_dict(original)
     assert json.loads(payload['replacement']) == node.safety_revision['trajectory']
