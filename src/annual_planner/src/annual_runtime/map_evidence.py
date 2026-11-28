@@ -56,6 +56,7 @@ def mapper_before(node,message,stamp,pose):
                     consume_wall_ns=time.monotonic_ns(),pose_endpoint_samples_complete=len(endpoints)==len(set(bracket)),sensor_session=node.session,sequence_before=node.sequence,sensor_stamp_s=stamp,
                     depth_header_stamp_ns=message.header.stamp.sec*10**9+message.header.stamp.nanosec,
                     depth_frame=message.header.frame_id,depth_encoding=message.encoding,depth_step=message.step,
+                    projection_stride=node.projection_stride,
                     depth_bigendian=bool(message.is_bigendian),width=message.width,height=message.height,
                     calibration_stamp_ns=cal.header.stamp.sec*10**9+cal.header.stamp.nanosec,
                     calibration_frame=cal.header.frame_id,calibration_width=cal.width,calibration_height=cal.height,

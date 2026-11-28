@@ -62,6 +62,8 @@ frontier.write_text(replace_once(text,anchor,'Eigen::Matrix2d vectors = es.eigen
 manager=core/'src/exploration_manager/fast_exploration_manager.cpp'
 text=manager.read_text();anchor='  shortenPath(ed_->path_next_goal_);'
 manager.write_text(replace_once(text,anchor,anchor+'\n  if (ed_->path_next_goal_.size() < 3) { ROS_WARN("Degenerate viewpoint path"); return FAIL; }'))
+# A guarded trajectory relies on every nearby occupied cell contributing its inflation.
+consistent_inflation = a.execution_safety or a.consistent_inflation
 # The overlays modify the same pinned sources in this order.
 for module, enabled in (
     ('flight.fsm_overlay', True),
@@ -70,7 +72,7 @@ for module, enabled in (
     ('flight.dynamics_overlay', True),
     ('hm3d.frontier_diagnostics', True),
     ('hm3d.vertical_sampling', True),
-    ('hm3d.inflation_overlay', a.consistent_inflation),
+    ('hm3d.inflation_overlay', consistent_inflation),
     ('hm3d.provenance_overlay', a.provenance_probe),
     ('flight.safety_map_overlay', a.execution_safety),
     ('flight.optimizer_overlay', True),
@@ -92,5 +94,5 @@ for module, enabled in (
     if enabled:
         import_module('tools.' + module).apply(core)
 import hashlib,json
-(a.output/'task-overlay.json').write_text(json.dumps({'execution_safety':a.execution_safety,'diagnostic_map_probe':a.map_probe,'diagnostic_provenance_probe':a.provenance_probe,'consistent_inflation':a.consistent_inflation,'base_migration_sha256':migration_sha256,'changes':['opt-in static-event preview/replan/publication checks in execution-safety builds (default off; original stop-and-plan retained)', 'opt-in bounded same-request review continuation with correlated actual arrival and deferred cancellation (default off)', 'native viewpoint rejection diagnostics and opt-in bounded altitude sampling (default off)', 'single-machine stop-and-plan driver', 'constant-yaw normalization and fail-closed optimizer proposal transaction', 'opt-in bounded native no-path recovery and Astar diagnostics', 'opt-in native hard-rest boundaries and bounded common time feasibility', 'opt-in guarded flight review/frontier recovery and stop-and-plan FSM','reuse latest original-project ROS2 runtime shutdown fixes and probe','own Eigen frontier eigenvectors temporary','reject degenerate viewpoint path'],'files':{str(f.relative_to(a.output)):hashlib.sha256(f.read_bytes()).hexdigest() for f in (a.output/'src').rglob('*') if f.is_file()}},indent=2)+'\n')
+(a.output/'task-overlay.json').write_text(json.dumps({'execution_safety':a.execution_safety,'diagnostic_map_probe':a.map_probe,'diagnostic_provenance_probe':a.provenance_probe,'consistent_inflation':consistent_inflation,'base_migration_sha256':migration_sha256,'changes':['opt-in static-event preview/replan/publication checks in execution-safety builds (default off; original stop-and-plan retained)', 'opt-in bounded same-request review continuation with correlated actual arrival and deferred cancellation (default off)', 'native viewpoint rejection diagnostics and opt-in bounded altitude sampling (default off)', 'single-machine stop-and-plan driver', 'constant-yaw normalization and fail-closed optimizer proposal transaction', 'opt-in bounded native no-path recovery and Astar diagnostics', 'opt-in native hard-rest boundaries and bounded common time feasibility', 'opt-in guarded flight review/frontier recovery and stop-and-plan FSM','reuse latest original-project ROS2 runtime shutdown fixes and probe','own Eigen frontier eigenvectors temporary','reject degenerate viewpoint path'],'files':{str(f.relative_to(a.output)):hashlib.sha256(f.read_bytes()).hexdigest() for f in (a.output/'src').rglob('*') if f.is_file()}},indent=2)+'\n')
 print(a.output)

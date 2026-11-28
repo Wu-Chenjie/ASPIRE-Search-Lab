@@ -16,7 +16,7 @@ def test_real_ros_trigger_and_raw_mapper_capture_exactly_replay(tmp_path,monkeyp
     monkeypatch.setenv('RACER_MAP_EVIDENCE_DIR',str(tmp_path/'evidence'))
     monkeypatch.setenv('RACER_OBSERVATION_SESSION','stage36-component')
     bounds=[[-3,-4,0],[7,4,4]];param=tmp_path/'params.json'
-    param.write_text(json.dumps(dict(pointcloud_mapper=dict(ros__parameters=dict(bounds=json.dumps(bounds),publish_native_frames=True)))))
+    param.write_text(json.dumps(dict(pointcloud_mapper=dict(ros__parameters=dict(bounds=json.dumps(bounds),publish_native_frames=True,projection_stride=4)))))
     rclpy.init(args=['--ros-args','--params-file',str(param)],domain_id=186)
     node=PointCloudMapper();peer=rclpy.create_node('capture_trigger_fixture');sink=node.map_evidence
     pub=peer.create_publisher(String,'/drone_0/diagnostics/map_evidence_trigger',10)
@@ -49,7 +49,7 @@ def test_real_ros_trigger_and_raw_mapper_capture_exactly_replay(tmp_path,monkeyp
         m=image(meta['sensor_stamp_s']);m.data=capture['raw_depth'].tobytes()
         info.k=capture['k'].tolist();state=capture['mapper_before'];replay=VoxelMap(bounds);replay.state=state.copy();replay.shape=state.shape;replay.version=meta['mapper_version_before']
         packets=[]
-        fake=N(id=0,session=meta['sensor_session'],calibration=info,map=replay,
+        fake=N(id=0,session=meta['sensor_session'],calibration=info,map=replay,projection_stride=meta['projection_stride'],
                belief=capture['belief_before'].copy(),ego_cells=set(map(tuple,capture['ego_cells_before'])),
                full_requested=False,publish_native_frames=True,sequence=meta['sequence_before'],last=-10.,
                map_evidence=None,map_timing=None,publish_native_dds=False,

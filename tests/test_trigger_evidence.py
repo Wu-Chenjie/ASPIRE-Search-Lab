@@ -130,11 +130,12 @@ def test_receipt_metadata_is_bounded_and_interpolation_endpoints_are_preserved(t
     cal=N(header=m.header,width=1,height=1,k=[1.,0,0,0,1.,0,0,0,1.])
     vm=VoxelMap([[0,0,0],[6,6,4]])
     node=N(map_evidence=ring,_map_evidence_received={},_map_evidence_receipt_ordinal=0,pending=[],get_clock=lambda:N(now=lambda:N(nanoseconds=1020000000)),poses=poses,
-        calibration=cal,session='test',sequence=0,map=vm,belief=np.zeros(vm.shape,np.float32),ego_cells=set())
+        calibration=cal,projection_stride=4,session='test',sequence=0,map=vm,belief=np.zeros(vm.shape,np.float32),ego_cells=set())
     messages=[N() for _ in range(9)]
     for msg in messages:mapper_received(node,msg)
     assert len(node._map_evidence_received)==8 and id(messages[0]) not in node._map_evidence_received
     mapper_received(node,m);context=mapper_before(node,m,1.01,poses.at(1.01))
+    assert context['metadata']['projection_stride']==4
     assert context['metadata']['receipt']['receipt_ordinal']==10
     assert context['metadata']['pose_endpoint_samples_complete']
     np.testing.assert_array_equal(context['arrays']['pose_endpoint_positions'],[[1,2,1],[1.02,2,1]])

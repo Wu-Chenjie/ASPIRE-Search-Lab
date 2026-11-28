@@ -10,7 +10,7 @@ python3 tools/racer_ros2/verify.py external/racer_ros2_ws
 
 A 在 Linux 联调机准备 ROS 2 Jazzy、Gazebo Harmonic、colcon、px4_msgs、PX4 SITL 与 Micro XRCE Agent。系统包与已有构建由运行机统一管理。B 负责提供匹配 [检测配置](../config/detectors/yolo11n-seg-locked.json) 的本地权重及检测环境。权重、场景生成物、构建和日志写到仓库外。
 
-在载入 ROS 与 px4_msgs 后构建启用执行校验的原生 RACER。构建目录使用新目录或空目录。
+在载入 ROS 与 px4_msgs 后构建启用执行校验的原生 RACER。`--execution-safety` 会一并启用一致膨胀，局部地图更新时会保留更新范围外障碍物对边界栅格的影响。构建目录使用新目录或空目录。
 
 ```sh
 bash tools/search/build.sh "$ASPIRE_NATIVE_WS" --execution-safety
