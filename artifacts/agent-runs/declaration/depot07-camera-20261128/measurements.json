@@ -1,0 +1,937 @@
+{
+  "code_commit": "b39690cacddc0b513e80f89608753a598f1f2f59",
+  "clock": "Intel Core Ultra 9 275HX / WSL2 / monotonic wall ms",
+  "capture": {
+    "best_effort": {
+      "320": {
+        "expected": 160,
+        "rgb": 160,
+        "depth": 152,
+        "rgb_and_depth": 152,
+        "valid_calibration_pose_label_frames": 152,
+        "rgbd_per_received_rgb": 0.95
+      },
+      "640": {
+        "expected": 160,
+        "rgb": 28,
+        "depth": 47,
+        "rgb_and_depth": 12,
+        "valid_calibration_pose_label_frames": 3,
+        "rgbd_per_received_rgb": 0.42857142857142855
+      }
+    },
+    "reliable_main": {
+      "320": {
+        "expected": 160,
+        "rgb": 160,
+        "depth": 160,
+        "rgb_and_depth": 160,
+        "valid_calibration_pose_label_frames": 160,
+        "rgbd_per_received_rgb": 1.0
+      },
+      "640": {
+        "expected": 160,
+        "rgb": 160,
+        "depth": 160,
+        "rgb_and_depth": 160,
+        "valid_calibration_pose_label_frames": 160,
+        "rgbd_per_received_rgb": 1.0
+      }
+    },
+    "reliable_offsets": {
+      "320": {
+        "expected": 160,
+        "rgb": 160,
+        "depth": 160,
+        "rgb_and_depth": 160,
+        "valid_calibration_pose_label_frames": 160,
+        "rgbd_per_received_rgb": 1.0
+      },
+      "640": {
+        "expected": 160,
+        "rgb": 160,
+        "depth": 160,
+        "rgb_and_depth": 160,
+        "valid_calibration_pose_label_frames": 160,
+        "rgbd_per_received_rgb": 1.0
+      }
+    }
+  },
+  "pose": {
+    "fixed": {
+      "frames": 10,
+      "slide_m": 0.0,
+      "yaw_deg": 0.0
+    },
+    "moving": {
+      "frames": 30,
+      "slide_m": 1.0399679239505812,
+      "yaw_deg": 22.91760495051943
+    }
+  },
+  "mapper_cadence": {
+    "320_fixed_8": {
+      "frames": 10,
+      "wall_points": 2570,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 240,
+      "crate_surface_abs_p95_mm": [
+        0.0004577636717739697
+      ],
+      "visible_cell_frames": 240,
+      "occupied_cell_frames": 240,
+      "fresh_hit_cell_frames": 240,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 120,
+      "projection_ms": [
+        0.13443300000000002,
+        0.20170194999999994
+      ],
+      "mapping_ms": [
+        3.9475625,
+        5.994352299999997
+      ],
+      "integrate_ms": [
+        3.858733,
+        5.817989749999998
+      ],
+      "callback_ms": [
+        4.6634235,
+        7.306118149999999
+      ]
+    },
+    "320_fixed_4": {
+      "frames": 10,
+      "wall_points": 9980,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 840,
+      "crate_surface_abs_p95_mm": [
+        0.0004577636717739697
+      ],
+      "visible_cell_frames": 240,
+      "occupied_cell_frames": 240,
+      "fresh_hit_cell_frames": 240,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 120,
+      "projection_ms": [
+        0.1713015,
+        0.5761293499999993
+      ],
+      "mapping_ms": [
+        16.8579195,
+        18.786672549999995
+      ],
+      "integrate_ms": [
+        16.70759,
+        18.632622299999998
+      ],
+      "callback_ms": [
+        18.141117,
+        26.83113769999999
+      ]
+    },
+    "320_moving_8": {
+      "frames": 30,
+      "wall_points": 7335,
+      "wall_abs_p95_mm": 1.8158330513848853,
+      "wall_signed_025_975_mm": [
+        -1.8188417382605238,
+        1.8098721721164779
+      ],
+      "wall_median_range_mm": [
+        -1.7648482830043832,
+        1.7928437282490606
+      ],
+      "crate_points": 552,
+      "crate_surface_abs_p95_mm": [
+        6.500042626746416
+      ],
+      "visible_cell_frames": 660,
+      "occupied_cell_frames": 660,
+      "fresh_hit_cell_frames": 340,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 360,
+      "projection_ms": [
+        0.0959275,
+        0.1661776999999999
+      ],
+      "mapping_ms": [
+        3.8130805,
+        5.846305099999996
+      ],
+      "integrate_ms": [
+        3.6766655,
+        5.758585699999996
+      ],
+      "callback_ms": [
+        4.408526500000001,
+        6.748036399999998
+      ]
+    },
+    "320_moving_4": {
+      "frames": 30,
+      "wall_points": 29107,
+      "wall_abs_p95_mm": 1.8158330513848853,
+      "wall_signed_025_975_mm": [
+        -1.8158330513848853,
+        1.8139331029631833
+      ],
+      "wall_median_range_mm": [
+        -1.7648482830043832,
+        1.7989233316573205
+      ],
+      "crate_points": 2338,
+      "crate_surface_abs_p95_mm": [
+        6.608978722133715
+      ],
+      "visible_cell_frames": 660,
+      "occupied_cell_frames": 660,
+      "fresh_hit_cell_frames": 632,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 360,
+      "projection_ms": [
+        0.168817,
+        0.28078884999999987
+      ],
+      "mapping_ms": [
+        15.641419500000001,
+        21.021077049999995
+      ],
+      "integrate_ms": [
+        15.5117735,
+        20.852949249999995
+      ],
+      "callback_ms": [
+        16.453855,
+        21.936455499999994
+      ]
+    },
+    "640_fixed_8": {
+      "frames": 10,
+      "wall_points": 11300,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 1140,
+      "crate_surface_abs_p95_mm": [
+        3.780562310533253
+      ],
+      "visible_cell_frames": 240,
+      "occupied_cell_frames": 240,
+      "fresh_hit_cell_frames": 240,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 120,
+      "projection_ms": [
+        0.1986715,
+        0.26915074999999994
+      ],
+      "mapping_ms": [
+        14.60512,
+        16.89046345
+      ],
+      "integrate_ms": [
+        14.480171,
+        16.75063265
+      ],
+      "callback_ms": [
+        15.6505195,
+        17.67376835
+      ]
+    },
+    "640_fixed_4": {
+      "frames": 10,
+      "wall_points": 41950,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 4600,
+      "crate_surface_abs_p95_mm": [
+        3.683309352043925
+      ],
+      "visible_cell_frames": 240,
+      "occupied_cell_frames": 240,
+      "fresh_hit_cell_frames": 240,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 120,
+      "projection_ms": [
+        0.510266,
+        1.0404060499999996
+      ],
+      "mapping_ms": [
+        64.41407,
+        78.53041324999998
+      ],
+      "integrate_ms": [
+        63.877969500000006,
+        78.29622174999999
+      ],
+      "callback_ms": [
+        65.561158,
+        79.72498284999998
+      ]
+    },
+    "640_moving_8": {
+      "frames": 30,
+      "wall_points": 32241,
+      "wall_abs_p95_mm": 0.9094583730275829,
+      "wall_signed_025_975_mm": [
+        -0.911477851156306,
+        0.9060400150282533
+      ],
+      "wall_median_range_mm": [
+        -0.8921077793031529,
+        0.9000477488685377
+      ],
+      "crate_points": 2583,
+      "crate_surface_abs_p95_mm": [
+        3.522259746547962
+      ],
+      "visible_cell_frames": 660,
+      "occupied_cell_frames": 660,
+      "fresh_hit_cell_frames": 640,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 360,
+      "projection_ms": [
+        0.19958599999999999,
+        0.35938385
+      ],
+      "mapping_ms": [
+        15.267316000000001,
+        21.35496304999999
+      ],
+      "integrate_ms": [
+        15.154152,
+        21.19066094999999
+      ],
+      "callback_ms": [
+        16.2960295,
+        22.501613299999992
+      ]
+    },
+    "640_moving_4": {
+      "frames": 30,
+      "wall_points": 127073,
+      "wall_abs_p95_mm": 0.9094682095067697,
+      "wall_signed_025_975_mm": [
+        -0.911477851156306,
+        0.9072716143503357
+      ],
+      "wall_median_range_mm": [
+        -0.8847632434383357,
+        0.8983709021803676
+      ],
+      "crate_points": 10890,
+      "crate_surface_abs_p95_mm": [
+        3.424688992522351
+      ],
+      "visible_cell_frames": 660,
+      "occupied_cell_frames": 660,
+      "fresh_hit_cell_frames": 660,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 360,
+      "projection_ms": [
+        0.5413105,
+        0.8819533499999999
+      ],
+      "mapping_ms": [
+        64.042374,
+        75.65507329999998
+      ],
+      "integrate_ms": [
+        63.7611965,
+        75.38406574999999
+      ],
+      "callback_ms": [
+        65.88,
+        77.22820074999998
+      ]
+    }
+  },
+  "all_frames": {
+    "320_fixed_8": {
+      "frames": 40,
+      "wall_points": 10280,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 960,
+      "crate_surface_abs_p95_mm": [
+        0.0004577636717739697
+      ],
+      "visible_cell_frames": 960,
+      "occupied_cell_frames": 960,
+      "fresh_hit_cell_frames": 960,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 480,
+      "projection_ms": [
+        0.0938975,
+        0.40609559999999983
+      ],
+      "mapping_ms": [
+        3.5892835,
+        5.413573349999999
+      ],
+      "integrate_ms": [
+        3.5106345,
+        5.3086025999999995
+      ],
+      "callback_ms": [
+        4.2668055,
+        6.063352549999999
+      ]
+    },
+    "320_fixed_4": {
+      "frames": 40,
+      "wall_points": 39920,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 3360,
+      "crate_surface_abs_p95_mm": [
+        0.0004577636717739697
+      ],
+      "visible_cell_frames": 960,
+      "occupied_cell_frames": 960,
+      "fresh_hit_cell_frames": 960,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 480,
+      "projection_ms": [
+        0.1689615,
+        0.27058574999999985
+      ],
+      "mapping_ms": [
+        16.108783,
+        18.1052675
+      ],
+      "integrate_ms": [
+        15.948009500000001,
+        17.9899328
+      ],
+      "callback_ms": [
+        16.863536,
+        19.282222449999995
+      ]
+    },
+    "320_moving_8": {
+      "frames": 120,
+      "wall_points": 29048,
+      "wall_abs_p95_mm": 1.8158330513848853,
+      "wall_signed_025_975_mm": [
+        -1.8223050212373693,
+        1.802750727494029
+      ],
+      "wall_median_range_mm": [
+        -1.7855237502946153,
+        1.7928437282490606
+      ],
+      "crate_points": 2329,
+      "crate_surface_abs_p95_mm": [
+        6.668621036542421
+      ],
+      "visible_cell_frames": 2676,
+      "occupied_cell_frames": 2636,
+      "fresh_hit_cell_frames": 1472,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 1440,
+      "projection_ms": [
+        0.09157950000000001,
+        0.18433904999999998
+      ],
+      "mapping_ms": [
+        3.658801,
+        5.750381349999999
+      ],
+      "integrate_ms": [
+        3.5729249999999997,
+        5.651584549999998
+      ],
+      "callback_ms": [
+        4.376098000000001,
+        7.705852299999997
+      ]
+    },
+    "320_moving_4": {
+      "frames": 120,
+      "wall_points": 115930,
+      "wall_abs_p95_mm": 1.819780277354119,
+      "wall_signed_025_975_mm": [
+        -1.8264630957265382,
+        1.8107682317545226
+      ],
+      "wall_median_range_mm": [
+        -1.7789723370960075,
+        1.7989233316573205
+      ],
+      "crate_points": 9415,
+      "crate_surface_abs_p95_mm": [
+        6.668621036542421
+      ],
+      "visible_cell_frames": 2676,
+      "occupied_cell_frames": 2676,
+      "fresh_hit_cell_frames": 2440,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 1440,
+      "projection_ms": [
+        0.1602205,
+        0.2432179
+      ],
+      "mapping_ms": [
+        16.227178000000002,
+        21.3951991
+      ],
+      "integrate_ms": [
+        16.092346499999998,
+        21.263977149999995
+      ],
+      "callback_ms": [
+        17.0279325,
+        22.096020449999997
+      ]
+    },
+    "640_fixed_8": {
+      "frames": 40,
+      "wall_points": 45200,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 4560,
+      "crate_surface_abs_p95_mm": [
+        3.780562310533253
+      ],
+      "visible_cell_frames": 960,
+      "occupied_cell_frames": 960,
+      "fresh_hit_cell_frames": 960,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 480,
+      "projection_ms": [
+        0.1928165,
+        0.2772810999999999
+      ],
+      "mapping_ms": [
+        14.768376,
+        20.761774699999993
+      ],
+      "integrate_ms": [
+        14.653012,
+        20.59066639999999
+      ],
+      "callback_ms": [
+        15.642783999999999,
+        21.519284299999992
+      ]
+    },
+    "640_fixed_4": {
+      "frames": 40,
+      "wall_points": 167800,
+      "wall_abs_p95_mm": 0.0011444091798651357,
+      "wall_signed_025_975_mm": [
+        -0.0002861022947442393,
+        0.0011444091798651357
+      ],
+      "wall_median_range_mm": [
+        0.00019073486345888568,
+        0.00019073486345888568
+      ],
+      "crate_points": 18400,
+      "crate_surface_abs_p95_mm": [
+        3.683309352043832
+      ],
+      "visible_cell_frames": 960,
+      "occupied_cell_frames": 960,
+      "fresh_hit_cell_frames": 960,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 480,
+      "projection_ms": [
+        0.514776,
+        0.8058316999999997
+      ],
+      "mapping_ms": [
+        65.467555,
+        74.00690279999999
+      ],
+      "integrate_ms": [
+        65.1308175,
+        73.76168375
+      ],
+      "callback_ms": [
+        66.8630325,
+        75.0819218
+      ]
+    },
+    "640_moving_8": {
+      "frames": 120,
+      "wall_points": 127184,
+      "wall_abs_p95_mm": 0.9105898856631711,
+      "wall_signed_025_975_mm": [
+        -0.9139486120606222,
+        0.9060400150282533
+      ],
+      "wall_median_range_mm": [
+        -0.8921077793031529,
+        0.9000477488685377
+      ],
+      "crate_points": 10354,
+      "crate_surface_abs_p95_mm": [
+        3.4592918857599964
+      ],
+      "visible_cell_frames": 2676,
+      "occupied_cell_frames": 2676,
+      "fresh_hit_cell_frames": 2444,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 1440,
+      "projection_ms": [
+        0.191424,
+        0.3087776999999999
+      ],
+      "mapping_ms": [
+        14.9174025,
+        18.996574
+      ],
+      "integrate_ms": [
+        14.774788000000001,
+        18.8157332
+      ],
+      "callback_ms": [
+        15.799709,
+        20.743521949999998
+      ]
+    },
+    "640_moving_4": {
+      "frames": 120,
+      "wall_points": 508339,
+      "wall_abs_p95_mm": 0.9102347471747763,
+      "wall_signed_025_975_mm": [
+        -0.9143985720196923,
+        0.9053217813743686
+      ],
+      "wall_median_range_mm": [
+        -0.8847632434383357,
+        0.8983709021803676
+      ],
+      "crate_points": 43104,
+      "crate_surface_abs_p95_mm": [
+        3.452649630500182
+      ],
+      "visible_cell_frames": 2676,
+      "occupied_cell_frames": 2676,
+      "fresh_hit_cell_frames": 2676,
+      "last_frame": [
+        24,
+        24
+      ],
+      "empty_control_occupied": 0,
+      "empty_control_total": 1440,
+      "projection_ms": [
+        0.5531625,
+        1.01751105
+      ],
+      "mapping_ms": [
+        66.65315899999999,
+        76.30041589999999
+      ],
+      "integrate_ms": [
+        66.37673649999999,
+        75.9435518
+      ],
+      "callback_ms": [
+        68.08578700000001,
+        77.42619995
+      ]
+    }
+  },
+  "fixed_offsets_mm": [
+    0,
+    12,
+    24,
+    36,
+    48,
+    60,
+    72,
+    84
+  ],
+  "fixed_offset_final_maps": {
+    "320_8": {
+      "per_view": [
+        [
+          24,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          12,
+          24
+        ],
+        [
+          4,
+          24
+        ],
+        [
+          4,
+          24
+        ],
+        [
+          0,
+          24
+        ],
+        [
+          16,
+          24
+        ],
+        [
+          24,
+          24
+        ]
+      ],
+      "occupied": 104,
+      "visible": 192,
+      "coverage": 0.5416666666666666
+    },
+    "320_4": {
+      "per_view": [
+        [
+          24,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          16,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          24,
+          24
+        ]
+      ],
+      "occupied": 168,
+      "visible": 192,
+      "coverage": 0.875
+    },
+    "640_8": {
+      "per_view": [
+        [
+          24,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          20,
+          24
+        ],
+        [
+          24,
+          24
+        ]
+      ],
+      "occupied": 176,
+      "visible": 192,
+      "coverage": 0.9166666666666666
+    },
+    "640_4": {
+      "per_view": [
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ],
+        [
+          24,
+          24
+        ]
+      ],
+      "occupied": 192,
+      "visible": 192,
+      "coverage": 1.0
+    }
+  },
+  "wall_interior_layer_check": {
+    "cases": 160,
+    "layer_centers_m": [
+      4.05
+    ],
+    "layer_count_by_case": {
+      "1": 160
+    }
+  },
+  "moving_wall_pixel_sensitivity_mm": {
+    "320": {
+      "-0.5": 3.6397590978189953,
+      "0.0": 1.8197802773533196,
+      "0.5": 0.0016364301864246608
+    },
+    "640": {
+      "-0.5": 1.8200907536109572,
+      "0.0": 0.9102347471747763,
+      "0.5": 0.0016245458702712767
+    }
+  }
+}

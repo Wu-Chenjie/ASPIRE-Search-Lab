@@ -1,0 +1,7 @@
+2026-11-28　B 人员分割验收
+
+核心目标已达成。Depot 07 采用 RF-DETR-Seg Nano、CUDA Graph、FP32、batch 1 和 registry 模式。
+RTX 5060 Laptop GPU 以墙钟 60 FPS 回放同一批 3,125 个唯一 RGB-D 输入，正式节点输出 59.84 张新图/秒，收 RGB 到掩膜发布的 P95 为 11.95 ms。
+在 2,500 张测试图、每个模型累计 250 个误报时，YOLO 与正式 RF-DETR 的倒地漏检分别为 1,475、606 人帧，部分遮挡漏检分别为 1,891、1,012 人帧。
+整套仿真另计。ce646a4 闭环的实测实时因子为 0.380，6,000 对 RGB-D 中 5,980 帧发布掩膜，墙钟吞吐 22.74 张/秒。
+复核依据见本目录 declaration20261124-001.txt，以及团队运行归档 depot07-live-ce646a4.aKua8c/verified/live-summary.json。

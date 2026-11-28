@@ -4,6 +4,8 @@
 CPU-only（`torch 2.5.1+cpu`、`ultralytics 8.3.228`、`yolo11n-seg.pt`，权重 sha256 与
 `config/detectors/yolo11n-seg-locked.json` 一致）。
 
+2026-11-28 验收更新。B 已采用 RF-DETR-Seg Nano 并达成人员分割核心目标。C 已在 Depot 07 使用固定和移动机位测量同一面墙，并按曝光时刻对照薄杆地图覆盖率、RGB-D 配对与建图耗时。[B 验收记录](declaration20261128-001.txt) · [C 仿真报告与对比图](depot07-camera-20261128/report.md)
+
 ## 结论摘要
 
 1. **纯推理是主要瓶颈。** 640 输入 P50 124.6 ms、320 输入 P50 34.0 ms，占单帧耗时的 96–99%；
